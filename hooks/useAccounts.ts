@@ -48,7 +48,7 @@ export function useUpdateAccount() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationKey: ['account-update'],
-        meta: { errorMessage: 'Error al actualizar cuenta' },
+        meta: { errorMessage: 'Error al actualizar cuenta', broadcastKeys: ['accounts'] },
 
         mutationFn: async ({ id, ...updates }: { id: number; name?: string; note?: string; closed?: boolean }) => {
             const res = await fetch(`/api/accounts/${id}`, {

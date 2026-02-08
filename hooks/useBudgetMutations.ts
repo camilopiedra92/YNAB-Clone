@@ -51,7 +51,7 @@ export function useUpdateAssigned(currentMonth: string) {
     return useMutation({
         // Per-category mutationKey prevents rapid edits on different categories from colliding
         mutationKey: ['budget-update-assigned'],
-        meta: { errorMessage: 'Error al guardar la asignación' },
+        meta: { errorMessage: 'Error al guardar la asignación', broadcastKeys: ['budget', 'accounts'] },
         mutationFn: async ({ categoryId, value, currentBudgetData }: UpdateAssignedParams) => {
             let numericValue = parseLocaleNumber(value);
 
@@ -80,7 +80,8 @@ export function useUpdateAssigned(currentMonth: string) {
                 throw new Error(data.error || 'Error al guardar la asignación');
             }
 
-            return { skipped: false, numericValue };
+            const responseData = await res.json();
+            return { skipped: false, numericValue, serverData: responseData };
         },
 
         retry: 1,
@@ -122,6 +123,35 @@ export function useUpdateAssigned(currentMonth: string) {
             return { previous, skipped: false };
         },
 
+        onSuccess: (data) => {
+            // Immediately update cache with accurate server-calculated values
+            // This replaces the optimistic approximation with the real RTA, available, etc.
+            if (!data.skipped && data.serverData) {
+                const { budget, readyToAssign, rtaBreakdown, overspendingTypes, inspectorData } = data.serverData;
+                if (budget && readyToAssign !== undefined) {
+                    // Merge overspending types into budget items (same as fetchBudget transform)
+                    const mergedBudget = overspendingTypes
+                        ? budget.map((item: BudgetItem) => ({
+                            ...item,
+                            overspending_type: item.category_id ? (overspendingTypes[item.category_id] || null) : null,
+                        }))
+                        : budget;
+
+                    queryClient.setQueryData(['budget', currentMonth], (old: any) => {
+                        if (!old) return old;
+                        return {
+                            ...old,
+                            budget: mergedBudget,
+                            readyToAssign,
+                            rtaBreakdown,
+                            overspendingTypes,
+                            inspectorData,
+                        };
+                    });
+                }
+            }
+        },
+
         onError: (_error, _variables, context) => {
             // Rollback to previous state
             if (context?.previous) {
@@ -141,8 +171,10 @@ export function useUpdateAssigned(currentMonth: string) {
             });
 
             if (stillPending <= 1) {
-                // This is the last one (1 = self, about to finish)
-                queryClient.invalidateQueries({ queryKey: ['budget', currentMonth] });
+                // Invalidate ALL budget months, not just currentMonth.
+                // RTA is cumulative — assigning in Feb affects March's RTA too.
+                // Also, adjacent months are prefetched and would show stale RTA otherwise.
+                queryClient.invalidateQueries({ queryKey: ['budget'] });
             }
         },
     });
@@ -153,7 +185,7 @@ export function useUpdateCategoryName() {
 
     return useMutation({
         mutationKey: ['budget-update-category-name'],
-        meta: { errorMessage: 'Error al renombrar categoría' },
+        meta: { errorMessage: 'Error al renombrar categoría', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ categoryId, newName, currentName }: UpdateCategoryNameParams) => {
             if (!newName.trim() || newName === currentName) {
                 return { skipped: true };
@@ -186,7 +218,7 @@ export function useReorderCategories() {
 
     return useMutation({
         mutationKey: ['budget-reorder'],
-        meta: { errorMessage: 'Error al reordenar' },
+        meta: { errorMessage: 'Error al reordenar', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ type, items }: ReorderParams) => {
             const res = await fetch('/api/categories/reorder', {
                 method: 'POST',
@@ -213,7 +245,7 @@ export function useCreateCategoryGroup() {
 
     return useMutation({
         mutationKey: ['budget-create-category-group'],
-        meta: { errorMessage: 'Error al crear grupo de categorías' },
+        meta: { errorMessage: 'Error al crear grupo de categorías', broadcastKeys: ['budget', 'categories', 'category-groups'] },
         mutationFn: async (name: string) => {
             const res = await fetch('/api/category-groups', {
                 method: 'POST',
@@ -247,7 +279,7 @@ export function useCreateCategory() {
 
     return useMutation({
         mutationKey: ['budget-create-category'],
-        meta: { errorMessage: 'Error al crear categoría' },
+        meta: { errorMessage: 'Error al crear categoría', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ name, categoryGroupId }: { name: string; categoryGroupId: number }) => {
             const res = await fetch('/api/categories', {
                 method: 'POST',

@@ -12,6 +12,10 @@ import {
     getReconciliationInfo,
     isCreditCardAccount,
     updateCreditCardPaymentBudget,
+    createTransfer,
+    deleteTransfer,
+    getTransferByTransactionId,
+    getAccountType,
 } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -42,6 +46,40 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
+        // ──── Transfer creation ────
+        if (body.is_transfer) {
+            if (!body.transfer_account_id) {
+                return NextResponse.json({ error: 'Transfer destination account is required' }, { status: 400 });
+            }
+
+            // Validate destination is not a credit card account
+            const destType = getAccountType(body.transfer_account_id);
+            if (destType === 'credit') {
+                return NextResponse.json(
+                    { error: 'No se pueden hacer transferencias directas a cuentas de crédito. Usa la función de pago de tarjeta.' },
+                    { status: 400 }
+                );
+            }
+
+            const amount = body.outflow || body.amount || 0;
+            if (amount <= 0) {
+                return NextResponse.json({ error: 'Transfer amount must be positive' }, { status: 400 });
+            }
+
+            const result = createTransfer({
+                fromAccountId: body.account_id,
+                toAccountId: body.transfer_account_id,
+                amount,
+                date: body.date,
+                memo: body.memo,
+                cleared: body.cleared || 'Uncleared',
+            });
+
+            const transaction = getTransaction(result.fromTransactionId as number);
+            return NextResponse.json(transaction, { status: 201 });
+        }
+
+        // ──── Normal transaction creation ────
         const result = createTransaction({
             accountId: body.account_id,
             date: body.date,
@@ -153,7 +191,15 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
         }
 
-        // Delete transaction
+        // Check if this transaction is part of a transfer
+        const transfer = getTransferByTransactionId(transactionId);
+        if (transfer) {
+            // Delete both sides of the transfer atomically
+            deleteTransfer(transfer.id);
+            return NextResponse.json({ success: true, deletedTransfer: true });
+        }
+
+        // Regular transaction delete
         deleteTransaction(transactionId);
 
         // Update account balances

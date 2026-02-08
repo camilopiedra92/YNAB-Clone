@@ -367,6 +367,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 onToggleCleared={handleToggleCleared}
                 isFetching={isFetchingTransactions}
                 totalTransactions={transactions.length}
+                accountId={accountId}
             />
 
             {/* ============ TRANSACTION MODAL ============ */}
@@ -377,6 +378,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 transaction={editingTransaction}
                 accounts={allAccountsData}
                 categories={categories}
+                currentAccountId={accountId}
             />
 
             {/* ============ RECONCILIATION MODAL ============ */}

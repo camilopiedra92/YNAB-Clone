@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Check, Circle, Lock, Clock, Search } from 'lucide-react';
+import { Check, Circle, Lock, Clock, Search, ArrowRightLeft } from 'lucide-react';
 import type { Transaction } from '@/hooks/useTransactions';
 
 const ROW_HEIGHT = 33; // px per row — matches py-1 + content
@@ -34,6 +34,7 @@ const TransactionRow = memo(function TransactionRow({
     onEdit,
     onToggleCleared,
     onToggleSelect,
+    accountId,
 }: {
     t: Transaction;
     isSelected: boolean;
@@ -41,6 +42,7 @@ const TransactionRow = memo(function TransactionRow({
     onEdit: (t: Transaction) => void;
     onToggleCleared: (id: number, cleared: string) => void;
     onToggleSelect: (id: number, e: React.MouseEvent) => void;
+    accountId?: number;
 }) {
     return (
         <tr
@@ -76,7 +78,17 @@ const TransactionRow = memo(function TransactionRow({
             </td>
             <td className="py-0.5 px-3 text-sm font-medium">
                 {t.transfer_id
-                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">Transfer</span>
+                    ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                        {showAccount
+                            ? t.outflow > 0
+                                ? `${t.account_name} → ${t.transfer_account_name || ''}`
+                                : `${t.transfer_account_name || ''} → ${t.account_name}`
+                            : t.outflow > 0
+                                ? `Transferencia → ${t.transfer_account_name || ''}`
+                                : `Transferencia ← ${t.transfer_account_name || ''}`
+                        }
+                    </span>
                     : (t.category_name
                         ? <span className="text-muted-foreground">{t.category_name}</span>
                         : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-amber-600 dark:text-amber-400 text-sm font-bold italic shadow-neu-inset-sm">Uncategorized</span>
@@ -149,10 +161,12 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
     t,
     showAccount,
     onEdit,
+    accountId,
 }: {
     t: Transaction;
     showAccount: boolean;
     onEdit: (t: Transaction) => void;
+    accountId?: number;
 }) {
     return (
         <tr
@@ -181,7 +195,17 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
             </td>
             <td className="py-0.5 px-3 text-sm text-muted-foreground font-medium">
                 {t.transfer_id ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">Transfer</span>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                        {showAccount
+                            ? t.outflow > 0
+                                ? `${t.account_name} → ${t.transfer_account_name || ''}`
+                                : `${t.transfer_account_name || ''} → ${t.account_name}`
+                            : t.outflow > 0
+                                ? `Transferencia → ${t.transfer_account_name || ''}`
+                                : `Transferencia ← ${t.transfer_account_name || ''}`
+                        }
+                    </span>
                 ) : (t.category_name || '')}
             </td>
             <td className="py-0.5 px-3 text-sm text-muted-foreground/60 truncate max-w-[200px]">
@@ -218,6 +242,7 @@ interface VirtualTransactionTableProps {
     onToggleCleared: (id: number, cleared: string) => void;
     isFetching?: boolean;
     totalTransactions: number;
+    accountId?: number;
 }
 
 export default function VirtualTransactionTable({
@@ -233,6 +258,7 @@ export default function VirtualTransactionTable({
     onToggleCleared,
     isFetching = false,
     totalTransactions,
+    accountId,
 }: VirtualTransactionTableProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -350,6 +376,7 @@ export default function VirtualTransactionTable({
                                     t={row.transaction}
                                     showAccount={showAccount}
                                     onEdit={onEditTransaction}
+                                    accountId={accountId}
                                 />
                             );
                         }
@@ -364,6 +391,7 @@ export default function VirtualTransactionTable({
                                     onEdit={onEditTransaction}
                                     onToggleCleared={onToggleCleared}
                                     onToggleSelect={onToggleRowSelection}
+                                    accountId={accountId}
                                 />
                             );
                         }

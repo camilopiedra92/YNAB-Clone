@@ -13,6 +13,8 @@ interface TransactionPayload {
     outflow: number;
     inflow: number;
     cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
+    is_transfer?: boolean;
+    transfer_account_id?: number;
 }
 
 interface ToggleClearedParams {
@@ -33,6 +35,8 @@ interface Transaction {
     inflow: number;
     cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
     transfer_id?: number | null;
+    transfer_account_id?: number | null;
+    transfer_account_name?: string | null;
     is_future?: number;
 }
 
@@ -53,7 +57,7 @@ export function useCreateTransaction() {
 
     return useMutation({
         mutationKey: ['transaction-create'],
-        meta: { errorMessage: 'Error al crear transacción' },
+        meta: { errorMessage: 'Error al crear transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (payload: TransactionPayload) => {
             const res = await fetch('/api/transactions', {
@@ -126,7 +130,7 @@ export function useUpdateTransaction() {
 
     return useMutation({
         mutationKey: ['transaction-update'],
-        meta: { errorMessage: 'Error al actualizar transacción' },
+        meta: { errorMessage: 'Error al actualizar transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (payload: TransactionPayload & { id: number }) => {
             const res = await fetch('/api/transactions', {
@@ -190,7 +194,7 @@ export function useDeleteTransaction() {
 
     return useMutation({
         mutationKey: ['transaction-delete'],
-        meta: { errorMessage: 'Error al eliminar transacción' },
+        meta: { errorMessage: 'Error al eliminar transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (transactionId: number) => {
             const res = await fetch(`/api/transactions?id=${transactionId}`, {
@@ -214,10 +218,26 @@ export function useDeleteTransaction() {
                 queryKey: ['transactions'],
             });
 
+            // Find the transaction to check if it's a transfer
+            let transferId: number | null | undefined = null;
+            for (const [, data] of previousQueries) {
+                const tx = data?.find((t) => t.id === transactionId);
+                if (tx?.transfer_id) {
+                    transferId = tx.transfer_id;
+                    break;
+                }
+            }
+
             // Optimistically remove from all cached lists
+            // If it's a transfer, also remove the paired transaction
             queryClient.setQueriesData<Transaction[]>(
                 { queryKey: ['transactions'] },
-                (old) => old?.filter((t) => t.id !== transactionId),
+                (old) => old?.filter((t) => {
+                    if (t.id === transactionId) return false;
+                    // Also remove paired transfer transaction
+                    if (transferId && t.transfer_id === transferId) return false;
+                    return true;
+                }),
             );
 
             return { previousQueries };
@@ -244,7 +264,7 @@ export function useToggleCleared() {
 
     return useMutation({
         mutationKey: ['transaction-toggle-cleared'],
-        meta: { errorMessage: 'Error al cambiar estado' },
+        meta: { errorMessage: 'Error al cambiar estado', broadcastKeys: ['transactions', 'accounts'] },
 
         mutationFn: async ({ transactionId, clearedStatus }: ToggleClearedParams) => {
             if (clearedStatus === 'Reconciled') {
@@ -339,7 +359,7 @@ export function useReconcileAccount() {
 
     return useMutation({
         mutationKey: ['reconcile-account'],
-        meta: { errorMessage: 'Error al reconciliar' },
+        meta: { errorMessage: 'Error al reconciliar', broadcastKeys: ['transactions', 'accounts', 'budget'] },
 
         mutationFn: async ({ accountId, bankBalance }: { accountId: number; bankBalance: number }) => {
             const res = await fetch('/api/transactions', {

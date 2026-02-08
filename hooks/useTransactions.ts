@@ -15,6 +15,8 @@ interface Transaction {
     inflow: number;
     cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
     transfer_id?: number | null;
+    transfer_account_id?: number | null;
+    transfer_account_name?: string | null;
     is_future?: number;
 }
 

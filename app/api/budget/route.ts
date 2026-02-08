@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getBudgetForMonth, getReadyToAssign, getReadyToAssignBreakdown, getOverspendingTypes, getBudgetInspectorData } from '@/lib/db';
+import { getBudgetForMonth, getReadyToAssign, getReadyToAssignBreakdown, getOverspendingTypes, getBudgetInspectorData, refreshAllBudgetActivity } from '@/lib/db';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
+
+        // Refresh stale activity values from scheduled transactions that are now current
+        refreshAllBudgetActivity(month);
 
         const budget = getBudgetForMonth(month);
         const readyToAssign = getReadyToAssign(month);
@@ -49,7 +52,16 @@ export async function POST(request: Request) {
         const { updateBudgetAssignment } = await import('@/lib/db');
         updateBudgetAssignment(categoryId, month, assigned);
 
-        return NextResponse.json({ success: true });
+        // Return the full recalculated budget data so the client can
+        // immediately update its cache with accurate server-calculated values
+        // (especially RTA, which depends on cumulative cross-month data).
+        const budget = getBudgetForMonth(month);
+        const readyToAssign = getReadyToAssign(month);
+        const rtaBreakdown = getReadyToAssignBreakdown(month);
+        const overspendingTypes = getOverspendingTypes(month);
+        const inspectorData = getBudgetInspectorData(month);
+
+        return NextResponse.json({ success: true, budget, readyToAssign, rtaBreakdown, overspendingTypes, inspectorData });
     } catch (error) {
         console.error('Error updating budget:', error);
         return NextResponse.json({ error: 'Failed to update budget' }, { status: 500 });

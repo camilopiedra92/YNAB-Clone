@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCreateTransaction, useUpdateTransaction, useDeleteTransaction } from '@/hooks/useTransactionMutations';
 import { usePayees } from '@/hooks/usePayees';
 import Modal from './ui/Modal';
 import DatePicker from './ui/DatePicker';
 import CurrencyInput from './ui/CurrencyInput';
 import Select, { SelectOption } from './ui/Select';
+import { ArrowRightLeft } from 'lucide-react';
 
 interface Account {
     id: number;
     name: string;
+    type?: string;
 }
 
 interface Category {
@@ -29,6 +31,9 @@ interface Transaction {
     outflow: number;
     inflow: number;
     cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
+    transfer_id?: number | null;
+    transfer_account_id?: number | null;
+    transfer_account_name?: string | null;
 }
 
 interface TransactionModalProps {
@@ -38,6 +43,7 @@ interface TransactionModalProps {
     transaction?: Transaction | null;
     accounts: Account[];
     categories: Category[];
+    currentAccountId?: number;
 }
 
 export default function TransactionModal({
@@ -47,6 +53,7 @@ export default function TransactionModal({
     transaction,
     accounts,
     categories,
+    currentAccountId,
 }: TransactionModalProps) {
     const [formData, setFormData] = useState<Transaction>({
         account_id: 0,
@@ -58,18 +65,25 @@ export default function TransactionModal({
         inflow: 0,
         cleared: 'Uncleared',
     });
-    const [transactionType, setTransactionType] = useState<'outflow' | 'inflow'>('outflow');
+    const [transactionType, setTransactionType] = useState<'outflow' | 'inflow' | 'transfer'>('outflow');
     const [amount, setAmount] = useState(0);
+    const [transferAccountId, setTransferAccountId] = useState<number | ''>('');
 
     const createTransaction = useCreateTransaction();
     const updateTransaction = useUpdateTransaction();
     const deleteTransaction = useDeleteTransaction();
     const loading = createTransaction.isPending || updateTransaction.isPending || deleteTransaction.isPending;
 
+    const isEditingTransfer = !!transaction?.transfer_id;
+
     useEffect(() => {
         if (transaction) {
             setFormData(transaction);
-            if (transaction.outflow > 0) {
+            if (transaction.transfer_id) {
+                setTransactionType('transfer');
+                setAmount(transaction.outflow > 0 ? transaction.outflow : transaction.inflow);
+                setTransferAccountId(transaction.transfer_account_id || '');
+            } else if (transaction.outflow > 0) {
                 setTransactionType('outflow');
                 setAmount(transaction.outflow);
             } else {
@@ -78,7 +92,7 @@ export default function TransactionModal({
             }
         } else {
             setFormData({
-                account_id: accounts[0]?.id || 0,
+                account_id: currentAccountId || accounts[0]?.id || 0,
                 date: new Date().toISOString().split('T')[0],
                 payee: '',
                 category_id: null,
@@ -89,8 +103,9 @@ export default function TransactionModal({
             });
             setTransactionType('outflow');
             setAmount(0);
+            setTransferAccountId('');
         }
-    }, [transaction, accounts]);
+    }, [transaction, accounts, currentAccountId]);
 
     const { data: payees = [] } = usePayees(isOpen);
 
@@ -98,6 +113,17 @@ export default function TransactionModal({
         value: acc.id,
         label: acc.name,
     }));
+
+    // Transfer destination: exclude current account and credit card accounts
+    const transferAccountOptions: SelectOption[] = useMemo(() => {
+        const sourceAccountId = formData.account_id || currentAccountId;
+        return accounts
+            .filter(acc => acc.id !== sourceAccountId && acc.type !== 'credit')
+            .map(acc => ({
+                value: acc.id,
+                label: acc.name,
+            }));
+    }, [accounts, formData.account_id, currentAccountId]);
 
     const categoryOptions: SelectOption[] = [
         { value: '', label: 'Sin categoría' },
@@ -111,16 +137,58 @@ export default function TransactionModal({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const payload = {
-            ...formData,
-            outflow: transactionType === 'outflow' ? amount : 0,
-            inflow: transactionType === 'inflow' ? amount : 0,
-            category_id: formData.category_id || null,
-        };
-
         const onSuccessCallback = () => {
             onSave();
             onClose();
+        };
+
+        if (transactionType === 'transfer') {
+            if (!transferAccountId) return;
+
+            if (transaction?.id) {
+                // Editing a transfer: only allow date, amount, memo changes
+                updateTransaction.mutate(
+                    {
+                        id: transaction.id,
+                        account_id: formData.account_id,
+                        date: formData.date,
+                        payee: formData.payee,
+                        category_id: null,
+                        memo: formData.memo,
+                        outflow: transaction.outflow > 0 ? amount : 0,
+                        inflow: transaction.inflow > 0 ? amount : 0,
+                        cleared: formData.cleared,
+                    },
+                    { onSuccess: onSuccessCallback },
+                );
+            } else {
+                // Creating a new transfer
+                createTransaction.mutate(
+                    {
+                        account_id: formData.account_id,
+                        date: formData.date,
+                        payee: '',
+                        category_id: null,
+                        memo: formData.memo,
+                        outflow: amount,
+                        inflow: 0,
+                        cleared: formData.cleared,
+                        is_transfer: true,
+                        transfer_account_id: transferAccountId as number,
+                    },
+                    { onSuccess: onSuccessCallback },
+                );
+            }
+            return;
+        }
+
+        // Normal transaction
+        const { transfer_id, transfer_account_id: _taid, transfer_account_name: _taname, ...cleanFormData } = formData;
+        const payload = {
+            ...cleanFormData,
+            outflow: transactionType === 'outflow' ? amount : 0,
+            inflow: transactionType === 'inflow' ? amount : 0,
+            category_id: formData.category_id || null,
         };
 
         if (transaction?.id) {
@@ -138,7 +206,10 @@ export default function TransactionModal({
 
     const handleDelete = () => {
         if (!transaction?.id) return;
-        if (!confirm('¿Estás seguro de que deseas eliminar esta transacción?')) return;
+        const confirmMsg = isEditingTransfer
+            ? '¿Estás seguro de que deseas eliminar esta transferencia? Se eliminará de ambas cuentas.'
+            : '¿Estás seguro de que deseas eliminar esta transacción?';
+        if (!confirm(confirmMsg)) return;
 
         deleteTransaction.mutate(transaction.id, {
             onSuccess: () => {
@@ -152,14 +223,22 @@ export default function TransactionModal({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={transaction?.id ? 'Editar Transacción' : 'Nueva Transacción'}
+            title={
+                isEditingTransfer
+                    ? 'Editar Transferencia'
+                    : transaction?.id
+                        ? 'Editar Transacción'
+                        : 'Nueva Transacción'
+            }
             size="lg"
         >
             <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                     {/* Account */}
                     <div className="md:col-span-2">
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Cuenta de origen</label>
+                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">
+                            {transactionType === 'transfer' ? 'Cuenta origen' : 'Cuenta de origen'}
+                        </label>
                         <Select
                             value={formData.account_id}
                             onChange={(value) => setFormData({ ...formData, account_id: value as number })}
@@ -177,41 +256,61 @@ export default function TransactionModal({
                         />
                     </div>
 
-                    {/* Payee */}
-                    <div>
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Beneficiario</label>
-                        <div className="relative group">
-                            <input
-                                type="text"
-                                value={formData.payee}
-                                onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-                                list="payees-list"
-                                className="w-full px-5 py-3.5 rounded-2xl
-                                         bg-background text-foreground font-bold text-sm
-                                         shadow-neu-inset
-                                         focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)]
-                                         transition-all duration-300 placeholder:opacity-30"
-                                placeholder="¿A quién le pagaste?"
-                            />
-                            <datalist id="payees-list">
-                                {payees.map((p) => (
-                                    <option key={p} value={p} />
-                                ))}
-                            </datalist>
+                    {/* Payee — hidden for transfers */}
+                    {transactionType !== 'transfer' && (
+                        <div>
+                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Beneficiario</label>
+                            <div className="relative group">
+                                <input
+                                    type="text"
+                                    value={formData.payee}
+                                    onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
+                                    list="payees-list"
+                                    className="w-full px-5 py-3.5 rounded-2xl
+                                             bg-background text-foreground font-bold text-sm
+                                             shadow-neu-inset
+                                             focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)]
+                                             transition-all duration-300 placeholder:opacity-30"
+                                    placeholder="¿A quién le pagaste?"
+                                />
+                                <datalist id="payees-list">
+                                    {payees.map((p) => (
+                                        <option key={p} value={p} />
+                                    ))}
+                                </datalist>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Category */}
-                    <div className="md:col-span-2">
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Categoría del presupuesto</label>
-                        <Select
-                            value={formData.category_id || ''}
-                            onChange={(value) => setFormData({ ...formData, category_id: value ? value as number : null })}
-                            options={categoryOptions}
-                            searchable
-                            placeholder="Selecciona una categoría..."
-                        />
-                    </div>
+                    {/* Transfer destination account */}
+                    {transactionType === 'transfer' && (
+                        <div>
+                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">
+                                Cuenta destino
+                            </label>
+                            <Select
+                                value={transferAccountId}
+                                onChange={(value) => setTransferAccountId(value as number)}
+                                options={transferAccountOptions}
+                                placeholder="Selecciona cuenta destino..."
+                                disabled={isEditingTransfer}
+                            />
+                        </div>
+                    )}
+
+                    {/* Category — hidden for transfers */}
+                    {transactionType !== 'transfer' && (
+                        <div className="md:col-span-2">
+                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Categoría del presupuesto</label>
+                            <Select
+                                value={formData.category_id || ''}
+                                onChange={(value) => setFormData({ ...formData, category_id: value ? value as number : null })}
+                                options={categoryOptions}
+                                searchable
+                                placeholder="Selecciona una categoría..."
+                            />
+                        </div>
+                    )}
 
                     {/* Transaction Type */}
                     <div>
@@ -219,23 +318,43 @@ export default function TransactionModal({
                         <div className="flex gap-2 p-1.5 rounded-[1.25rem] shadow-neu-inset">
                             <button
                                 type="button"
-                                onClick={() => setTransactionType('outflow')}
-                                className={`flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${transactionType === 'outflow'
+                                onClick={() => {
+                                    setTransactionType('outflow');
+                                    setTransferAccountId('');
+                                }}
+                                disabled={isEditingTransfer}
+                                className={`flex-1 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${transactionType === 'outflow'
                                     ? 'bg-ynab-red text-white shadow-neu-sm'
                                     : 'text-muted-foreground hover:text-foreground'
-                                    }`}
+                                    } ${isEditingTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}
                             >
                                 Salida
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setTransactionType('inflow')}
-                                className={`flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${transactionType === 'inflow'
+                                onClick={() => {
+                                    setTransactionType('inflow');
+                                    setTransferAccountId('');
+                                }}
+                                disabled={isEditingTransfer}
+                                className={`flex-1 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${transactionType === 'inflow'
                                     ? 'bg-ynab-green text-white shadow-neu-sm'
                                     : 'text-muted-foreground hover:text-foreground'
-                                    }`}
+                                    } ${isEditingTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}
                             >
                                 Entrada
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTransactionType('transfer')}
+                                disabled={isEditingTransfer}
+                                className={`flex-1 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${transactionType === 'transfer'
+                                    ? 'bg-blue-500 text-white shadow-neu-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                    } ${isEditingTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            >
+                                <ArrowRightLeft className="w-3 h-3" />
+                                Transfer
                             </button>
                         </div>
                     </div>
@@ -265,54 +384,71 @@ export default function TransactionModal({
                     </div>
                 </div>
 
+                {/* Transfer info badge when editing a transfer */}
+                {isEditingTransfer && (
+                    <div className="flex items-center gap-3 p-4 rounded-2xl shadow-neu-inset">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shadow-neu-sm">
+                            <ArrowRightLeft className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-foreground">Transferencia vinculada</p>
+                            <p className="text-[11px] font-bold text-blue-500">
+                                Los cambios se aplican a ambas cuentas
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Cleared / Reconciled Status */}
-                {formData.cleared === 'Reconciled' ? (
-                    <div className="group flex items-center justify-between p-5 rounded-[2rem] transition-all duration-500 shadow-neu-inset">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-violet-500 text-white shadow-neu-sm">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
+                {!isEditingTransfer && (
+                    formData.cleared === 'Reconciled' ? (
+                        <div className="group flex items-center justify-between p-5 rounded-[2rem] transition-all duration-500 shadow-neu-inset">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-violet-500 text-white shadow-neu-sm">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-black text-foreground">Transacción Reconciliada</p>
+                                    <p className="text-[11px] font-bold text-violet-500">No se puede modificar el estado</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm font-black text-foreground">Transacción Reconciliada</p>
-                                <p className="text-[11px] font-bold text-violet-500">No se puede modificar el estado</p>
-                            </div>
-                        </div>
-                        <div className="w-14 h-8 rounded-full relative p-1 bg-violet-500 opacity-60 cursor-not-allowed">
-                            <div className="w-6 h-6 bg-white rounded-full shadow-md transform translate-x-6" />
-                        </div>
-                    </div>
-                ) : (
-                    <div className={`group flex items-center justify-between p-5 rounded-[2rem] transition-all duration-500 ${formData.cleared === 'Cleared'
-                        ? 'shadow-neu-inset'
-                        : 'shadow-neu-sm'
-                        }`}
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${formData.cleared === 'Cleared'
-                                ? 'bg-ynab-green text-white shadow-neu-sm'
-                                : 'text-muted-foreground shadow-neu-inset-sm'
-                                }`}>
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-sm font-black text-foreground">Marcar como Cleared</p>
-                                <p className="text-[11px] font-bold text-muted-foreground">Ya apareció en la app del banco</p>
+                            <div className="w-14 h-8 rounded-full relative p-1 bg-violet-500 opacity-60 cursor-not-allowed">
+                                <div className="w-6 h-6 bg-white rounded-full shadow-md transform translate-x-6" />
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, cleared: formData.cleared === 'Cleared' ? 'Uncleared' : 'Cleared' })}
-                            className={`w-14 h-8 rounded-full relative transition-all duration-500 p-1 ${formData.cleared === 'Cleared' ? 'bg-ynab-green' : 'bg-muted-foreground/30'
-                                }`}
+                    ) : (
+                        <div className={`group flex items-center justify-between p-5 rounded-[2rem] transition-all duration-500 ${formData.cleared === 'Cleared'
+                            ? 'shadow-neu-inset'
+                            : 'shadow-neu-sm'
+                            }`}
                         >
-                            <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-500 ${formData.cleared === 'Cleared' ? 'translate-x-6' : 'translate-x-0'
-                                }`} />
-                        </button>
-                    </div>
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${formData.cleared === 'Cleared'
+                                    ? 'bg-ynab-green text-white shadow-neu-sm'
+                                    : 'text-muted-foreground shadow-neu-inset-sm'
+                                    }`}>
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-black text-foreground">Marcar como Cleared</p>
+                                    <p className="text-[11px] font-bold text-muted-foreground">Ya apareció en la app del banco</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, cleared: formData.cleared === 'Cleared' ? 'Uncleared' : 'Cleared' })}
+                                className={`w-14 h-8 rounded-full relative transition-all duration-500 p-1 ${formData.cleared === 'Cleared' ? 'bg-ynab-green' : 'bg-muted-foreground/30'
+                                    }`}
+                            >
+                                <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-500 ${formData.cleared === 'Cleared' ? 'translate-x-6' : 'translate-x-0'
+                                    }`} />
+                            </button>
+                        </div>
+                    )
                 )}
 
                 {/* Actions */}
@@ -325,7 +461,7 @@ export default function TransactionModal({
                             className="w-full sm:w-auto px-8 py-4 rounded-2xl text-destructive font-black text-[10px] uppercase tracking-widest
                                      hover:bg-destructive/10 transition-all duration-300 disabled:opacity-50"
                         >
-                            Eliminar definitivamente
+                            {isEditingTransfer ? 'Eliminar transferencia' : 'Eliminar definitivamente'}
                         </button>
                     )}
                     <div className="flex-1" />
@@ -341,7 +477,7 @@ export default function TransactionModal({
                     </button>
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || (transactionType === 'transfer' && !transferAccountId)}
                         className="neu-btn-primary w-full sm:w-auto px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest
                                  transition-all duration-300
                                  disabled:opacity-50 active:scale-95"
