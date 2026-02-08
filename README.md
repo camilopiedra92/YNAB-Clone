@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# YNAB Clone
 
-## Getting Started
+A powerful personal finance management application inspired by [YNAB (You Need A Budget)](https://www.youneedabudget.com/). Built with Next.js, SQLite, and TanStack Query, this application implements the core principles of zero-based budgeting.
 
-First, run the development server:
+![YNAB Clone Preview](public/preview.png) *(Note: Add a real preview image to the public folder)*
+
+## 🚀 Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit `http://localhost:3000` to start budgeting.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📚 Documentation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Detailed documentation is available in the [`/docs`](./docs) directory:
 
-## Learn More
+- **[Architecture](./docs/architecture.md)**: Technical stack, patterns like Optimistic Mutations, and system design.
+- **[Business Rules](./docs/business-rules.md)**: Deep dive into RTA calculations, Credit Card funding logic, and overspending behavior.
+- **[Data Model](./docs/data-model.md)**: Database schema details and Entity Relationship diagrams.
+- **[Features Audit](./docs/features.md)**: Overview of implemented features and comparison with original YNAB.
+- **[Developer Guide](./docs/developer-guide.md)**: Setup instructions, database management, and common workflows.
 
-To learn more about Next.js, take a look at the following resources:
+## ✨ Core Pillars
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 1. Zero-Based Budgeting
+Every dollar gets a job. The "Ready to Assign" (RTA) engine ensures you only budget money you actually have.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 2. Credit Card Mastery
+Credit card transactions automatically move money from spending categories to your payment category, ensuring you're always ready to pay the bill.
 
-## Deploy on Vercel
+### 3. Snappy Performance
+Optimistic UI updates mean you never wait for a spinner when assigning money or adding transactions. Virtualized lists keep the experience fluid even with years of history.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🛠 Tech Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Frontend**: Next.js 15, Tailwind CSS 4, TanStack Virtual
+- **Backend**: Next.js App Router (API Layer)
+- **Database**: SQLite (better-sqlite3)
+- **State Management**: TanStack Query (React Query)
+
+## 🤝 Contributing
+
+This project is a personal exploration of complex financial logic and modern web patterns. For setup and development details, please refer to the [Developer Guide](./docs/developer-guide.md).
+
+---
+*Disclaimer: This is an independent clone and is not affiliated with, endorsed by, or sponsored by You Need A Budget, LLC.*

@@ -1,26 +1,405 @@
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Neumorphism Light Mode — bright, clean white base */
+  --background: 220 20% 95%;
+  --foreground: 220 20% 20%;
+
+  --card: 220 20% 95%;
+  --card-foreground: 220 20% 20%;
+
+  --popover: 220 15% 97%;
+  --popover-foreground: 220 20% 20%;
+
+  /* Primary — Refined steel blue */
+  --primary: 216 33% 55%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 15% 92%;
+  --secondary-foreground: 220 20% 20%;
+
+  --muted: 220 15% 92%;
+  --muted-foreground: 216 12% 50%;
+
+  --accent: 220 15% 90%;
+  --accent-foreground: 220 20% 20%;
+
+  --destructive: 0 65% 55%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 220 14% 88%;
+  --input: 220 14% 88%;
+  --ring: 216 33% 55%;
+  --radius: 1rem;
+
+  /* Neumorphic shadow tokens — tuned for bright surface */
+  --neu-light: rgba(255, 255, 255, 0.8);
+  --neu-dark: rgba(170, 180, 200, 0.35);
+  --neu-light-strong: rgba(255, 255, 255, 0.95);
+  --neu-dark-strong: rgba(155, 165, 185, 0.45);
+
+  /* Sidebar — Rich deep blue-slate */
+  --sidebar-background: 222 35% 18%;
+  --sidebar-foreground: 215 30% 94%;
+  --sidebar-primary: 216 45% 58%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 222 30% 23%;
+  --sidebar-accent-foreground: 215 30% 96%;
+  --sidebar-border: 222 28% 25%;
+  --sidebar-ring: 216 45% 58%;
+
+  /* Accent colors */
+  --ynab-blue: 216 33% 55%;
+  --ynab-green: 151 50% 42%;
+  --ynab-red: 350 65% 58%;
+  --ynab-yellow: 48 80% 53%;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --background: 218 20% 16%;
+  --foreground: 216 15% 92%;
+
+  --card: 218 20% 16%;
+  --card-foreground: 216 15% 92%;
+
+  --popover: 218 20% 18%;
+  --popover-foreground: 216 15% 92%;
+
+  --primary: 216 33% 60%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 218 18% 20%;
+  --secondary-foreground: 216 15% 92%;
+
+  --muted: 218 18% 20%;
+  --muted-foreground: 216 12% 60%;
+
+  --accent: 218 18% 22%;
+  --accent-foreground: 216 15% 92%;
+
+  --destructive: 0 50% 35%;
+  --destructive-foreground: 216 15% 95%;
+
+  --border: 218 18% 22%;
+  --input: 218 18% 22%;
+  --ring: 216 33% 60%;
+
+  --neu-light: rgba(55, 65, 85, 0.45);
+  --neu-dark: rgba(10, 15, 25, 0.55);
+  --neu-light-strong: rgba(60, 70, 90, 0.55);
+  --neu-dark-strong: rgba(5, 10, 18, 0.65);
+
+  --sidebar-background: 218 22% 12%;
+  --sidebar-foreground: 216 15% 92%;
+  --sidebar-accent: 218 20% 16%;
+  --sidebar-accent-foreground: 216 15% 95%;
+  --sidebar-border: 218 20% 18%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: hsl(var(--border));
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* ══════════════════════════════════════════
+   NEUMORPHIC UTILITY CLASSES
+   ══════════════════════════════════════════ */
+
+/* Raised / Convex — The primary surface style */
+.neu-raised {
+  background: hsl(var(--background));
+  border-radius: var(--radius);
+  border: none;
+  box-shadow:
+    6px 6px 14px 0 var(--neu-dark),
+    -6px -6px 14px 0 var(--neu-light);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.neu-raised:hover {
+  box-shadow:
+    8px 8px 18px 0 var(--neu-dark-strong),
+    -8px -8px 18px 0 var(--neu-light-strong);
+}
+
+/* Small raised — for buttons, pills */
+.neu-raised-sm {
+  background: hsl(var(--background));
+  border-radius: calc(var(--radius) - 2px);
+  border: none;
+  box-shadow:
+    3px 3px 8px 0 var(--neu-dark),
+    -3px -3px 8px 0 var(--neu-light);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Inset / Concave — for inputs, pressed buttons */
+.neu-inset {
+  background: hsl(var(--background));
+  border-radius: var(--radius);
+  border: none;
+  box-shadow:
+    inset 4px 4px 8px 0 var(--neu-dark),
+    inset -4px -4px 8px 0 var(--neu-light);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Small inset — for form fields */
+.neu-inset-sm {
+  background: hsl(var(--background));
+  border-radius: calc(var(--radius) - 2px);
+  border: none;
+  box-shadow:
+    inset 2px 2px 5px 0 var(--neu-dark),
+    inset -2px -2px 5px 0 var(--neu-light);
+}
+
+/* Flat — subtle surface, no depth */
+.neu-flat {
+  background: hsl(var(--background));
+  border-radius: var(--radius);
+  border: none;
+  box-shadow: none;
+}
+
+/* Button style — raised with active press */
+.neu-btn {
+  background: hsl(var(--background));
+  border-radius: calc(var(--radius) - 2px);
+  border: none;
+  box-shadow:
+    4px 4px 10px 0 var(--neu-dark),
+    -4px -4px 10px 0 var(--neu-light);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.neu-btn:hover {
+  box-shadow:
+    5px 5px 12px 0 var(--neu-dark-strong),
+    -5px -5px 12px 0 var(--neu-light-strong);
+}
+
+.neu-btn:active,
+.neu-btn-pressed {
+  box-shadow:
+    inset 3px 3px 6px 0 var(--neu-dark),
+    inset -3px -3px 6px 0 var(--neu-light);
+}
+
+/* Primary button — colored with neumorphic depth */
+.neu-btn-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: calc(var(--radius) - 2px);
+  border: none;
+  box-shadow:
+    4px 4px 10px 0 var(--neu-dark),
+    -4px -4px 10px 0 var(--neu-light),
+    inset 0 1px 0 0 hsla(var(--primary), 0.3);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.neu-btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    5px 5px 14px 0 var(--neu-dark-strong),
+    -5px -5px 14px 0 var(--neu-light-strong);
+}
+
+.neu-btn-primary:active {
+  filter: brightness(0.95);
+  box-shadow:
+    inset 2px 2px 5px 0 rgba(0, 0, 0, 0.2),
+    inset -2px -2px 5px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Card — larger raised surface with padding */
+.neu-card {
+  background: hsl(var(--background));
+  border-radius: calc(var(--radius) + 4px);
+  border: none;
+  padding: 1.5rem;
+  box-shadow:
+    8px 8px 20px 0 var(--neu-dark),
+    -8px -8px 20px 0 var(--neu-light);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-card:hover {
+  box-shadow:
+    10px 10px 24px 0 var(--neu-dark-strong),
+    -10px -10px 24px 0 var(--neu-light-strong);
+}
+
+
+/* ══════════════════════════════════════════
+   SIDEBAR NEUMORPHISM (Dark)
+   ══════════════════════════════════════════ */
+
+.sidebar-link {
+  @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300;
+}
+
+.sidebar-link-active {
+  box-shadow:
+    inset 3px 3px 6px 0 rgba(0, 0, 0, 0.35),
+    inset -3px -3px 6px 0 rgba(255, 255, 255, 0.05);
+  @apply text-white;
+}
+
+.sidebar-link-inactive {
+  color: hsl(var(--muted-foreground));
+}
+
+.sidebar-link-inactive:hover {
+  box-shadow:
+    3px 3px 8px 0 rgba(0, 0, 0, 0.3),
+    -3px -3px 8px 0 rgba(255, 255, 255, 0.04);
+  color: hsl(var(--foreground));
+}
+
+
+/* ══════════════════════════════════════════
+   TYPOGRAPHY
+   ══════════════════════════════════════════ */
+
+.text-title {
+  color: hsl(var(--foreground));
+  @apply font-black tracking-tight leading-tight;
+}
+
+.text-subtitle {
+  color: hsl(var(--muted-foreground));
+  @apply font-medium;
+}
+
+.text-meta {
+  color: hsl(var(--muted-foreground));
+  @apply text-[10px] font-black uppercase tracking-[0.15em] opacity-80;
+}
+
+
+/* ══════════════════════════════════════════
+   INDICATORS
+   ══════════════════════════════════════════ */
+
+.budget-positive {
+  @apply text-emerald-500 font-bold;
+}
+
+.budget-negative {
+  @apply text-rose-500 font-bold;
+}
+
+.budget-neutral {
+  color: hsl(var(--muted-foreground));
+  @apply font-bold;
+}
+
+
+/* ══════════════════════════════════════════
+   SHADOW & DEPTH — Tailwind-compatible
+   ══════════════════════════════════════════ */
+
+.shadow-premium {
+  box-shadow:
+    6px 6px 14px 0 var(--neu-dark),
+    -6px -6px 14px 0 var(--neu-light);
+}
+
+.shadow-premium:hover {
+  box-shadow:
+    8px 8px 18px 0 var(--neu-dark-strong),
+    -8px -8px 18px 0 var(--neu-light-strong);
+}
+
+
+/* ══════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════ */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  @apply rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+
+/* ══════════════════════════════════════════
+   SPACING / LAYOUT UTILITIES
+   ══════════════════════════════════════════ */
+
+.page-container {
+  @apply max-w-[1600px] mx-auto w-full px-6 md:px-10 py-8;
+}
+
+.grid-responsive {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 md:gap-8;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
+/* ══════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════ */
+
+@keyframes subtle-bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-subtle-bounce {
+  animation: subtle-bounce 2s infinite ease-in-out;
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  50% {
+    transform: translateX(150%);
+  }
+
+  100% {
+    transform: translateX(350%);
+  }
 }

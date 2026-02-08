@@ -1,65 +1,245 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState } from 'react';
+import AppLayout from '@/components/AppLayout';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, ArrowRight, ChevronRight, History, Minus, Equal, Landmark, CreditCard } from 'lucide-react';
+import Link from 'next/link';
+
+interface Account {
+  id: number;
+  name: string;
+  type: string;
+  balance: number;
+  cleared_balance: number;
+  closed?: number;
+}
+
+interface Transaction {
+  id: number;
+  date: string;
+  payee: string;
+  account_name: string;
+  category_name: string;
+  outflow: number;
+  inflow: number;
+  cleared: string;
+}
 
 export default function Home() {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [accountsRes, transactionsRes] = await Promise.all([
+          fetch('/api/accounts'),
+          fetch('/api/transactions?limit=8'),
+        ]);
+
+        const accountsData = await accountsRes.json();
+        const transactionsData = await transactionsRes.json();
+
+        setAccounts(accountsData);
+        setRecentTransactions(transactionsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('es-CO', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const totalCash = accounts.reduce((sum, acc) =>
+    ['checking', 'savings', 'cash'].includes(acc.type) ? sum + acc.balance : sum, 0);
+  const totalCredit = accounts.reduce((sum, acc) =>
+    acc.type === 'credit' ? sum + acc.balance : sum, 0);
+  const netWorth = totalCash + totalCredit;
+  const totalCleared = accounts.reduce((sum, acc) => sum + acc.cleared_balance, 0);
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex-1 flex items-center justify-center min-h-[80vh]">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full bg-primary/10"></div>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <AppLayout>
+      <div className="page-container">
+        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <p className="text-meta mb-2">Resumen Financiero</p>
+            <h1 className="text-4xl font-black text-foreground tracking-tight">
+              Dashboard<span className="text-primary">.</span>
+            </h1>
+          </div>
+          <div className="flex gap-3">
+            <button className="neu-btn px-5 py-2.5 rounded-xl text-sm font-bold text-foreground">
+              Filtrar por Mes
+            </button>
+            <button className="neu-btn-primary px-5 py-2.5 rounded-xl text-sm font-bold">
+              Exportar
+            </button>
+          </div>
+        </header>
+
+        {/* Summary Stats with Formula Logic */}
+        <div className="flex flex-col md:flex-row items-center gap-4 mb-12">
+          {[
+            { label: 'Patrimonio Neto', value: netWorth, icon: Wallet, color: 'bg-primary-500', trend: 'Balance Real' },
+            { operator: 'equal' },
+            { label: 'Efectivo Total', value: totalCash, icon: Landmark, color: 'bg-emerald-500', trend: 'Tus Activos' },
+            { operator: 'minus' },
+            { label: 'Deuda Total', value: Math.abs(totalCredit), icon: CreditCard, color: 'bg-rose-500', trend: 'Tus Pasivos' },
+          ].map((stat, i) => (
+            stat.operator ? (
+              <div key={i} className="hidden md:flex items-center justify-center p-4 rounded-full shadow-neu-inset-sm text-muted-foreground/40">
+                {stat.operator === 'minus' ? <Minus className="w-6 h-6" /> : <Equal className="w-6 h-6" />}
+              </div>
+            ) : (
+              <div key={i} className="neu-card group relative overflow-hidden flex-1 w-full md:w-auto">
+                <div className="flex items-center justify-between mb-5">
+                  <div className={`p-3 rounded-2xl ${stat.color} text-white`}
+                    style={{
+                      boxShadow: '3px 3px 8px 0 var(--neu-dark), -3px -3px 8px 0 var(--neu-light)',
+                    }}
+                  >
+                    {stat.icon && <stat.icon className="h-5 w-5" />}
+                  </div>
+                  <span className="text-[10px] font-black px-2 py-1 rounded-lg text-muted-foreground uppercase tracking-tighter shadow-neu-inset-sm">
+                    {stat.trend}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-meta mb-1 opacity-70">
+                    {stat.label}
+                  </p>
+                  <p className={`text-2xl font-black ${stat.label === 'Patrimonio Neto' ? (stat.value >= 0 ? 'text-emerald-500' : 'text-rose-500') : 'text-foreground'}`}>
+                    {formatCurrency(stat.value || 0)}
+                  </p>
+                </div>
+              </div>
+            )
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="grid-responsive">
+          {/* Main Content Area: Recent Activity */}
+          <div className="lg:col-span-8 flex flex-col gap-8">
+            <div className="neu-card !p-0 overflow-hidden flex flex-col">
+              <div className="p-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg shadow-neu-inset-sm">
+                    <History className="w-4 h-4 text-primary" />
+                  </div>
+                  <h2 className="text-lg font-black tracking-tight text-foreground">Actividad Reciente</h2>
+                </div>
+                <Link href="/transactions" className="text-xs font-black text-primary hover:underline uppercase tracking-widest flex items-center gap-1">
+                  Ver Historial <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-muted/30 z-10" style={{ boxShadow: '0 3px 8px 0 var(--neu-dark)' }}>
+                    <tr className="border-b border-border uppercase tracking-widest text-muted-foreground text-[10px] font-bold">
+                      <th className="text-left py-1 px-3 font-black border-b border-border">Fecha</th>
+                      <th className="text-left py-1 px-3 font-black border-b border-border">Detalle</th>
+                      <th className="text-left py-1 px-3 font-black border-b border-border">Categoría</th>
+                      <th className="text-right py-1 px-3 font-black border-b border-border">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {recentTransactions.map((t) => (
+                      <tr key={t.id} className="group hover:bg-muted/20 transition-colors border-b border-border/5">
+                        <td className="py-1 px-3 text-xs font-bold text-muted-foreground whitespace-nowrap tabular-nums">
+                          {formatDate(t.date)}
+                        </td>
+                        <td className="py-1 px-3">
+                          <p className="text-xs font-semibold text-foreground leading-tight">{t.payee}</p>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">{t.account_name}</p>
+                        </td>
+                        <td className="py-1 px-3">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black text-muted-foreground shadow-neu-inset-sm">
+                            {t.category_name || 'SIN CATEGORÍA'}
+                          </span>
+                        </td>
+                        <td className={`py-1 px-3 text-right font-bold text-xs tabular-nums ${t.inflow > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {t.inflow > 0 ? `+${formatCurrency(t.inflow)}` : `-${formatCurrency(t.outflow)}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar Area: Accounts Summary */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-lg font-black tracking-tight text-foreground">Cuentas Principales</h2>
+                <Link href="/accounts" className="neu-btn p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="space-y-4">
+                {accounts.filter(a => a.closed !== 1).slice(0, 5).map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex items-center justify-between p-4 rounded-2xl shadow-neu-sm hover:shadow-neu-md transition-all duration-300 group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-neu-inset-sm transition-transform group-hover:scale-110">
+                        <Wallet className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground text-sm tracking-tight">{account.name}</p>
+                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{account.type}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-black text-sm ${account.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {formatCurrency(account.balance)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="w-full mt-6 py-3 rounded-xl text-muted-foreground text-xs font-black uppercase tracking-[0.2em] shadow-neu-inset hover:text-primary transition-all">
+                + Añadir Cuenta
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
