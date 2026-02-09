@@ -18,22 +18,35 @@ interface Account {
 interface Category {
     id: number;
     name: string;
-    group_name: string;
+    groupName: string;
 }
 
+// API response shape (camelCase DTO)
 interface Transaction {
     id?: number;
-    account_id: number;
+    accountId: number;
     date: string;
     payee: string;
-    category_id: number | null;
+    categoryId: number | null;
     memo: string;
     outflow: number;
     inflow: number;
     cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
-    transfer_id?: number | null;
-    transfer_account_id?: number | null;
-    transfer_account_name?: string | null;
+    transferId?: number | null;
+    transferAccountId?: number | null;
+    transferAccountName?: string | null;
+}
+
+// Form state uses camelCase — matches API input payload
+interface FormState {
+    accountId: number;
+    date: string;
+    payee: string;
+    categoryId: number | null;
+    memo: string;
+    outflow: number;
+    inflow: number;
+    cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
 }
 
 interface TransactionModalProps {
@@ -55,11 +68,11 @@ export default function TransactionModal({
     categories,
     currentAccountId,
 }: TransactionModalProps) {
-    const [formData, setFormData] = useState<Transaction>({
-        account_id: 0,
+    const [formData, setFormData] = useState<FormState>({
+        accountId: 0,
         date: new Date().toISOString().split('T')[0],
         payee: '',
-        category_id: null,
+        categoryId: null,
         memo: '',
         outflow: 0,
         inflow: 0,
@@ -74,37 +87,49 @@ export default function TransactionModal({
     const deleteTransaction = useDeleteTransaction();
     const loading = createTransaction.isPending || updateTransaction.isPending || deleteTransaction.isPending;
 
-    const isEditingTransfer = !!transaction?.transfer_id;
+    const isEditingTransfer = !!transaction?.transferId;
 
     useEffect(() => {
-        if (transaction) {
-            setFormData(transaction);
-            if (transaction.transfer_id) {
-                setTransactionType('transfer');
-                setAmount(transaction.outflow > 0 ? transaction.outflow : transaction.inflow);
-                setTransferAccountId(transaction.transfer_account_id || '');
-            } else if (transaction.outflow > 0) {
-                setTransactionType('outflow');
-                setAmount(transaction.outflow);
+        const timer = setTimeout(() => {
+            if (transaction) {
+                setFormData({
+                    accountId: transaction.accountId,
+                    date: transaction.date,
+                    payee: transaction.payee,
+                    categoryId: transaction.categoryId,
+                    memo: transaction.memo,
+                    outflow: transaction.outflow,
+                    inflow: transaction.inflow,
+                    cleared: transaction.cleared,
+                });
+                if (transaction.transferId) {
+                    setTransactionType('transfer');
+                    setAmount(transaction.outflow > 0 ? transaction.outflow : transaction.inflow);
+                    setTransferAccountId(transaction.transferAccountId || '');
+                } else if (transaction.outflow > 0) {
+                    setTransactionType('outflow');
+                    setAmount(transaction.outflow);
+                } else {
+                    setTransactionType('inflow');
+                    setAmount(transaction.inflow);
+                }
             } else {
-                setTransactionType('inflow');
-                setAmount(transaction.inflow);
+                setFormData({
+                    accountId: currentAccountId || accounts[0]?.id || 0,
+                    date: new Date().toISOString().split('T')[0],
+                    payee: '',
+                    categoryId: null,
+                    memo: '',
+                    outflow: 0,
+                    inflow: 0,
+                    cleared: 'Uncleared',
+                });
+                setTransactionType('outflow');
+                setAmount(0);
+                setTransferAccountId('');
             }
-        } else {
-            setFormData({
-                account_id: currentAccountId || accounts[0]?.id || 0,
-                date: new Date().toISOString().split('T')[0],
-                payee: '',
-                category_id: null,
-                memo: '',
-                outflow: 0,
-                inflow: 0,
-                cleared: 'Uncleared',
-            });
-            setTransactionType('outflow');
-            setAmount(0);
-            setTransferAccountId('');
-        }
+        }, 0);
+        return () => clearTimeout(timer);
     }, [transaction, accounts, currentAccountId]);
 
     const { data: payees = [] } = usePayees(isOpen);
@@ -116,21 +141,21 @@ export default function TransactionModal({
 
     // Transfer destination: exclude current account and credit card accounts
     const transferAccountOptions: SelectOption[] = useMemo(() => {
-        const sourceAccountId = formData.account_id || currentAccountId;
+        const sourceAccountId = formData.accountId || currentAccountId;
         return accounts
             .filter(acc => acc.id !== sourceAccountId && acc.type !== 'credit')
             .map(acc => ({
                 value: acc.id,
                 label: acc.name,
             }));
-    }, [accounts, formData.account_id, currentAccountId]);
+    }, [accounts, formData.accountId, currentAccountId]);
 
     const categoryOptions: SelectOption[] = [
         { value: '', label: 'Sin categoría' },
         ...categories.map(cat => ({
             value: cat.id,
             label: cat.name,
-            group: cat.group_name,
+            group: cat.groupName,
         })),
     ];
 
@@ -150,10 +175,10 @@ export default function TransactionModal({
                 updateTransaction.mutate(
                     {
                         id: transaction.id,
-                        account_id: formData.account_id,
+                        accountId: formData.accountId,
                         date: formData.date,
                         payee: formData.payee,
-                        category_id: null,
+                        categoryId: null,
                         memo: formData.memo,
                         outflow: transaction.outflow > 0 ? amount : 0,
                         inflow: transaction.inflow > 0 ? amount : 0,
@@ -165,16 +190,16 @@ export default function TransactionModal({
                 // Creating a new transfer
                 createTransaction.mutate(
                     {
-                        account_id: formData.account_id,
+                        accountId: formData.accountId,
                         date: formData.date,
                         payee: '',
-                        category_id: null,
+                        categoryId: null,
                         memo: formData.memo,
                         outflow: amount,
                         inflow: 0,
                         cleared: formData.cleared,
-                        is_transfer: true,
-                        transfer_account_id: transferAccountId as number,
+                        isTransfer: true,
+                        transferAccountId: transferAccountId as number,
                     },
                     { onSuccess: onSuccessCallback },
                 );
@@ -183,12 +208,11 @@ export default function TransactionModal({
         }
 
         // Normal transaction
-        const { transfer_id, transfer_account_id: _taid, transfer_account_name: _taname, ...cleanFormData } = formData;
         const payload = {
-            ...cleanFormData,
+            ...formData,
             outflow: transactionType === 'outflow' ? amount : 0,
             inflow: transactionType === 'inflow' ? amount : 0,
-            category_id: formData.category_id || null,
+            categoryId: formData.categoryId || null,
         };
 
         if (transaction?.id) {
@@ -232,7 +256,7 @@ export default function TransactionModal({
             }
             size="lg"
         >
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} data-testid="transaction-form" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                     {/* Account */}
                     <div className="md:col-span-2">
@@ -240,8 +264,8 @@ export default function TransactionModal({
                             {transactionType === 'transfer' ? 'Cuenta origen' : 'Cuenta de origen'}
                         </label>
                         <Select
-                            value={formData.account_id}
-                            onChange={(value) => setFormData({ ...formData, account_id: value as number })}
+                            value={formData.accountId}
+                            onChange={(value) => setFormData({ ...formData, accountId: value as number })}
                             options={accountOptions}
                             disabled={!!transaction?.id}
                         />
@@ -263,6 +287,7 @@ export default function TransactionModal({
                             <div className="relative group">
                                 <input
                                     type="text"
+                                    data-testid="transaction-payee"
                                     value={formData.payee}
                                     onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
                                     list="payees-list"
@@ -303,8 +328,8 @@ export default function TransactionModal({
                         <div className="md:col-span-2">
                             <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Categoría del presupuesto</label>
                             <Select
-                                value={formData.category_id || ''}
-                                onChange={(value) => setFormData({ ...formData, category_id: value ? value as number : null })}
+                                value={formData.categoryId || ''}
+                                onChange={(value) => setFormData({ ...formData, categoryId: value ? value as number : null })}
                                 options={categoryOptions}
                                 searchable
                                 placeholder="Selecciona una categoría..."
@@ -372,6 +397,7 @@ export default function TransactionModal({
                     <div className="md:col-span-2">
                         <label className="text-meta mb-3 block opacity-60">Descripción o notas</label>
                         <textarea
+                            data-testid="transaction-memo"
                             value={formData.memo}
                             onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
                             className="w-full px-5 py-4 rounded-2xl
@@ -458,6 +484,7 @@ export default function TransactionModal({
                             type="button"
                             onClick={handleDelete}
                             disabled={loading}
+                            data-testid="transaction-delete-button"
                             className="w-full sm:w-auto px-8 py-4 rounded-2xl text-destructive font-black text-[10px] uppercase tracking-widest
                                      hover:bg-destructive/10 transition-all duration-300 disabled:opacity-50"
                         >
@@ -469,6 +496,7 @@ export default function TransactionModal({
                         type="button"
                         onClick={onClose}
                         disabled={loading}
+                        data-testid="transaction-cancel-button"
                         className="neu-btn w-full sm:w-auto px-8 py-4 rounded-2xl text-muted-foreground
                                  font-black text-[10px] uppercase tracking-widest hover:text-foreground
                                  transition-all duration-300 disabled:opacity-50"
@@ -478,6 +506,7 @@ export default function TransactionModal({
                     <button
                         type="submit"
                         disabled={loading || (transactionType === 'transfer' && !transferAccountId)}
+                        data-testid="transaction-submit-button"
                         className="neu-btn-primary w-full sm:w-auto px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest
                                  transition-all duration-300
                                  disabled:opacity-50 active:scale-95"

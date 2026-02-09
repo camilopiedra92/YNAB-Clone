@@ -2,27 +2,17 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BudgetItem } from './useBudget';
+import {
+    parseLocaleNumber,
+    MAX_ASSIGNED_VALUE,
+    validateAssignment,
+    calculateAssignment,
+    computeCarryforward,
+    toMilliunits,
+    type Milliunit,
+} from '@/lib/engine';
 
-// ─── Locale-aware number parsing ─────────────────────────────────────
-function parseLocaleNumber(value: string): number {
-    let clean = value.replace(/[^\d.,-]/g, '');
 
-    if (/,\d{1,2}$/.test(clean)) {
-        clean = clean.replace(/\./g, '').replace(',', '.');
-    } else {
-        const dotCount = (clean.match(/\./g) || []).length;
-        if (dotCount > 1) {
-            clean = clean.replace(/\./g, '').replace(',', '.');
-        } else if (dotCount === 1 && /\.\d{3}/.test(clean)) {
-            clean = clean.replace('.', '');
-        }
-    }
-
-    const result = parseFloat(clean);
-    return isFinite(result) ? result : 0;
-}
-
-const MAX_ASSIGNED_VALUE = 100_000_000_000; // 100 billion safety cap
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface UpdateAssignedParams {
@@ -40,7 +30,7 @@ interface UpdateCategoryNameParams {
 
 interface ReorderParams {
     type: 'group' | 'category';
-    items: { id: number | null; sort_order: number; category_group_id?: number }[];
+    items: { id: number | null; sortOrder: number; categoryGroupId?: number }[];
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────
@@ -53,14 +43,15 @@ export function useUpdateAssigned(currentMonth: string) {
         mutationKey: ['budget-update-assigned'],
         meta: { errorMessage: 'Error al guardar la asignación', broadcastKeys: ['budget', 'accounts'] },
         mutationFn: async ({ categoryId, value, currentBudgetData }: UpdateAssignedParams) => {
-            let numericValue = parseLocaleNumber(value);
+            const parsed = parseLocaleNumber(value);
+            let numericValue = toMilliunits(parsed);
 
             if (Math.abs(numericValue) > MAX_ASSIGNED_VALUE) {
-                numericValue = Math.sign(numericValue) * MAX_ASSIGNED_VALUE;
+                numericValue = toMilliunits(Math.sign(parsed) * (MAX_ASSIGNED_VALUE / 1000));
             }
 
             // Skip if value unchanged
-            const currentItem = currentBudgetData.find(i => i.category_id === categoryId);
+            const currentItem = currentBudgetData.find(i => i.categoryId === categoryId);
             if (currentItem && currentItem.assigned === numericValue) {
                 return { skipped: true, numericValue };
             }
@@ -93,30 +84,56 @@ export function useUpdateAssigned(currentMonth: string) {
             // Snapshot previous data for rollback
             const previous = queryClient.getQueryData(['budget', currentMonth]);
 
-            let numericValue = parseLocaleNumber(value);
-            if (Math.abs(numericValue) > MAX_ASSIGNED_VALUE) {
-                numericValue = Math.sign(numericValue) * MAX_ASSIGNED_VALUE;
-            }
+            // ── Use engine for EXACT optimistic calculation ──
+            const parsed = parseLocaleNumber(value);
+            let numericValue = toMilliunits(parsed);
+            const validation = validateAssignment(numericValue);
+            numericValue = validation.clamped;
 
-            const currentItem = currentBudgetData.find(i => i.category_id === categoryId);
+            const currentItem = currentBudgetData.find(i => i.categoryId === categoryId);
             if (currentItem && currentItem.assigned === numericValue) {
                 return { previous, skipped: true };
             }
 
-            const delta = currentItem ? numericValue - currentItem.assigned : 0;
+            // Build engine input from cached data
+            const existing = currentItem
+                ? { assigned: currentItem.assigned, available: currentItem.available }
+                : null;
 
-            // Optimistic update — merge into current cache (which may already contain
-            // other optimistic updates from rapid edits on different categories)
+            // Compute carryforward from the category's previous available
+            // const prevAvailable = existing ? existing.available - existing.assigned : 0;
+            const isCCPayment = !!currentItem?.linkedAccountId;
+            const carryforward = computeCarryforward(
+                (existing ? existing.available - (currentItem?.activity || 0) - existing.assigned + (currentItem?.assigned || 0) : null) as Milliunit | null,
+                isCCPayment
+            );
+
+            // Get exact result from engine
+            const result = calculateAssignment({
+                existing: existing
+                    ? { assigned: existing.assigned as Milliunit, available: existing.available as Milliunit }
+                    : null,
+                carryforward,
+                newAssigned: numericValue,
+            });
+
+            // Optimistic update with exact engine-computed values
+            // Past months always show RTA=0 (RTA is cumulative, only applies to current/future)
+            const now = new Date();
+            const calendarMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const isPastMonth = currentMonth < calendarMonth;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             queryClient.setQueryData(['budget', currentMonth], (old: any) => {
                 if (!old) return old;
                 return {
                     ...old,
                     budget: old.budget.map((item: BudgetItem) =>
-                        item.category_id === categoryId
-                            ? { ...item, assigned: numericValue, available: item.available + delta }
+                        item.categoryId === categoryId
+                            ? { ...item, assigned: numericValue, available: existing ? existing.available + result.delta : result.newAvailable }
                             : item
                     ),
-                    readyToAssign: old.readyToAssign - delta,
+                    readyToAssign: isPastMonth ? 0 : old.readyToAssign - result.delta,
                 };
             });
 
@@ -129,19 +146,13 @@ export function useUpdateAssigned(currentMonth: string) {
             if (!data.skipped && data.serverData) {
                 const { budget, readyToAssign, rtaBreakdown, overspendingTypes, inspectorData } = data.serverData;
                 if (budget && readyToAssign !== undefined) {
-                    // Merge overspending types into budget items (same as fetchBudget transform)
-                    const mergedBudget = overspendingTypes
-                        ? budget.map((item: BudgetItem) => ({
-                            ...item,
-                            overspending_type: item.category_id ? (overspendingTypes[item.category_id] || null) : null,
-                        }))
-                        : budget;
-
+                    // Server now returns DTOs with overspendingType already merged
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     queryClient.setQueryData(['budget', currentMonth], (old: any) => {
                         if (!old) return old;
                         return {
                             ...old,
-                            budget: mergedBudget,
+                            budget,
                             readyToAssign,
                             rtaBreakdown,
                             overspendingTypes,
@@ -173,8 +184,15 @@ export function useUpdateAssigned(currentMonth: string) {
             if (stillPending <= 1) {
                 // Invalidate ALL budget months, not just currentMonth.
                 // RTA is cumulative — assigning in Feb affects March's RTA too.
-                // Also, adjacent months are prefetched and would show stale RTA otherwise.
                 queryClient.invalidateQueries({ queryKey: ['budget'] });
+                // Remove stale prefetched months so navigation forces a fresh fetch
+                // instead of serving cached data with wrong RTA values.
+                // Active queries (currentMonth) are protected — removeQueries
+                // only evicts inactive cache entries.
+                queryClient.removeQueries({
+                    queryKey: ['budget'],
+                    predicate: (query) => query.queryKey[1] !== currentMonth,
+                });
             }
         },
     });
@@ -284,7 +302,7 @@ export function useCreateCategory() {
             const res = await fetch('/api/categories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, category_group_id: categoryGroupId }),
+                body: JSON.stringify({ name, categoryGroupId }),
             });
 
             if (!res.ok) {

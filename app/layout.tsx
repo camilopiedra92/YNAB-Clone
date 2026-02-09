@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-
-import Providers from "@/components/Providers";
+import ClientShell from "@/components/ClientShell";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,18 +18,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className} suppressHydrationWarning>
-        <Providers>
-          <div className="flex min-h-screen bg-background text-foreground overflow-hidden font-sans">
-            <Sidebar />
-
-            <main className="flex-1 lg:pl-[272px] min-h-screen flex flex-col">
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {children}
-              </div>
-            </main>
-          </div>
-        </Providers>
+        <ClientShell>
+          {children}
+        </ClientShell>
       </body>
     </html>
   );
 }
+

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { formatCurrencyOrEmpty } from '@/lib/format';
+import { fromMilliunits, toMilliunits } from '@/lib/engine/primitives';
 
 interface CurrencyInputProps {
     value: number;
@@ -24,25 +26,17 @@ export default function CurrencyInput({
 
     useEffect(() => {
         if (!isFocused) {
-            setDisplayValue(formatCurrency(value));
+            setTimeout(() => setDisplayValue(formatCurrencyOrEmpty(value)), 0);
         }
     }, [value, isFocused]);
-
-    const formatCurrency = (amount: number) => {
-        if (amount === 0) return '';
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0,
-        }).format(amount);
-    };
 
     const parseInput = (input: string): number => {
         const cleaned = input.replace(/[^\d-]/g, '');
         const num = parseInt(cleaned || '0', 10);
 
         if (!allowNegative && num < 0) return 0;
-        return num;
+        // Convert the user's display-number to milliunits
+        return toMilliunits(num);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,7 +50,8 @@ export default function CurrencyInput({
     const handleFocus = () => {
         setIsFocused(true);
         if (value !== 0) {
-            setDisplayValue(value.toString());
+            // Show the human-readable number (not milliunits) for editing
+            setDisplayValue(fromMilliunits(value as import('@/lib/engine/primitives').Milliunit).toString());
         } else {
             setDisplayValue('');
         }
@@ -64,12 +59,13 @@ export default function CurrencyInput({
 
     const handleBlur = () => {
         setIsFocused(false);
-        setDisplayValue(formatCurrency(value));
+        setDisplayValue(formatCurrencyOrEmpty(value));
     };
 
     return (
         <input
             type="text"
+            data-testid="currency-input"
             value={displayValue}
             onChange={handleChange}
             onFocus={handleFocus}

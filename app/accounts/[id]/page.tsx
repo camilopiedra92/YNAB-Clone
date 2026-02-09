@@ -9,35 +9,21 @@ import {
     Lock, Shield, AlertTriangle, X, Pencil,
     Link2, Upload, Undo2, Redo2
 } from 'lucide-react';
-import { useAccount, useAccounts, type Account } from '@/hooks/useAccounts';
+import { useAccount, useAccounts } from '@/hooks/useAccounts';
 import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useToggleCleared, useGetReconciliationInfo, useReconcileAccount } from '@/hooks/useTransactionMutations';
 
 interface ReconciliationInfo {
-    cleared_balance: number;
-    reconciled_balance: number;
-    pending_cleared_balance: number;
-    pending_cleared_count: number;
+    clearedBalance: number;
+    reconciledBalance: number;
+    pendingClearedBalance: number;
+    pendingClearedCount: number;
 }
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(amount);
-};
+import { formatCurrency } from '@/lib/format';
 
-const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-};
+
 
 const typeLabels: Record<string, string> = {
     checking: 'Checking',
@@ -122,8 +108,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     }, []);
 
     // Memoized derived data
-    const currentTransactions = useMemo(() => transactions.filter(t => !t.is_future), [transactions]);
-    const futureTransactions = useMemo(() => transactions.filter(t => t.is_future), [transactions]);
+    const currentTransactions = useMemo(() => transactions.filter(t => !t.isFuture), [transactions]);
+    const futureTransactions = useMemo(() => transactions.filter(t => t.isFuture), [transactions]);
 
     const toggleSelectAll = useCallback(() => {
         if (selectedRows.size === currentTransactions.length) {
@@ -151,7 +137,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         const bankBalance = parseFloat(bankBalanceInput.replace(/[,$\s]/g, ''));
         if (isNaN(bankBalance)) return;
 
-        const clearedBalance = reconciliationInfo.cleared_balance;
+        const clearedBalance = reconciliationInfo.clearedBalance;
         const diff = bankBalance - clearedBalance;
 
         if (Math.abs(diff) > 0.01) {
@@ -171,7 +157,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             {
                 onSuccess: (data) => {
                     if (data.success) {
-                        setReconciledCount(data.reconciled_count);
+                        setReconciledCount(data.reconciledCount);
                         setReconcileStep('success');
                     } else if (data.mismatch) {
                         setReconcileDifference(data.difference);
@@ -196,7 +182,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         return currentTransactions.filter(t =>
             (t.payee || '').toLowerCase().includes(q) ||
             (t.memo || '').toLowerCase().includes(q) ||
-            (t.category_name || '').toLowerCase().includes(q)
+            (t.categoryName || '').toLowerCase().includes(q)
         );
     }, [currentTransactions, searchQuery]);
 
@@ -206,7 +192,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         return futureTransactions.filter(t =>
             (t.payee || '').toLowerCase().includes(q) ||
             (t.memo || '').toLowerCase().includes(q) ||
-            (t.category_name || '').toLowerCase().includes(q)
+            (t.categoryName || '').toLowerCase().includes(q)
         );
     }, [futureTransactions, searchQuery]);
 
@@ -239,7 +225,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 <div className="flex items-center gap-5">
                     <div>
                         <div className="flex items-center gap-2.5">
-                            <h1 className="text-xl font-black text-foreground tracking-tight">{account.name}</h1>
+                            <h1 data-testid="account-name" className="text-xl font-black text-foreground tracking-tight">{account.name}</h1>
                             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                         </div>
                         <div className="flex items-center gap-3 mt-0.5">
@@ -260,22 +246,22 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
                             <div className="flex flex-col items-center">
-                                <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.cleared_balance)}</span>
-                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.15em]">Cleared</span>
+                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.clearedBalance, 2)}</span>
+                                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.15em]">Cleared</span>
+                                </div>
                             </div>
-                        </div>
-                        <span className="text-xs font-black text-muted-foreground/40">+</span>
-                        <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
-                            <div className="flex flex-col items-center">
-                                <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.uncleared_balance)}</span>
-                                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Uncleared</span>
+                            <span className="text-xs font-black text-muted-foreground/40">+</span>
+                            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.unclearedBalance, 2)}</span>
+                                    <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Uncleared</span>
+                                </div>
                             </div>
-                        </div>
-                        <span className="text-xs font-black text-muted-foreground/40">=</span>
-                        <div className="px-5 py-1.5 rounded-2xl shadow-neu-md relative group cursor-default overflow-hidden">
-                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="flex flex-col items-center relative z-10">
-                                <span className="text-lg font-black text-foreground tracking-tighter leading-none">{formatCurrency(account.balance)}</span>
+                            <span className="text-xs font-black text-muted-foreground/40">=</span>
+                            <div className="px-5 py-1.5 rounded-2xl shadow-neu-md relative group cursor-default overflow-hidden">
+                                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="flex flex-col items-center relative z-10">
+                                    <span data-testid="account-working-balance" className="text-lg font-black text-foreground tracking-tighter leading-none">{formatCurrency(account.balance, 2)}</span>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">Working Balance</span>
                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -291,6 +277,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                     </button>
                     <button
                         onClick={handleOpenReconcile}
+                        data-testid="reconcile-button"
                         className="neu-btn-primary px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97]"
                         style={{
                             backgroundColor: 'hsl(142 70% 45%)',
@@ -310,6 +297,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleNewTransaction}
+                        data-testid="add-transaction-button"
                         className="neu-btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
                     >
                         <Plus className="w-3.5 h-3.5" />
@@ -347,6 +335,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={`Search ${account.name}...`}
+                            data-testid="transaction-search"
                             className="pl-10 pr-4 py-2 bg-background rounded-xl text-sm shadow-neu-inset-sm focus:outline-none focus:shadow-neu-inset transition-all w-56"
                         />
                     </div>
@@ -424,15 +413,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                                         <div className="flex justify-between items-center p-3 rounded-xl shadow-neu-inset-sm">
                                             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cleared Balance</span>
                                             <span className="text-base font-bold text-foreground">
-                                                {reconciliationInfo ? formatCurrency(reconciliationInfo.cleared_balance) : '—'}
+                                                {reconciliationInfo ? formatCurrency(reconciliationInfo.clearedBalance) : '—'}
                                             </span>
                                         </div>
 
-                                        {reconciliationInfo && reconciliationInfo.pending_cleared_count > 0 && (
+                                        {reconciliationInfo && reconciliationInfo.pendingClearedCount > 0 && (
                                             <div className="flex justify-between items-center p-3 rounded-xl shadow-neu-inset-sm">
                                                 <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Transactions to reconcile</span>
                                                 <span className="text-base font-bold text-emerald-600">
-                                                    {reconciliationInfo.pending_cleared_count}
+                                                    {reconciliationInfo.pendingClearedCount}
                                                 </span>
                                             </div>
                                         )}
@@ -479,7 +468,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">App cleared balance</span>
                                                 <span className="font-bold text-foreground">
-                                                    {reconciliationInfo ? formatCurrency(reconciliationInfo.cleared_balance) : '—'}
+                                                    {reconciliationInfo ? formatCurrency(reconciliationInfo.clearedBalance) : '—'}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">
@@ -539,7 +528,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                                         <ul className="space-y-1.5 text-xs text-muted-foreground">
                                             <li>• All ✓ Cleared transactions → 🔒 Reconciled</li>
                                             <li>• Reconciled transactions cannot be modified</li>
-                                            <li>• {reconciliationInfo?.pending_cleared_count || 0} transactions will be locked</li>
+                                            <li>• {reconciliationInfo?.pendingClearedCount || 0} transactions will be locked</li>
                                         </ul>
                                     </div>
 

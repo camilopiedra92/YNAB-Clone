@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
     getTransactions,
-    createTransaction,
-    updateTransaction,
-    deleteTransaction,
     getTransaction,
-    toggleTransactionCleared,
-    updateAccountBalances,
-    updateBudgetActivity,
-    reconcileAccount,
     getReconciliationInfo,
-    isCreditCardAccount,
-    updateCreditCardPaymentBudget,
+    getTransferByTransactionId,
     createTransfer,
     deleteTransfer,
-    getTransferByTransactionId,
     getAccountType,
-} from '@/lib/db';
+    // Atomic composite operations
+    createTransactionAtomic,
+    updateTransactionAtomic,
+    deleteTransactionAtomic,
+    toggleClearedAtomic,
+    reconcileAccountAtomic,
+} from '@/lib/repos';
+import {
+    validateBody,
+    CreateTransactionSchema,
+    CreateTransferSchema,
+    UpdateTransactionSchema,
+    TransactionPatchSchema,
+} from '@/lib/schemas';
+import { toTransactionDTO, toReconciliationInfoDTO } from '@/lib/dtos';
 
 export async function GET(request: NextRequest) {
     try {
@@ -27,14 +32,14 @@ export async function GET(request: NextRequest) {
         const endDate = searchParams.get('endDate');
         const limit = searchParams.get('limit');
 
-        const filters: any = {};
+        const filters: { accountId?: number; categoryId?: number; startDate?: string; endDate?: string; limit?: number } = {};
         if (accountId) filters.accountId = parseInt(accountId);
         if (categoryId) filters.categoryId = parseInt(categoryId);
         if (startDate) filters.startDate = startDate;
         if (endDate) filters.endDate = endDate;
         if (limit) filters.limit = parseInt(limit);
 
-        const transactions = getTransactions(filters);
+        const transactions = (await getTransactions(filters)).map(toTransactionDTO);
         return NextResponse.json(transactions);
     } catch (error) {
         console.error('Error fetching transactions:', error);
@@ -47,13 +52,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
 
         // ──── Transfer creation ────
-        if (body.is_transfer) {
-            if (!body.transfer_account_id) {
-                return NextResponse.json({ error: 'Transfer destination account is required' }, { status: 400 });
-            }
+        if (body.isTransfer) {
+            const validation = validateBody(CreateTransferSchema, body);
+            if (!validation.success) return validation.response;
+            const data = validation.data;
 
             // Validate destination is not a credit card account
-            const destType = getAccountType(body.transfer_account_id);
+            const destType = await getAccountType(data.transferAccountId);
             if (destType === 'credit') {
                 return NextResponse.json(
                     { error: 'No se pueden hacer transferencias directas a cuentas de crédito. Usa la función de pago de tarjeta.' },
@@ -61,54 +66,41 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            const amount = body.outflow || body.amount || 0;
-            if (amount <= 0) {
-                return NextResponse.json({ error: 'Transfer amount must be positive' }, { status: 400 });
-            }
+            const amount = data.outflow || data.amount || 0;
 
-            const result = createTransfer({
-                fromAccountId: body.account_id,
-                toAccountId: body.transfer_account_id,
+            // createTransfer already uses database.transaction() internally
+            const result = await createTransfer({
+                fromAccountId: data.accountId,
+                toAccountId: data.transferAccountId,
                 amount,
-                date: body.date,
-                memo: body.memo,
-                cleared: body.cleared || 'Uncleared',
+                date: data.date,
+                memo: data.memo,
+                cleared: data.cleared || 'Uncleared',
             });
 
-            const transaction = getTransaction(result.fromTransactionId as number);
-            return NextResponse.json(transaction, { status: 201 });
+            const transaction = await getTransaction(result.fromTransactionId);
+            return NextResponse.json(toTransactionDTO(transaction), { status: 201 });
         }
 
-        // ──── Normal transaction creation ────
-        const result = createTransaction({
-            accountId: body.account_id,
-            date: body.date,
-            payee: body.payee,
-            categoryId: body.category_id,
-            memo: body.memo,
-            outflow: body.outflow || 0,
-            inflow: body.inflow || 0,
-            cleared: body.cleared || 'Uncleared',
-            flag: body.flag,
+        // ──── Normal transaction creation (atomic) ────
+        const validation = validateBody(CreateTransactionSchema, body);
+        if (!validation.success) return validation.response;
+        const data = validation.data;
+
+        const result = await createTransactionAtomic({
+            accountId: data.accountId,
+            date: data.date,
+            payee: data.payee,
+            categoryId: data.categoryId,
+            memo: data.memo,
+            outflow: data.outflow || 0,
+            inflow: data.inflow || 0,
+            cleared: data.cleared || 'Uncleared',
+            flag: data.flag ?? undefined,
         });
 
-        // Update account balances
-        updateAccountBalances(body.account_id);
-
-        // Update budget activity if category is specified
-        if (body.category_id) {
-            const month = body.date.substring(0, 7); // Extract YYYY-MM
-            updateBudgetActivity(body.category_id, month);
-        }
-
-        // Credit card: auto-move money to CC Payment category
-        if (isCreditCardAccount(body.account_id)) {
-            const month = body.date.substring(0, 7);
-            updateCreditCardPaymentBudget(body.account_id, month);
-        }
-
-        const transaction = getTransaction(result.lastInsertRowid as number);
-        return NextResponse.json(transaction, { status: 201 });
+        const transaction = await getTransaction(result.id);
+        return NextResponse.json(toTransactionDTO(transaction), { status: 201 });
     } catch (error) {
         console.error('Error creating transaction:', error);
         return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
@@ -118,57 +110,36 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const body = await request.json();
-        const { id, ...updates } = body;
 
-        if (!id) {
-            return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 });
-        }
+        const validation = validateBody(UpdateTransactionSchema, body);
+        if (!validation.success) return validation.response;
+        const { id, ...updates } = validation.data;
 
         // Get original transaction to know which account and category to update
-        const original: any = getTransaction(id);
+        const original = await getTransaction(id);
         if (!original) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
         }
 
-        // Update transaction
-        const updateData: any = {};
+        // Build update payload
+        const updateData: Partial<{
+            date: string; payee: string; categoryId: number | null; memo: string;
+            outflow: number; inflow: number; cleared: string; flag: string | null;
+        }> = {};
         if (updates.date !== undefined) updateData.date = updates.date;
         if (updates.payee !== undefined) updateData.payee = updates.payee;
-        if (updates.category_id !== undefined) updateData.categoryId = updates.category_id;
+        if (updates.categoryId !== undefined) updateData.categoryId = updates.categoryId;
         if (updates.memo !== undefined) updateData.memo = updates.memo;
         if (updates.outflow !== undefined) updateData.outflow = updates.outflow;
         if (updates.inflow !== undefined) updateData.inflow = updates.inflow;
         if (updates.cleared !== undefined) updateData.cleared = updates.cleared;
         if (updates.flag !== undefined) updateData.flag = updates.flag;
 
-        updateTransaction(id, updateData);
+        // Atomic: update transaction + balances + budget + CC payment
+        await updateTransactionAtomic(id, original, updateData);
 
-        // Update account balances
-        updateAccountBalances(original.account_id);
-
-        // Update budget activity for old and new categories
-        const oldMonth = original.date.substring(0, 7);
-        const newMonth = (updates.date || original.date).substring(0, 7);
-
-        if (original.category_id) {
-            updateBudgetActivity(original.category_id, oldMonth);
-        }
-        if (updates.category_id !== undefined) {
-            updateBudgetActivity(updates.category_id, newMonth);
-        } else if (original.category_id && oldMonth !== newMonth) {
-            updateBudgetActivity(original.category_id, newMonth);
-        }
-
-        // Credit card: recalculate CC Payment category
-        if (isCreditCardAccount(original.account_id)) {
-            updateCreditCardPaymentBudget(original.account_id, oldMonth);
-            if (oldMonth !== newMonth) {
-                updateCreditCardPaymentBudget(original.account_id, newMonth);
-            }
-        }
-
-        const transaction = getTransaction(id);
-        return NextResponse.json(transaction);
+        const transaction = await getTransaction(id);
+        return NextResponse.json(toTransactionDTO(transaction));
     } catch (error) {
         console.error('Error updating transaction:', error);
         return NextResponse.json({ error: 'Failed to update transaction' }, { status: 500 });
@@ -185,37 +156,22 @@ export async function DELETE(request: NextRequest) {
         }
 
         const transactionId = parseInt(id);
-        const transaction: any = getTransaction(transactionId);
+        const transaction = await getTransaction(transactionId);
 
         if (!transaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
         }
 
         // Check if this transaction is part of a transfer
-        const transfer = getTransferByTransactionId(transactionId);
+        const transfer = await getTransferByTransactionId(transactionId);
         if (transfer) {
-            // Delete both sides of the transfer atomically
-            deleteTransfer(transfer.id);
+            // deleteTransfer already uses database.transaction() internally
+            await deleteTransfer(transfer.id);
             return NextResponse.json({ success: true, deletedTransfer: true });
         }
 
-        // Regular transaction delete
-        deleteTransaction(transactionId);
-
-        // Update account balances
-        updateAccountBalances(transaction.account_id);
-
-        // Update budget activity
-        if (transaction.category_id) {
-            const month = transaction.date.substring(0, 7);
-            updateBudgetActivity(transaction.category_id, month);
-        }
-
-        // Credit card: recalculate CC Payment category
-        if (isCreditCardAccount(transaction.account_id)) {
-            const month = transaction.date.substring(0, 7);
-            updateCreditCardPaymentBudget(transaction.account_id, month);
-        }
+        // Atomic: delete transaction + update balances + budget + CC payment
+        await deleteTransactionAtomic(transaction);
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -227,14 +183,13 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
     try {
         const body = await request.json();
-        const { id, action, accountId, bankBalance } = body;
 
-        if (action === 'toggle-cleared') {
-            if (!id) {
-                return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 });
-            }
+        const validation = validateBody(TransactionPatchSchema, body);
+        if (!validation.success) return validation.response;
+        const data = validation.data;
 
-            const transaction: any = getTransaction(id);
+        if (data.action === 'toggle-cleared') {
+            const transaction = await getTransaction(data.id);
             if (!transaction) {
                 return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
             }
@@ -244,49 +199,38 @@ export async function PATCH(request: NextRequest) {
                 return NextResponse.json({ error: 'Reconciled transactions cannot be modified' }, { status: 403 });
             }
 
-            toggleTransactionCleared(id);
-            updateAccountBalances(transaction.account_id);
+            // Atomic: toggle cleared + update balances
+            await toggleClearedAtomic(data.id, transaction.accountId);
 
-            const updated = getTransaction(id);
-            return NextResponse.json(updated);
+            const updated = await getTransaction(data.id);
+            return NextResponse.json(toTransactionDTO(updated));
         }
 
-        if (action === 'get-reconciliation-info') {
-            if (!accountId) {
-                return NextResponse.json({ error: 'Account ID is required' }, { status: 400 });
-            }
-            const info = getReconciliationInfo(accountId);
-            return NextResponse.json(info);
+        if (data.action === 'get-reconciliation-info') {
+            const info = await getReconciliationInfo(data.accountId);
+            return NextResponse.json(toReconciliationInfoDTO(info));
         }
 
-        if (action === 'reconcile') {
-            if (!accountId) {
-                return NextResponse.json({ error: 'Account ID is required' }, { status: 400 });
-            }
-            if (bankBalance === undefined) {
-                return NextResponse.json({ error: 'Bank balance is required' }, { status: 400 });
-            }
-
+        if (data.action === 'reconcile') {
             // Get current cleared balance to verify
-            const info = getReconciliationInfo(accountId);
-            const clearedBalance = info.cleared_balance;
+            const info = await getReconciliationInfo(data.accountId);
+            const clearedBalance = info!.clearedBalance;
 
-            if (Math.abs(clearedBalance - bankBalance) > 0.01) {
+            if (Math.abs(Number(clearedBalance) - data.bankBalance) > 0.01) {
                 return NextResponse.json({
                     error: 'Balance mismatch',
-                    cleared_balance: clearedBalance,
-                    bank_balance: bankBalance,
-                    difference: bankBalance - clearedBalance,
+                    clearedBalance: clearedBalance,
+                    bankBalance: data.bankBalance,
+                    difference: data.bankBalance - Number(clearedBalance),
                 }, { status: 409 });
             }
 
-            // Mark all Cleared transactions as Reconciled
-            const result = reconcileAccount(accountId);
-            updateAccountBalances(accountId);
+            // Atomic: reconcile + update balances
+            const result = await reconcileAccountAtomic(data.accountId);
 
             return NextResponse.json({
                 success: true,
-                reconciled_count: result.changes,
+                reconciledCount: (result as { changes?: number })?.changes,
             });
         }
 

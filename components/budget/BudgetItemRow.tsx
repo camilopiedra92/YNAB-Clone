@@ -44,13 +44,14 @@ export const BudgetItemRow = React.memo(({
     onUpdateAssignEditValue,
     formatCurrency,
 }: BudgetItemRowProps) => {
-    const isCreditCardPayment = !!item.linked_account_id;
-    const isCreditCardGroup = item.group_name === 'Credit Card Payments';
+    const isCreditCardPayment = !!item.linkedAccountId;
+    const isCreditCardGroup = item.groupName === 'Credit Card Payments';
 
     return (
         <SortableRow
-            id={`item-${item.category_id}`}
+            id={`item-${item.categoryId}`}
             type="item"
+            data-testid={`category-row-${item.categoryId}`}
             className={`group transition-colors duration-200 cursor-pointer border-b border-border/5 ${isSelected
                 ? 'bg-primary/[0.04] active:scale-[0.995]'
                 : 'bg-background hover:bg-muted/5'
@@ -72,12 +73,12 @@ export const BudgetItemRow = React.memo(({
                                     type="checkbox"
                                     className="w-4 h-4 rounded border-border accent-primary cursor-pointer transition-all hover:scale-110"
                                     checked={isSelected}
-                                    onChange={() => onToggleSelection(item.category_id!)}
+                                    onChange={() => onToggleSelection(item.categoryId!)}
                                 />
                             </div>
                         </div>
                     </td>
-                    <td className="py-0.5 px-2 border-b border-border/5" onClick={(e) => !isEditing && onSelect(item.category_id!, e)}>
+                    <td className="py-0.5 px-2 border-b border-border/5" onClick={(e) => !isEditing && onSelect(item.categoryId!, e)}>
                         <div className="flex items-center pl-4 relative">
                             <div className="absolute left-0 top-0 bottom-0 w-px bg-border/40 ml-2" />
                             <div className="flex items-center w-full group/text pl-4">
@@ -92,10 +93,10 @@ export const BudgetItemRow = React.memo(({
                                             value={editingValue}
                                             onChange={(e) => onUpdateEditingValue(e.target.value)}
                                             onKeyDown={(e) => {
-                                                if (e.key === 'Enter') onUpdateName(item.category_id!, editingValue);
+                                                if (e.key === 'Enter') onUpdateName(item.categoryId!, editingValue);
                                                 if (e.key === 'Escape') onCancelEditName();
                                             }}
-                                            onBlur={() => onUpdateName(item.category_id!, editingValue)}
+                                            onBlur={() => onUpdateName(item.categoryId!, editingValue)}
                                             onClick={(e) => e.stopPropagation()}
                                             className="flex-1 bg-background rounded-lg px-3 py-1 text-sm font-bold text-foreground outline-none w-full shadow-neu-inset focus:shadow-[inset_3px_3px_6px_0_var(--neu-dark),inset_-3px_-3px_6px_0_var(--neu-light)] transition-all"
                                         />
@@ -107,11 +108,11 @@ export const BudgetItemRow = React.memo(({
                                         onClick={(e) => {
                                             if (isSelected) {
                                                 e.stopPropagation();
-                                                onStartEditName(item.category_id!, item.category_name || '');
+                                                onStartEditName(item.categoryId!, item.categoryName || '');
                                             }
                                         }}
                                     >
-                                        {item.category_name}
+                                        {item.categoryName}
                                     </span>
                                 )}
                             </div>
@@ -119,7 +120,7 @@ export const BudgetItemRow = React.memo(({
                     </td>
                     <td className="py-0.5 px-4 text-right border-b border-border/5">
                         <div className="flex justify-end">
-                            {assignEditingId === item.category_id ? (
+                            {assignEditingId === item.categoryId ? (
                                 <input
                                     autoFocus
                                     type="text"
@@ -127,7 +128,7 @@ export const BudgetItemRow = React.memo(({
                                     value={assignEditValue}
                                     onChange={(e) => onUpdateAssignEditValue(e.target.value)}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') onUpdateAssigned(item.category_id!, assignEditValue);
+                                        if (e.key === 'Enter') onUpdateAssigned(item.categoryId!, assignEditValue);
                                         if (e.key === 'Escape') onCancelEditAssigned();
                                         // Allow: digits, decimal separators, minus, navigation, control keys
                                         const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End', 'Enter', 'Escape'];
@@ -139,16 +140,17 @@ export const BudgetItemRow = React.memo(({
                                             e.preventDefault();
                                         }
                                     }}
-                                    onBlur={() => onUpdateAssigned(item.category_id!, assignEditValue)}
+                                    onBlur={() => onUpdateAssigned(item.categoryId!, assignEditValue)}
                                     onClick={(e) => e.stopPropagation()}
                                     onFocus={(e) => e.target.select()}
                                     className="w-[120px] bg-background rounded-lg px-3 py-1 text-sm font-black text-foreground text-right outline-none shadow-neu-inset box-border"
                                 />
                             ) : (
                                 <div
+                                    data-testid={`category-assigned-${item.categoryId}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        onStartEditAssigned(item.category_id!, item.assigned.toString());
+                                        onStartEditAssigned(item.categoryId!, item.assigned.toString());
                                     }}
                                     className={`text-sm font-bold px-3 py-1 rounded-lg cursor-text w-[120px] text-right box-border tabular-nums transition-shadow duration-200 ${isSelected ? 'shadow-neu-inset-sm' : 'text-foreground/60 group-hover:shadow-neu-inset-sm'}`}
                                 >
@@ -171,7 +173,7 @@ export const BudgetItemRow = React.memo(({
                                     Payment
                                 </span>
                             )}
-                            <button className={`min-w-[100px] py-1 px-3 rounded-lg text-sm font-bold text-right tabular-nums transition-[background-color,color,box-shadow,transform] duration-200 ${isCreditCardPayment
+                            <button data-testid={`category-available-${item.categoryId}`} className={`min-w-[100px] py-1 px-3 rounded-lg text-sm font-bold text-right tabular-nums transition-[background-color,color,box-shadow,transform] duration-200 ${isCreditCardPayment
                                 ? item.available > 0
                                     ? 'bg-primary/10 text-primary shadow-neu-inset-sm hover:bg-primary hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
                                     : item.available < 0
@@ -180,7 +182,7 @@ export const BudgetItemRow = React.memo(({
                                 : item.available > 0
                                     ? 'bg-emerald-500/10 text-emerald-600 shadow-neu-inset-sm hover:bg-emerald-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
                                     : item.available < 0
-                                        ? item.overspending_type === 'credit'
+                                        ? item.overspendingType === 'credit'
                                             ? 'bg-amber-500/10 text-amber-600 shadow-neu-inset-sm hover:bg-amber-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
                                             : 'bg-rose-500/10 text-rose-600 shadow-neu-inset-sm hover:bg-rose-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
                                         : 'text-muted-foreground/60 shadow-neu-inset-sm grayscale hover:grayscale-0 transition-all'

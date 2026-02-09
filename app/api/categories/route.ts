@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { updateCategoryName, createCategory, getCategories } from '@/lib/db';
+import { updateCategoryName, createCategory, getCategoriesWithGroups } from '@/lib/repos';
+import { validateBody, CreateCategorySchema, UpdateCategoryNameSchema } from '@/lib/schemas';
+import { toCategoryDTO } from '@/lib/dtos';
 
 export async function GET() {
     try {
-        const categories = getCategories();
+        const categories = (await getCategoriesWithGroups()).map(toCategoryDTO);
         return NextResponse.json(categories);
     } catch (error) {
         console.error('Error fetching categories:', error);
@@ -13,14 +15,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { name, category_group_id } = await request.json();
+        const body = await request.json();
+        const validation = validateBody(CreateCategorySchema, body);
+        if (!validation.success) return validation.response;
+        const { name, categoryGroupId } = validation.data;
 
-        if (!name || !category_group_id) {
-            return NextResponse.json({ error: 'Missing name or category_group_id' }, { status: 400 });
-        }
-
-        const result = createCategory({ name, category_group_id });
-        return NextResponse.json({ success: true, id: result.lastInsertRowid });
+        const result = await createCategory({ name, category_group_id: categoryGroupId });
+        return NextResponse.json({ success: true, id: result.id });
     } catch (error) {
         console.error('Error creating category:', error);
         return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
@@ -29,13 +30,12 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
     try {
-        const { id, name } = await request.json();
+        const body = await request.json();
+        const validation = validateBody(UpdateCategoryNameSchema, body);
+        if (!validation.success) return validation.response;
+        const { id, name } = validation.data;
 
-        if (!id || !name) {
-            return NextResponse.json({ error: 'Missing id or name' }, { status: 400 });
-        }
-
-        updateCategoryName(id, name);
+        await updateCategoryName(id, name);
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error updating category name:', error);

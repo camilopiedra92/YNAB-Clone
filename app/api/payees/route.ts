@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getPayees } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { getPayees } from '@/lib/repos';
 
 export async function GET() {
     try {
-        const payees = getPayees();
+        const payees = await getPayees();
         return NextResponse.json(payees);
     } catch (error) {
         console.error('Error fetching payees:', error);

@@ -1,8 +1,8 @@
 # YNAB Clone
 
-A powerful personal finance management application inspired by [YNAB (You Need A Budget)](https://www.youneedabudget.com/). Built with Next.js, SQLite, and TanStack Query, this application implements the core principles of zero-based budgeting.
+A powerful personal finance management application inspired by [YNAB (You Need A Budget)](https://www.youneedabudget.com/). Built with Next.js, PostgreSQL (via Drizzle ORM), and TanStack Query, this application implements the core principles of zero-based budgeting.
 
-![YNAB Clone Preview](public/preview.png) *(Note: Add a real preview image to the public folder)*
+![YNAB Clone Preview](public/preview.png) _(Note: Add a real preview image to the public folder)_
 
 ## 🚀 Quick Start
 
@@ -29,19 +29,22 @@ Detailed documentation is available in the [`/docs`](./docs) directory:
 ## ✨ Core Pillars
 
 ### 1. Zero-Based Budgeting
+
 Every dollar gets a job. The "Ready to Assign" (RTA) engine ensures you only budget money you actually have.
 
 ### 2. Credit Card Mastery
+
 Credit card transactions automatically move money from spending categories to your payment category, ensuring you're always ready to pay the bill.
 
 ### 3. Snappy Performance
+
 Optimistic UI updates mean you never wait for a spinner when assigning money or adding transactions. Virtualized lists keep the experience fluid even with years of history.
 
 ## 🛠 Tech Stack
 
 - **Frontend**: Next.js 15, Tailwind CSS 4, TanStack Virtual
 - **Backend**: Next.js App Router (API Layer)
-- **Database**: SQLite (better-sqlite3)
+- **Database**: PostgreSQL (Drizzle ORM)
 - **State Management**: TanStack Query (React Query)
 
 ## 🤝 Contributing
@@ -49,4 +52,5 @@ Optimistic UI updates mean you never wait for a spinner when assigning money or 
 This project is a personal exploration of complex financial logic and modern web patterns. For setup and development details, please refer to the [Developer Guide](./docs/developer-guide.md).
 
 ---
-*Disclaimer: This is an independent clone and is not affiliated with, endorsed by, or sponsored by You Need A Budget, LLC.*
+
+_Disclaimer: This is an independent clone and is not affiliated with, endorsed by, or sponsored by You Need A Budget, LLC._

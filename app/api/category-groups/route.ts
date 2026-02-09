@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createCategoryGroup } from '@/lib/db';
+import { createCategoryGroup } from '@/lib/repos';
+import { validateBody, CreateCategoryGroupSchema } from '@/lib/schemas';
 
 export async function POST(request: Request) {
     try {
-        const { name } = await request.json();
+        const body = await request.json();
+        const validation = validateBody(CreateCategoryGroupSchema, body);
+        if (!validation.success) return validation.response;
+        const { name } = validation.data;
 
-        if (!name || typeof name !== 'string') {
-            return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-        }
-
-        const result = createCategoryGroup(name);
-        return NextResponse.json({ success: true, id: result.lastInsertRowid });
+        const result = await createCategoryGroup(name);
+        return NextResponse.json({ success: true, id: result.id });
     } catch (error) {
         console.error('Error creating category group:', error);
         return NextResponse.json({ error: 'Failed to create category group' }, { status: 500 });

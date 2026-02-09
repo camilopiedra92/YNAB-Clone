@@ -1,14 +1,15 @@
 'use client';
 
-import { useIsMutating, useMutationState, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutationState, useQueryClient, useIsRestoring } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
-type SyncState = 'idle' | 'syncing' | 'saved' | 'offline' | 'queued' | 'error';
+type SyncState = 'idle' | 'syncing' | 'saved' | 'offline' | 'queued' | 'error' | 'restoring';
 
 export default function SyncStatus() {
     const queryClient = useQueryClient();
     const isMutating = useIsMutating();
+    const isRestoring = useIsRestoring();
     const { isOnline } = useOnlineStatus();
     const [visible, setVisible] = useState(false);
 
@@ -29,6 +30,7 @@ export default function SyncStatus() {
 
     // Determine current sync state
     const syncState: SyncState = (() => {
+        if (isRestoring) return 'restoring';
         if (!isOnline && pausedCount > 0) return 'queued';
         if (!isOnline) return 'offline';
         if (errorCount > 0) return 'error';
@@ -38,10 +40,10 @@ export default function SyncStatus() {
 
     useEffect(() => {
         if (syncState !== 'idle') {
-            setVisible(true);
+            setTimeout(() => setVisible(true), 0);
         } else {
             // Show "Saved" briefly after mutations finish, then hide
-            setVisible(true);
+            setTimeout(() => setVisible(true), 0);
             const timer = setTimeout(() => setVisible(false), 1200);
             return () => clearTimeout(timer);
         }
@@ -98,6 +100,13 @@ export default function SyncStatus() {
                 </svg>
             ),
             label: `${pausedCount} pending`,
+        },
+        restoring: {
+            bg: 'bg-sky-500/10 text-sky-600 shadow-neu-sm',
+            icon: (
+                <div className="w-3 h-3 rounded-full border-2 border-sky-500 border-t-transparent animate-spin" />
+            ),
+            label: 'Restoring…',
         },
         error: {
             bg: 'bg-rose-500/10 text-rose-600 shadow-neu-sm',

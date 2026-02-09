@@ -6,27 +6,14 @@ import AppLayout from '@/components/AppLayout';
 import TransactionModal from '@/components/TransactionModal';
 import VirtualTransactionTable from '@/components/VirtualTransactionTable';
 import { Plus, Search, ChevronDown, Link2, Upload, Undo2, Redo2, Wallet } from 'lucide-react';
-import { useAccounts, type Account } from '@/hooks/useAccounts';
+import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useToggleCleared } from '@/hooks/useTransactionMutations';
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+import { formatCurrency } from '@/lib/format';
 
-const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-};
+
 
 export default function AllAccountsPage() {
     const queryClient = useQueryClient();
@@ -75,11 +62,11 @@ export default function AllAccountsPage() {
 
     // Memoized derived data
     const totalBalance = useMemo(() => accounts.reduce((sum, a) => sum + a.balance, 0), [accounts]);
-    const totalCleared = useMemo(() => accounts.reduce((sum, a) => sum + a.cleared_balance, 0), [accounts]);
-    const totalUncleared = useMemo(() => accounts.reduce((sum, a) => sum + a.uncleared_balance, 0), [accounts]);
+    const totalCleared = useMemo(() => accounts.reduce((sum, a) => sum + a.clearedBalance, 0), [accounts]);
+    const totalUncleared = useMemo(() => accounts.reduce((sum, a) => sum + a.unclearedBalance, 0), [accounts]);
 
-    const currentTransactions = useMemo(() => transactions.filter(t => !t.is_future), [transactions]);
-    const futureTransactions = useMemo(() => transactions.filter(t => t.is_future), [transactions]);
+    const currentTransactions = useMemo(() => transactions.filter(t => !t.isFuture), [transactions]);
+    const futureTransactions = useMemo(() => transactions.filter(t => t.isFuture), [transactions]);
 
     const filteredCurrent = useMemo(() => {
         if (!searchQuery) return currentTransactions;
@@ -87,8 +74,8 @@ export default function AllAccountsPage() {
         return currentTransactions.filter(t =>
             t.payee?.toLowerCase().includes(q) ||
             t.memo?.toLowerCase().includes(q) ||
-            t.category_name?.toLowerCase().includes(q) ||
-            t.account_name?.toLowerCase().includes(q) ||
+            t.categoryName?.toLowerCase().includes(q) ||
+            t.accountName?.toLowerCase().includes(q) ||
             formatCurrency(t.inflow).toLowerCase().includes(q) ||
             formatCurrency(t.outflow).toLowerCase().includes(q)
         );
@@ -100,8 +87,8 @@ export default function AllAccountsPage() {
         return futureTransactions.filter(t =>
             t.payee?.toLowerCase().includes(q) ||
             t.memo?.toLowerCase().includes(q) ||
-            t.category_name?.toLowerCase().includes(q) ||
-            t.account_name?.toLowerCase().includes(q) ||
+            t.categoryName?.toLowerCase().includes(q) ||
+            t.accountName?.toLowerCase().includes(q) ||
             formatCurrency(t.inflow).toLowerCase().includes(q) ||
             formatCurrency(t.outflow).toLowerCase().includes(q)
         );
@@ -172,14 +159,14 @@ export default function AllAccountsPage() {
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(totalCleared)}</span>
+                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(totalCleared, 2)}</span>
                                     <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.15em]">Cleared</span>
                                 </div>
                             </div>
                             <span className="text-xs font-black text-muted-foreground/40">+</span>
                             <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(totalUncleared)}</span>
+                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(totalUncleared, 2)}</span>
                                     <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Uncleared</span>
                                 </div>
                             </div>
@@ -187,7 +174,7 @@ export default function AllAccountsPage() {
                             <div className="px-5 py-1.5 rounded-2xl shadow-neu-md relative group cursor-default overflow-hidden">
                                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 <div className="flex flex-col items-center relative z-10">
-                                    <span className="text-lg font-black text-foreground tracking-tighter leading-none">{formatCurrency(totalBalance)}</span>
+                                    <span className="text-lg font-black text-foreground tracking-tighter leading-none">{formatCurrency(totalBalance, 2)}</span>
                                     <div className="flex items-center gap-1.5 mt-0.5">
                                         <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">Total Balance</span>
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

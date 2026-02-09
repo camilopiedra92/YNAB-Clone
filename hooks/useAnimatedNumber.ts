@@ -17,7 +17,7 @@ export function useAnimatedNumber(targetValue: number, duration: number = 350): 
         // Skip animation on first render — show the value immediately
         if (isFirstRender.current) {
             isFirstRender.current = false;
-            setDisplayValue(targetValue);
+            // setDisplayValue(targetValue);
             startValueRef.current = targetValue;
             return;
         }
@@ -64,7 +64,7 @@ export function useAnimatedNumber(targetValue: number, duration: number = 350): 
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [targetValue, duration]);
+    }, [targetValue, duration]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return displayValue;
 }

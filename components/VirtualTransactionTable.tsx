@@ -1,19 +1,14 @@
 'use client';
 
-import { useRef, useCallback, memo } from 'react';
+import { useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Circle, Lock, Clock, Search, ArrowRightLeft } from 'lucide-react';
 import type { Transaction } from '@/hooks/useTransactions';
+import { formatCurrency } from '@/lib/format';
 
 const ROW_HEIGHT = 33; // px per row — matches py-1 + content
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T12:00:00');
@@ -34,7 +29,7 @@ const TransactionRow = memo(function TransactionRow({
     onEdit,
     onToggleCleared,
     onToggleSelect,
-    accountId,
+
 }: {
     t: Transaction;
     isSelected: boolean;
@@ -46,6 +41,7 @@ const TransactionRow = memo(function TransactionRow({
 }) {
     return (
         <tr
+            data-testid={`transaction-row-${t.id}`}
             onClick={() => onEdit(t)}
             className={`group transition-all duration-100 cursor-pointer border-b border-border/10
                 ${isSelected
@@ -64,7 +60,7 @@ const TransactionRow = memo(function TransactionRow({
             {showAccount && (
                 <td className="py-0.5 px-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-medium text-muted-foreground shadow-neu-inset-sm whitespace-nowrap">
-                        {t.account_name}
+                        {t.accountName}
                     </span>
                 </td>
             )}
@@ -77,20 +73,20 @@ const TransactionRow = memo(function TransactionRow({
                 </span>
             </td>
             <td className="py-0.5 px-3 text-sm font-medium">
-                {t.transfer_id
+                {t.transferId
                     ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">
                         <ArrowRightLeft className="w-3.5 h-3.5" />
                         {showAccount
                             ? t.outflow > 0
-                                ? `${t.account_name} → ${t.transfer_account_name || ''}`
-                                : `${t.transfer_account_name || ''} → ${t.account_name}`
+                                ? `${t.accountName} → ${t.transferAccountName || ''}`
+                                : `${t.transferAccountName || ''} → ${t.accountName}`
                             : t.outflow > 0
-                                ? `Transferencia → ${t.transfer_account_name || ''}`
-                                : `Transferencia ← ${t.transfer_account_name || ''}`
+                                ? `Transferencia → ${t.transferAccountName || ''}`
+                                : `Transferencia ← ${t.transferAccountName || ''}`
                         }
                     </span>
-                    : (t.category_name
-                        ? <span className="text-muted-foreground">{t.category_name}</span>
+                    : (t.categoryName
+                        ? <span className="text-muted-foreground">{t.categoryName}</span>
                         : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-amber-600 dark:text-amber-400 text-sm font-bold italic shadow-neu-inset-sm">Uncategorized</span>
                     )
                 }
@@ -100,12 +96,12 @@ const TransactionRow = memo(function TransactionRow({
             </td>
             <td className="py-0.5 px-4 text-right text-sm font-bold tabular-nums">
                 {t.outflow > 0 ? (
-                    <span className="text-foreground">{formatCurrency(t.outflow)}</span>
+                    <span className="text-foreground">{formatCurrency(t.outflow, 2)}</span>
                 ) : ''}
             </td>
             <td className="py-0.5 px-4 text-right text-sm font-bold tabular-nums">
                 {t.inflow > 0 ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-emerald-600 dark:text-emerald-400 shadow-neu-inset-sm">{formatCurrency(t.inflow)}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-emerald-600 dark:text-emerald-400 shadow-neu-inset-sm">{formatCurrency(t.inflow, 2)}</span>
                 ) : ''}
             </td>
             <td className="py-0.5 px-3 text-center">
@@ -161,7 +157,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
     t,
     showAccount,
     onEdit,
-    accountId,
+
 }: {
     t: Transaction;
     showAccount: boolean;
@@ -183,7 +179,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
             {showAccount && (
                 <td className="py-0.5 px-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-medium text-muted-foreground shadow-neu-inset-sm">
-                        {t.account_name}
+                        {t.accountName}
                     </span>
                 </td>
             )}
@@ -194,28 +190,28 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                 <span className="text-sm font-medium text-foreground">{t.payee}</span>
             </td>
             <td className="py-0.5 px-3 text-sm text-muted-foreground font-medium">
-                {t.transfer_id ? (
+                {t.transferId ? (
                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">
                         <ArrowRightLeft className="w-3.5 h-3.5" />
                         {showAccount
                             ? t.outflow > 0
-                                ? `${t.account_name} → ${t.transfer_account_name || ''}`
-                                : `${t.transfer_account_name || ''} → ${t.account_name}`
+                                ? `${t.accountName} → ${t.transferAccountName || ''}`
+                                : `${t.transferAccountName || ''} → ${t.accountName}`
                             : t.outflow > 0
-                                ? `Transferencia → ${t.transfer_account_name || ''}`
-                                : `Transferencia ← ${t.transfer_account_name || ''}`
+                                ? `Transferencia → ${t.transferAccountName || ''}`
+                                : `Transferencia ← ${t.transferAccountName || ''}`
                         }
                     </span>
-                ) : (t.category_name || '')}
+                ) : (t.categoryName || '')}
             </td>
             <td className="py-0.5 px-3 text-sm text-muted-foreground/60 truncate max-w-[200px]">
                 {t.memo || ''}
             </td>
             <td className="py-0.5 px-4 text-right text-sm font-bold text-foreground tabular-nums">
-                {t.outflow > 0 ? formatCurrency(t.outflow) : ''}
+                {t.outflow > 0 ? formatCurrency(t.outflow, 2) : ''}
             </td>
             <td className="py-0.5 px-4 text-right text-sm font-bold text-foreground tabular-nums">
-                {t.inflow > 0 ? formatCurrency(t.inflow) : ''}
+                {t.inflow > 0 ? formatCurrency(t.inflow, 2) : ''}
             </td>
             <td className="py-0.5 px-3 text-center">
                 <div className="w-5 h-5 rounded-lg flex items-center justify-center mx-auto shadow-neu-inset-sm">
@@ -288,6 +284,7 @@ export default function VirtualTransactionTable({
         allRows.push({ type: 'empty' });
     }
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const virtualizer = useVirtualizer({
         count: allRows.length,
         getScrollElement: () => scrollContainerRef.current,

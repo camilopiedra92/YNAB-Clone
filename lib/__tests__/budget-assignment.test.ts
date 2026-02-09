@@ -1,64 +1,82 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, currentMonth, today } from './test-helpers';
-import type { createDbFunctions } from '../db';
-import Database from 'better-sqlite3';
+import { createTestDb, seedBasicBudget, currentMonth, today, mu } from './test-helpers';
+import type { createDbFunctions } from '../repos';
+import type { DrizzleDB } from '../repos/client';
+import { budgetMonths } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
-let db: Database.Database;
+let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
 
-beforeEach(() => {
-    const testDb = createTestDb();
+beforeEach(async () => {
+    const testDb = await createTestDb();
     db = testDb.db;
     fns = testDb.fns;
 });
 
 describe('Budget Assignment', () => {
-    it('creates a budget_months entry when assigned > 0', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('creates a budget_months entry when assigned > 0', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        fns.updateBudgetAssignment(categoryIds[0], month, 500);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
 
-        const row: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
 
-        expect(row).toBeDefined();
-        expect(row.assigned).toBe(500);
-        expect(row.available).toBe(500); // No carryforward
+        expect(rows).toHaveLength(1);
+        expect(rows[0].assigned).toBe(500);
+        expect(rows[0].available).toBe(500); // No carryforward
     });
 
-    it('does NOT create a row when assigned = 0 (ghost entry prevention)', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('does NOT create a row when assigned = 0 (ghost entry prevention)', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        fns.updateBudgetAssignment(categoryIds[0], month, 0);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(0));
 
-        const row = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
 
-        expect(row).toBeUndefined();
+        expect(rows).toHaveLength(0);
     });
 
-    it('deletes ghost entry when assigned set back to 0', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('deletes ghost entry when assigned set back to 0', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
         // Create a row
-        fns.updateBudgetAssignment(categoryIds[0], month, 500);
-        expect(db.prepare('SELECT * FROM budget_months WHERE category_id = ? AND month = ?')
-            .get(categoryIds[0], month)).toBeDefined();
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        let rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(rows).toHaveLength(1);
 
         // Set back to 0 — should delete
-        fns.updateBudgetAssignment(categoryIds[0], month, 0);
-        const row = db.prepare('SELECT * FROM budget_months WHERE category_id = ? AND month = ?')
-            .get(categoryIds[0], month);
-        expect(row).toBeUndefined();
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(0));
+        rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(rows).toHaveLength(0);
     });
 
-    it('propagates delta to future months', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('propagates delta to future months', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
         const nextM = (() => {
             const [y, m] = month.split('-').map(Number);
@@ -67,64 +85,79 @@ describe('Budget Assignment', () => {
         })();
 
         // Assign in current month
-        fns.updateBudgetAssignment(categoryIds[0], month, 500);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
         // Assign in next month
-        fns.updateBudgetAssignment(categoryIds[0], nextM, 200);
+        await fns.updateBudgetAssignment(categoryIds[0], nextM, mu(200));
 
         // Next month available = carryforward(500) + assigned(200) = 700
-        const nextRow: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], nextM);
-        expect(nextRow.available).toBe(700);
+        let nextRows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, nextM)
+            ));
+        expect(nextRows[0].available).toBe(700);
 
         // Now update current month — delta should propagate
-        fns.updateBudgetAssignment(categoryIds[0], month, 800);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(800));
 
-        const updatedNextRow: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], nextM);
+        nextRows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, nextM)
+            ));
         // Next month available should increase by 300 (800 - 500)
-        expect(updatedNextRow.available).toBe(1000);
+        expect(nextRows[0].available).toBe(1000);
     });
 
-    it('rejects NaN values', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('rejects NaN values', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        fns.updateBudgetAssignment(categoryIds[0], month, NaN);
+        await fns.updateBudgetAssignment(categoryIds[0], month, NaN as any);
 
-        const row = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
-        expect(row).toBeUndefined();
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(rows).toHaveLength(0);
     });
 
-    it('rejects Infinity values', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('rejects Infinity values', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        fns.updateBudgetAssignment(categoryIds[0], month, Infinity);
+        await fns.updateBudgetAssignment(categoryIds[0], month, Infinity as any);
 
-        const row = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
-        expect(row).toBeUndefined();
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(rows).toHaveLength(0);
     });
 
-    it('clamps extreme values', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('clamps extreme values', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        fns.updateBudgetAssignment(categoryIds[0], month, 999_999_999_999);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(999_999_999_999_999));
 
-        const row: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
-        expect(row.assigned).toBe(100_000_000_000); // Clamped to max
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(rows[0].assigned).toBe(100_000_000_000_000); // Clamped to MAX_ASSIGNED_VALUE (milliunits)
     });
 
-    it('includes carryforward when creating new entry in future month', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('includes carryforward when creating new entry in future month', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
         const nextM = (() => {
             const [y, m] = month.split('-').map(Number);
@@ -133,65 +166,74 @@ describe('Budget Assignment', () => {
         })();
 
         // Assign in current month — creates available = 500
-        fns.updateBudgetAssignment(categoryIds[0], month, 500);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
 
         // Now assign in next month — should include carryforward
-        fns.updateBudgetAssignment(categoryIds[0], nextM, 200);
+        await fns.updateBudgetAssignment(categoryIds[0], nextM, mu(200));
 
-        const row: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], nextM);
-        expect(row.available).toBe(700); // 500 carryforward + 200 assigned
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, nextM)
+            ));
+        expect(rows[0].available).toBe(700); // 500 carryforward + 200 assigned
     });
 });
 
 describe('Budget Activity', () => {
-    it('calculates activity from transactions', () => {
-        const { accountId, categoryIds } = seedBasicBudget(fns);
+    it('calculates activity from transactions', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
         // Assign budget
-        fns.updateBudgetAssignment(categoryIds[0], month, 500);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
 
         // Spend against the category
-        fns.createTransaction({
+        await fns.createTransaction({
             accountId,
             date: today(),
             categoryId: categoryIds[0],
-            outflow: 100,
+            outflow: mu(100),
         });
 
-        fns.updateBudgetActivity(categoryIds[0], month);
+        await fns.updateBudgetActivity(categoryIds[0], month);
 
-        const row: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
 
-        expect(row.activity).toBe(-100); // YNAB convention: spending is negative
-        expect(row.available).toBe(400); // 500 assigned - 100 spent
+        expect(rows[0].activity).toBe(-100); // YNAB convention: spending is negative
+        expect(rows[0].available).toBe(400); // 500 assigned - 100 spent
     });
 
-    it('handles inflows to a category (refunds)', () => {
-        const { accountId, categoryIds } = seedBasicBudget(fns);
+    it('handles inflows to a category (refunds)', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        fns.updateBudgetAssignment(categoryIds[0], month, 200);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(200));
 
         // Refund
-        fns.createTransaction({
+        await fns.createTransaction({
             accountId,
             date: today(),
             categoryId: categoryIds[0],
-            inflow: 50,
+            inflow: mu(50),
         });
 
-        fns.updateBudgetActivity(categoryIds[0], month);
+        await fns.updateBudgetActivity(categoryIds[0], month);
 
-        const row: any = db.prepare(
-            'SELECT * FROM budget_months WHERE category_id = ? AND month = ?'
-        ).get(categoryIds[0], month);
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
 
-        expect(row.activity).toBe(50);
-        expect(row.available).toBe(250); // 200 + 50
+        expect(rows[0].activity).toBe(50);
+        expect(rows[0].available).toBe(250); // 200 + 50
     });
 });

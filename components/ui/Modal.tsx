@@ -53,14 +53,14 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
 
             {/* Modal */}
             <div
-                className={`relative w-full ${sizeClasses[size]} neu-card rounded-[2rem] transform transition-all animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 overflow-hidden`}
+                className={`relative w-full ${sizeClasses[size]} neu-card rounded-[2rem] transform transition-all animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 flex flex-col max-h-[90vh]`}
                 style={{
                     boxShadow: '12px 12px 30px 0 var(--neu-dark-strong), -12px -12px 30px 0 var(--neu-light-strong)',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between pb-4">
+                <div className="flex items-center justify-between pb-4 flex-shrink-0">
                     <div>
                         <h2 className="text-2xl font-black text-foreground tracking-tighter">
                             {title}<span className="text-primary">.</span>
@@ -74,8 +74,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
                     </button>
                 </div>
 
-                {/* Content */}
-                <div className="pt-2">
+                {/* Content — scrollable */}
+                <div className="pt-2 overflow-y-auto flex-1 min-h-0">
                     {children}
                 </div>
             </div>

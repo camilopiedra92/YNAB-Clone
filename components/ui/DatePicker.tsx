@@ -26,6 +26,7 @@ export default function DatePicker({
     return (
         <input
             type="date"
+            data-testid="date-picker"
             value={value}
             onChange={handleChange}
             placeholder={placeholder}

@@ -1,26 +1,16 @@
 'use client';
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import type { AccountDTO } from '@/lib/dtos';
 
-interface Account {
-    id: number;
-    name: string;
-    type: string;
-    balance: number;
-    cleared_balance: number;
-    uncleared_balance: number;
-    note: string;
-    closed: number;
-}
-
-async function fetchAccounts(): Promise<Account[]> {
+async function fetchAccounts(): Promise<AccountDTO[]> {
     const res = await fetch('/api/accounts');
     if (!res.ok) throw new Error('Failed to fetch accounts');
     return res.json();
 }
 
 export function useAccounts() {
-    return useQuery<Account[]>({
+    return useQuery<AccountDTO[]>({
         queryKey: ['accounts'],
         queryFn: fetchAccounts,
         staleTime: 30 * 1000,
@@ -29,7 +19,7 @@ export function useAccounts() {
 
 export function useAccount(id: number) {
     const queryClient = useQueryClient();
-    return useQuery<Account | undefined>({
+    return useQuery<AccountDTO | undefined>({
         queryKey: ['accounts', id],
         queryFn: async () => {
             const res = await fetch(`/api/accounts/${id}`);
@@ -37,7 +27,7 @@ export function useAccount(id: number) {
             return res.json();
         },
         initialData: () => {
-            const accounts = queryClient.getQueryData<Account[]>(['accounts']);
+            const accounts = queryClient.getQueryData<AccountDTO[]>(['accounts']);
             return accounts?.find(a => a.id === id);
         },
         staleTime: 30 * 1000,
@@ -64,22 +54,21 @@ export function useUpdateAccount() {
             await queryClient.cancelQueries({ queryKey: ['accounts'] });
 
             // Snapshot for rollback
-            const previousAccounts = queryClient.getQueryData<Account[]>(['accounts']);
-            const previousAccount = queryClient.getQueryData<Account>(['accounts', id]);
-
-            // Coerce boolean closed to number for Account type compatibility
-            const coerced: Partial<Account> = {};
-            if (updates.name !== undefined) coerced.name = updates.name;
-            if (updates.note !== undefined) coerced.note = updates.note;
-            if (updates.closed !== undefined) coerced.closed = updates.closed ? 1 : 0;
+            const previousAccounts = queryClient.getQueryData<AccountDTO[]>(['accounts']);
+            const previousAccount = queryClient.getQueryData<AccountDTO>(['accounts', id]);
 
             // Optimistic update on list
-            queryClient.setQueryData<Account[]>(['accounts'], (old) =>
+            const coerced: Partial<AccountDTO> = {};
+            if (updates.name !== undefined) coerced.name = updates.name;
+            if (updates.note !== undefined) coerced.note = updates.note;
+            if (updates.closed !== undefined) coerced.closed = updates.closed;
+
+            queryClient.setQueryData<AccountDTO[]>(['accounts'], (old) =>
                 old?.map((a) => (a.id === id ? { ...a, ...coerced } : a)),
             );
 
             // Optimistic update on individual query
-            queryClient.setQueryData<Account>(['accounts', id], (old) =>
+            queryClient.setQueryData<AccountDTO>(['accounts', id], (old) =>
                 old ? { ...old, ...coerced } : old,
             );
 
@@ -101,4 +90,4 @@ export function useUpdateAccount() {
     });
 }
 
-export type { Account };
+export type { AccountDTO as Account };

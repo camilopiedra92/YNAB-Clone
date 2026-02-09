@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
@@ -10,9 +11,10 @@ interface SortableRowProps {
     className?: string;
     type: 'group' | 'item';
     disabled?: boolean;
+    [key: string]: any;
 }
 
-export function SortableRow({ id, children, className, type, disabled }: SortableRowProps) {
+export function SortableRow({ id, children, className, type, disabled, ...rest }: SortableRowProps) {
     const {
         attributes,
         listeners,
@@ -34,6 +36,7 @@ export function SortableRow({ id, children, className, type, disabled }: Sortabl
             style={style}
             className={`${className} ${isDragging ? 'opacity-0' : ''}`}
             data-sortable-id={id}
+            {...rest}
         >
             {children(listeners, attributes)}
         </tr>

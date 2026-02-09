@@ -1,43 +1,28 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { TransactionDTO } from '@/lib/dtos';
 
 // ─── Types ───────────────────────────────────────────────────────────
+
+// TransactionPayload uses camelCase — matches the unified API contract
 interface TransactionPayload {
     id?: number;
-    account_id: number;
+    accountId: number;
     date: string;
     payee: string;
-    category_id: number | null;
+    categoryId: number | null;
     memo: string;
     outflow: number;
     inflow: number;
     cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
-    is_transfer?: boolean;
-    transfer_account_id?: number;
+    isTransfer?: boolean;
+    transferAccountId?: number;
 }
 
 interface ToggleClearedParams {
     transactionId: number;
     clearedStatus: string;
-}
-
-interface Transaction {
-    id: number;
-    account_id: number;
-    account_name?: string;
-    date: string;
-    payee: string;
-    category_id: number | null;
-    category_name: string | null;
-    memo: string;
-    outflow: number;
-    inflow: number;
-    cleared: 'Cleared' | 'Uncleared' | 'Reconciled';
-    transfer_id?: number | null;
-    transfer_account_id?: number | null;
-    transfer_account_name?: string | null;
-    is_future?: number;
 }
 
 // ─── Shared invalidation helper ──────────────────────────────────────
@@ -81,26 +66,32 @@ export function useCreateTransaction() {
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
             // Snapshot all transaction query caches for rollback
-            const previousQueries = queryClient.getQueriesData<Transaction[]>({
+            const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
                 queryKey: ['transactions'],
             });
 
-            // Create optimistic transaction with temporary negative ID
-            const optimistic: Transaction = {
+            // Create optimistic transaction with temporary negative ID (camelCase DTO shape)
+            const optimistic: TransactionDTO = {
                 id: -Date.now(),
-                account_id: payload.account_id,
+                accountId: payload.accountId,
+                accountName: '',
                 date: payload.date,
                 payee: payload.payee,
-                category_id: payload.category_id,
-                category_name: null,
+                categoryId: payload.categoryId,
+                categoryName: null,
                 memo: payload.memo,
                 outflow: payload.outflow,
                 inflow: payload.inflow,
                 cleared: payload.cleared,
+                transferId: null,
+                transferAccountId: null,
+                transferAccountName: null,
+                isFuture: false,
+                flag: null,
             };
 
             // Insert into all matching transaction lists
-            queryClient.setQueriesData<Transaction[]>(
+            queryClient.setQueriesData<TransactionDTO[]>(
                 { queryKey: ['transactions'] },
                 (old) => (old ? [optimistic, ...old] : [optimistic]),
             );
@@ -152,19 +143,26 @@ export function useUpdateTransaction() {
         onMutate: async (payload) => {
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
-            const previousQueries = queryClient.getQueriesData<Transaction[]>({
+            const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
                 queryKey: ['transactions'],
             });
 
             // Optimistically update the transaction in all cached lists
-            queryClient.setQueriesData<Transaction[]>(
+            queryClient.setQueriesData<TransactionDTO[]>(
                 { queryKey: ['transactions'] },
                 (old) =>
                     old?.map((t) =>
                         t.id === payload.id
                             ? {
                                 ...t,
-                                ...payload,
+                                accountId: payload.accountId,
+                                date: payload.date,
+                                payee: payload.payee,
+                                categoryId: payload.categoryId,
+                                memo: payload.memo,
+                                outflow: payload.outflow,
+                                inflow: payload.inflow,
+                                cleared: payload.cleared,
                             }
                             : t,
                     ),
@@ -214,7 +212,7 @@ export function useDeleteTransaction() {
         onMutate: async (transactionId) => {
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
-            const previousQueries = queryClient.getQueriesData<Transaction[]>({
+            const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
                 queryKey: ['transactions'],
             });
 
@@ -222,20 +220,20 @@ export function useDeleteTransaction() {
             let transferId: number | null | undefined = null;
             for (const [, data] of previousQueries) {
                 const tx = data?.find((t) => t.id === transactionId);
-                if (tx?.transfer_id) {
-                    transferId = tx.transfer_id;
+                if (tx?.transferId) {
+                    transferId = tx.transferId;
                     break;
                 }
             }
 
             // Optimistically remove from all cached lists
             // If it's a transfer, also remove the paired transaction
-            queryClient.setQueriesData<Transaction[]>(
+            queryClient.setQueriesData<TransactionDTO[]>(
                 { queryKey: ['transactions'] },
                 (old) => old?.filter((t) => {
                     if (t.id === transactionId) return false;
                     // Also remove paired transfer transaction
-                    if (transferId && t.transfer_id === transferId) return false;
+                    if (transferId && t.transferId === transferId) return false;
                     return true;
                 }),
             );
@@ -293,19 +291,19 @@ export function useToggleCleared() {
 
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
-            const previousQueries = queryClient.getQueriesData<Transaction[]>({
+            const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
                 queryKey: ['transactions'],
             });
 
             const newStatus = clearedStatus === 'Cleared' ? 'Uncleared' : 'Cleared';
 
             // Optimistically toggle in all cached lists
-            queryClient.setQueriesData<Transaction[]>(
+            queryClient.setQueriesData<TransactionDTO[]>(
                 { queryKey: ['transactions'] },
                 (old) =>
                     old?.map((t) =>
                         t.id === transactionId
-                            ? { ...t, cleared: newStatus as Transaction['cleared'] }
+                            ? { ...t, cleared: newStatus as TransactionDTO['cleared'] }
                             : t,
                     ),
             );
@@ -382,7 +380,7 @@ export function useReconcileAccount() {
                 throw new Error(data.error || 'Error al reconciliar');
             }
 
-            return { success: true, reconciled_count: data.reconciled_count };
+            return { success: true, reconciledCount: data.reconciledCount };
         },
 
         retry: 1,

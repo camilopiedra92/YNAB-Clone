@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from 'fs';
 import path from 'path';
+import env from '../lib/env';
 
 function parseCSV(filePath: string): any[] {
-    const content = fs.readFileSync(filePath, 'latin1');
+    const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split(/\r?\n/).filter(line => line.trim());
     if (lines.length === 0) return [];
 
@@ -34,8 +36,12 @@ function parseCSV(filePath: string): any[] {
 }
 
 function debug() {
-    const registerPath = path.join(process.cwd(), '..', 'YNAB Export - Compartido COP as of 2026-02-07 06-12', 'Compartido COP as of 2026-02-07 06-12 - Register.csv');
-    if (!fs.existsSync(registerPath)) { console.error('File not found'); return; }
+    const registerPath = env.YNAB_REGISTER_CSV || path.join(process.cwd(), '..', 'YNAB Export - Compartido COP as of 2026-02-07 16-53', 'Compartido COP as of 2026-02-07 16-53 - Register.csv');
+    if (!fs.existsSync(registerPath)) { 
+        console.error('File not found:', registerPath); 
+        console.error('Please set YNAB_REGISTER_CSV in .env');
+        return; 
+    }
 
     const data = parseCSV(registerPath);
     console.log(`Loaded ${data.length} rows.`);

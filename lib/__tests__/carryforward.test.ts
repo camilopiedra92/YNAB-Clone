@@ -1,101 +1,112 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, currentMonth, prevMonth, nextMonth } from './test-helpers';
-import type { createDbFunctions } from '../db';
-import Database from 'better-sqlite3';
+import { createTestDb, seedBasicBudget, currentMonth, prevMonth, nextMonth, mu, ZERO } from './test-helpers';
+import type { createDbFunctions } from '../repos';
+import type { DrizzleDB } from '../repos/client';
+import { budgetMonths } from '../db/schema';
 
-let db: Database.Database;
+let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
 
-beforeEach(() => {
-    const testDb = createTestDb();
+beforeEach(async () => {
+    const testDb = await createTestDb();
     db = testDb.db;
     fns = testDb.fns;
 });
 
 describe('Carryforward Logic', () => {
-    it('carries forward positive available to the next month', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('carries forward positive available to the next month', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
         const next = nextMonth(month);
 
         // Assign $500 in current month
-        fns.updateBudgetAssignment(categoryIds[0], month, 500);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
 
         // Carryforward to next month should be 500
-        const carryforward = fns.computeCarryforward(categoryIds[0], next);
+        const carryforward = await fns.computeCarryforward(categoryIds[0], next);
         expect(carryforward).toBe(500);
     });
 
-    it('resets negative available to 0 for regular categories', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('resets negative available to 0 for regular categories', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
         const next = nextMonth(month);
 
         // Create overspent category (negative available)
-        db.prepare(`
-      INSERT INTO budget_months (category_id, month, assigned, activity, available)
-      VALUES (?, ?, 100, -200, -100)
-    `).run(categoryIds[0], month);
+        await db.insert(budgetMonths).values({
+            categoryId: categoryIds[0],
+            month,
+            assigned: mu(100),
+            activity: mu(-200),
+            available: mu(-100),
+        });
 
         // Carryforward should be 0 (not -100)
-        const carryforward = fns.computeCarryforward(categoryIds[0], next);
+        const carryforward = await fns.computeCarryforward(categoryIds[0], next);
         expect(carryforward).toBe(0);
     });
 
-    it('carries forward negative available for CC Payment categories (debt)', () => {
+    it('carries forward negative available for CC Payment categories (debt)', async () => {
         // Create a CC account and its CC Payment category
-        const accResult = fns.createAccount({ name: 'Visa', type: 'credit' });
-        const ccAccountId = Number(accResult.lastInsertRowid);
+        const accResult = await fns.createAccount({ name: 'Visa', type: 'credit' });
+        const ccAccountId = accResult.id;
 
-        const ccCategory = fns.ensureCreditCardPaymentCategory(ccAccountId, 'Visa');
+        const ccCategory = (await fns.ensureCreditCardPaymentCategory(ccAccountId, 'Visa'))!;
         const ccCatId = ccCategory.id;
 
         const month = currentMonth();
         const next = nextMonth(month);
 
         // Insert negative available (CC debt)
-        db.prepare(`
-      INSERT INTO budget_months (category_id, month, assigned, activity, available)
-      VALUES (?, ?, 0, -500, -500)
-    `).run(ccCatId, month);
+        await db.insert(budgetMonths).values({
+            categoryId: ccCatId,
+            month,
+            assigned: ZERO,
+            activity: mu(-500),
+            available: mu(-500),
+        });
 
         // CC Payment should carry forward the debt
-        const carryforward = fns.computeCarryforward(ccCatId, next);
+        const carryforward = await fns.computeCarryforward(ccCatId, next);
         expect(carryforward).toBe(-500);
     });
 
-    it('handles multi-month gaps correctly', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('handles multi-month gaps correctly', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
         // Create budget in current month
-        fns.updateBudgetAssignment(categoryIds[0], month, 300);
+        await fns.updateBudgetAssignment(categoryIds[0], month, mu(300));
 
         // Skip two months ahead
         const twoMonthsLater = nextMonth(nextMonth(month));
-        const carryforward = fns.computeCarryforward(categoryIds[0], twoMonthsLater);
+        const carryforward = await fns.computeCarryforward(categoryIds[0], twoMonthsLater);
         expect(carryforward).toBe(300);
     });
 
-    it('returns 0 when no previous month data exists', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('returns 0 when no previous month data exists', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
 
-        const carryforward = fns.computeCarryforward(categoryIds[0], month);
+        const carryforward = await fns.computeCarryforward(categoryIds[0], month);
         expect(carryforward).toBe(0);
     });
 
-    it('returns 0 when previous available is exactly 0', () => {
-        const { categoryIds } = seedBasicBudget(fns);
+    it('returns 0 when previous available is exactly 0', async () => {
+        const { categoryIds } = await seedBasicBudget(fns);
         const month = currentMonth();
         const next = nextMonth(month);
 
-        db.prepare(`
-      INSERT INTO budget_months (category_id, month, assigned, activity, available)
-      VALUES (?, ?, 100, -100, 0)
-    `).run(categoryIds[0], month);
+        await db.insert(budgetMonths).values({
+            categoryId: categoryIds[0],
+            month,
+            assigned: mu(100),
+            activity: mu(-100),
+            available: ZERO,
+        });
 
-        const carryforward = fns.computeCarryforward(categoryIds[0], next);
+        const carryforward = await fns.computeCarryforward(categoryIds[0], next);
         expect(carryforward).toBe(0);
     });
 });

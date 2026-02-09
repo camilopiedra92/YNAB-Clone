@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getAccounts, createAccount, ensureCreditCardPaymentCategory } from '@/lib/db';
+import { getAccounts, createAccount, ensureCreditCardPaymentCategory } from '@/lib/repos';
+import { validateBody, CreateAccountSchema } from '@/lib/schemas';
+import { toAccountDTO } from '@/lib/dtos';
 
 export async function GET() {
     try {
-        const accounts = getAccounts();
+        const accounts = (await getAccounts()).map(toAccountDTO);
         return NextResponse.json(accounts);
     } catch (error) {
         console.error('Error fetching accounts:', error);
@@ -14,17 +16,24 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, type, balance } = body;
 
-        const result = createAccount({ name, type, balance });
-        const accountId = result.lastInsertRowid as number;
+        const validation = validateBody(CreateAccountSchema, body);
+        if (!validation.success) return validation.response;
+        const { name, type, balance } = validation.data;
+
+        const result = await createAccount({ name, type, balance });
+        const accountId = result.id;
 
         // Auto-create CC Payment category for credit card accounts
         if (type === 'credit') {
-            ensureCreditCardPaymentCategory(accountId, name);
+            await ensureCreditCardPaymentCategory(accountId, name);
         }
 
-        return NextResponse.json({ id: accountId, name, type, balance }, { status: 201 });
+        return NextResponse.json(toAccountDTO({
+            id: accountId, name, type, balance: balance ?? 0,
+            clearedBalance: balance ?? 0, unclearedBalance: 0,
+            note: null, closed: false,
+        }), { status: 201 });
     } catch (error) {
         console.error('Error creating account:', error);
         return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });

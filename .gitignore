@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-test/
 /out/
 
 # production
@@ -43,5 +44,13 @@ next-env.d.ts
 # database
 db/*.db
 
+# local tmp (tsx/vitest IPC — avoids macOS /var/folders EPERM)
+.tmp/
+
 # agent
 .agent/
+
+# build/test artifacts
+node-compile-cache/
+playwright-report/
+test-results/

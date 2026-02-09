@@ -2,70 +2,22 @@
 
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import type { BudgetItemDTO, InspectorDataDTO } from '@/lib/dtos';
 
-export interface BudgetItem {
-    id: number | null;
-    category_id: number | null;
-    category_name: string | null;
-    group_name: string;
-    category_group_id: number;
-    group_hidden: number;
-    month: string;
-    assigned: number;
-    activity: number;
-    available: number;
-    linked_account_id: number | null;
-    overspending_type?: 'cash' | 'credit' | null;
-}
-
-export interface InspectorData {
-    summary: {
-        leftOverFromLastMonth: number;
-        assignedThisMonth: number;
-        activity: number;
-        available: number;
-    };
-    costToBeMe: {
-        targets: number;
-        expectedIncome: number;
-    };
-    autoAssign: {
-        underfunded: number;
-        assignedLastMonth: number;
-        spentLastMonth: number;
-        averageAssigned: number;
-        averageSpent: number;
-        reduceOverfunding: number;
-        resetAvailableAmounts: number;
-        resetAssignedAmounts: number;
-    };
-    futureAssignments: {
-        total: number;
-        months: { month: string; amount: number }[];
-    };
-}
+export type { BudgetItemDTO as BudgetItem };
+export type { InspectorDataDTO as InspectorData };
 
 interface BudgetResponse {
-    budget: BudgetItem[];
+    budget: BudgetItemDTO[];
     readyToAssign: number;
     overspendingTypes: Record<number, 'cash' | 'credit' | null>;
-    inspectorData: InspectorData;
+    inspectorData: InspectorDataDTO;
 }
 
 const fetchBudget = async (month: string): Promise<BudgetResponse> => {
     const res = await fetch(`/api/budget?month=${month}`);
     if (!res.ok) throw new Error('Failed to fetch budget');
-    const data = await res.json();
-
-    // Merge overspending types into budget items
-    if (data.overspendingTypes) {
-        data.budget = data.budget.map((item: BudgetItem) => ({
-            ...item,
-            overspending_type: item.category_id ? (data.overspendingTypes[item.category_id] || null) : null,
-        }));
-    }
-
-    return data;
+    return res.json();
 };
 
 export function useBudget(currentMonth: string) {

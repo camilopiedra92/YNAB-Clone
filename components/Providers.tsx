@@ -1,10 +1,12 @@
 'use client';
 
-import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
+import { QueryClient, MutationCache } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useBroadcastSync, broadcastInvalidation } from '@/hooks/useBroadcastSync';
+import { persister, APP_CACHE_VERSION } from '@/lib/persistence/persister';
 
 /**
  * Global MutationCache handles toast feedback and cross-tab sync.
@@ -64,6 +66,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                         // With SSR, we usually want to set some default staleTime
                         // above 0 to avoid refetching immediately on the client
                         staleTime: 60 * 1000,
+                        // Keep cache entries alive for 24h so the persister can save them.
+                        // Without this, the default 5-min gcTime garbage-collects queries
+                        // before the persister has a chance to serialize them to IndexedDB.
+                        gcTime: 1000 * 60 * 60 * 24, // 24 hours
                     },
                     mutations: {
                         // Global retry with exponential backoff for all mutations
@@ -77,11 +83,26 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     );
 
     return (
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+                persister,
+                buster: APP_CACHE_VERSION,
+                maxAge: 1000 * 60 * 60 * 24, // 24 hours
+            }}
+            onSuccess={() => {
+                // After restoring from IndexedDB, resume any paused mutations
+                // (e.g., mutations queued while offline) then invalidate all
+                // queries so they refetch fresh data from the server.
+                queryClient.resumePausedMutations().then(() => {
+                    queryClient.invalidateQueries();
+                });
+            }}
+        >
             <BroadcastSyncListener />
             {children}
             <ReactQueryDevtools initialIsOpen={false} />
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
     );
 }
 

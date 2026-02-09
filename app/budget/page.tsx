@@ -10,11 +10,10 @@ import { BudgetInspector } from '@/components/budget/BudgetInspector';
 import { CategoryGroupRow } from '@/components/budget/CategoryGroupRow';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateAssigned, useUpdateCategoryName, useReorderCategories } from '@/hooks/useBudgetMutations';
-import { SortableRow } from '@/components/budget/SortableRow';
+
 import {
     ChevronLeft,
     ChevronRight,
-    CheckCircle2,
     Search,
     Undo2,
     Redo2,
@@ -22,11 +21,10 @@ import {
     LayoutGrid,
     List,
     ChevronDown,
-    PlusCircle,
     GripVertical
 } from 'lucide-react';
 import { MonthPicker } from '@/components/budget/MonthPicker';
-
+import { formatCurrency } from '@/lib/format';
 import {
     DndContext,
     closestCenter,
@@ -38,7 +36,6 @@ import {
     DragStartEvent,
     DragOverEvent,
     DragOverlay,
-    defaultDropAnimationSideEffects,
     MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
@@ -46,10 +43,8 @@ import {
     SortableContext,
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
-    useSortable,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 
 const filters = [
@@ -83,6 +78,7 @@ export default function BudgetPage() {
     const assignEditingIdRef = useRef<number | null>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [activeType, setActiveType] = useState<'group' | 'item' | null>(null);
+    const [activeTableWidth, setActiveTableWidth] = useState<number | undefined>(undefined);
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
     const initialScrollTop = React.useRef(0);
     const [dragScrollCorrection, setDragScrollCorrection] = useState(0);
@@ -92,6 +88,7 @@ export default function BudgetPage() {
         setActiveId(active.id as string);
         const type = active.data.current?.type;
         setActiveType(type);
+        setActiveTableWidth(tableContainerRef.current?.querySelector('table')?.offsetWidth);
 
         if (tableContainerRef.current) {
             initialScrollTop.current = tableContainerRef.current.scrollTop;
@@ -116,18 +113,18 @@ export default function BudgetPage() {
 
         budgetData.forEach(item => {
             // Filter out the Inflow group — it's shown in the Ready to Assign widget
-            if (item.group_name === 'Inflow') return;
+            if (item.groupName === 'Inflow') return;
 
-            if (!groups.has(item.category_group_id)) {
-                groups.set(item.category_group_id, {
-                    id: item.category_group_id,
-                    name: item.group_name,
-                    hidden: item.group_hidden === 1,
+            if (!groups.has(item.categoryGroupId)) {
+                groups.set(item.categoryGroupId, {
+                    id: item.categoryGroupId,
+                    name: item.groupName,
+                    hidden: item.groupHidden,
                     items: []
                 });
             }
-            if (item.category_id !== null) {
-                groups.get(item.category_group_id)!.items.push(item);
+            if (item.categoryId !== null) {
+                groups.get(item.categoryGroupId)!.items.push(item);
             }
         });
 
@@ -152,7 +149,7 @@ export default function BudgetPage() {
 
     const toggleAll = () => {
         const allIds = budgetData
-            .map(item => item.category_id)
+            .map(item => item.categoryId)
             .filter((id): id is number => id !== null);
 
         if (selectedIds.size === allIds.length && allIds.length > 0) {
@@ -164,7 +161,7 @@ export default function BudgetPage() {
 
     const toggleGroupSelection = (items: BudgetItem[]) => {
         const categoryIds = items
-            .map(i => i.category_id)
+            .map(i => i.categoryId)
             .filter((id): id is number => id !== null);
 
         if (categoryIds.length === 0) return;
@@ -223,12 +220,12 @@ export default function BudgetPage() {
         if (budgetData.length > 0) {
             const groups = budgetData.reduce((acc, item) => {
                 // Hidden groups default to collapsed; others default to expanded
-                if (!(item.group_name in acc)) {
-                    acc[item.group_name] = item.group_hidden !== 1;
+                if (!(item.groupName in acc)) {
+                    acc[item.groupName] = !item.groupHidden;
                 }
                 return acc;
             }, {} as Record<string, boolean>);
-            setExpandedGroups(prev => ({ ...groups, ...prev }));
+            setTimeout(() => setExpandedGroups(prev => ({ ...groups, ...prev })), 0);
         }
     }, [budgetData]);
 
@@ -242,7 +239,7 @@ export default function BudgetPage() {
     const reorderMutation = useReorderCategories();
 
     const handleUpdateCategoryName = (categoryId: number, newName: string) => {
-        const currentName = budgetData.find(i => i.category_id === categoryId)?.category_name ?? null;
+        const currentName = budgetData.find(i => i.categoryId === categoryId)?.categoryName ?? null;
         updateCategoryNameMutation.mutate(
             { categoryId, newName, currentName },
         );
@@ -264,13 +261,7 @@ export default function BudgetPage() {
         });
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0,
-        }).format(amount);
-    };
+    // formatCurrency is imported from @/lib/format
 
 
     const navigateMonth = (direction: number) => {
@@ -301,25 +292,25 @@ export default function BudgetPage() {
         const isOverGroup = over.data.current?.type === 'group';
 
         if (isActiveItem) {
-            const activeItem = budgetData.find(i => `item-${i.category_id}` === activeId);
+            const activeItem = budgetData.find(i => `item-${i.categoryId}` === activeId);
             if (!activeItem) return;
 
             // Prevent moving categories from/to the Credit Card Payments group
-            const activeGroup = sortedGroups.find(g => g.id === activeItem.category_group_id);
+            const activeGroup = sortedGroups.find(g => g.id === activeItem.categoryGroupId);
             if (activeGroup?.name === 'Credit Card Payments') return;
 
             if (isOverItem) {
-                const overItem = budgetData.find(i => `item-${i.category_id}` === overId);
-                if (overItem && activeItem.category_group_id !== overItem.category_group_id) {
+                const overItem = budgetData.find(i => `item-${i.categoryId}` === overId);
+                if (overItem && activeItem.categoryGroupId !== overItem.categoryGroupId) {
                     // Prevent dropping into Credit Card Payments group
-                    const overGroup = sortedGroups.find(g => g.id === overItem.category_group_id);
+                    const overGroup = sortedGroups.find(g => g.id === overItem.categoryGroupId);
                     if (overGroup?.name === 'Credit Card Payments') return;
 
                     // Ensure the target group is expanded so the item doesn't disappear
-                    if (!expandedGroups[overItem.group_name]) {
+                    if (!expandedGroups[overItem.groupName]) {
                         setExpandedGroups(prev => ({
                             ...prev,
-                            [overItem.group_name]: true
+                            [overItem.groupName]: true
                         }));
                     }
 
@@ -333,7 +324,7 @@ export default function BudgetPage() {
                 // Prevent dropping into Credit Card Payments group
                 if (group?.name === 'Credit Card Payments') return;
 
-                if (group && activeItem.category_group_id !== groupId) {
+                if (group && activeItem.categoryGroupId !== groupId) {
                     // Ensure the target group is expanded so the item doesn't disappear
                     if (!expandedGroups[group.name]) {
                         setExpandedGroups(prev => ({
@@ -370,47 +361,48 @@ export default function BudgetPage() {
 
                 // Reorder budgetData based on new group order
                 const newBudgetData = [...budgetData].sort((a, b) => {
-                    const aIndex = newGroupIds.indexOf(a.category_group_id);
-                    const bIndex = newGroupIds.indexOf(b.category_group_id);
+                    const aIndex = newGroupIds.indexOf(a.categoryGroupId);
+                    const bIndex = newGroupIds.indexOf(b.categoryGroupId);
                     if (aIndex !== bIndex) return aIndex - bIndex;
                     return 0; // Keep relative order within group
                 });
 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 queryClient.setQueryData(['budget', currentMonth], (old: any) => ({ ...old, budget: newBudgetData }));
 
                 // Sync with backend
                 const groupsToUpdate = newGroups.map((g, index) => ({
                     id: g.id,
-                    sort_order: index
+                    sortOrder: index
                 }));
 
                 reorderMutation.mutate({ type: 'group', items: groupsToUpdate });
             }
         } else if (active.data.current?.type === 'item') {
-            const activeItem = budgetData.find(i => `item-${i.category_id}` === activeId);
+            const activeItem = budgetData.find(i => `item-${i.categoryId}` === activeId);
 
             // Find overItem (subcategory) or overGroup (group)
-            let overItem = budgetData.find(i => `item-${i.category_id}` === overId);
-            let overGroup = sortedGroups.find(g => `group-${g.id}` === overId);
+            const overItem = budgetData.find(i => `item-${i.categoryId}` === overId);
+            const overGroup = sortedGroups.find(g => `group-${g.id}` === overId);
 
             if (activeItem) {
                 // Prevent moving categories from/to the Credit Card Payments group
-                const activeItemGroup = sortedGroups.find(g => g.id === activeItem.category_group_id);
+                const activeItemGroup = sortedGroups.find(g => g.id === activeItem.categoryGroupId);
                 if (activeItemGroup?.name === 'Credit Card Payments') return;
                 if (overItem) {
-                    const overItemGroup = sortedGroups.find(g => g.id === overItem!.category_group_id);
+                    const overItemGroup = sortedGroups.find(g => g.id === overItem!.categoryGroupId);
                     if (overItemGroup?.name === 'Credit Card Payments') return;
                 }
                 if (overGroup?.name === 'Credit Card Payments') return;
-                const oldIndex = budgetData.findIndex(i => `item-${i.category_id}` === activeId);
+                const oldIndex = budgetData.findIndex(i => `item-${i.categoryId}` === activeId);
                 let newIndex = -1;
 
                 if (overItem) {
-                    newIndex = budgetData.findIndex(i => `item-${i.category_id}` === overId);
+                    newIndex = budgetData.findIndex(i => `item-${i.categoryId}` === overId);
                 } else if (overGroup) {
                     // If dropped on a group, place it at the end of that group's items
                     // Find the last item of that group in budgetData
-                    const groupItems = budgetData.filter(i => i.category_group_id === overGroup?.id && i.category_id !== null);
+                    const groupItems = budgetData.filter(i => i.categoryGroupId === overGroup?.id && i.categoryId !== null);
                     if (groupItems.length > 0) {
                         const lastItem = groupItems[groupItems.length - 1];
                         const lastItemIndex = budgetData.findIndex(i => i === lastItem);
@@ -441,18 +433,19 @@ export default function BudgetPage() {
                 // We need to construct a NEW `budgetData`.
 
                 // If moving within same group:
-                if (overItem && activeItem.category_group_id === overItem.category_group_id) {
-                    newIndex = budgetData.findIndex(i => `item-${i.category_id}` === overId);
+                if (overItem && activeItem.categoryGroupId === overItem.categoryGroupId) {
+                    newIndex = budgetData.findIndex(i => `item-${i.categoryId}` === overId);
                     if (newIndex !== -1) {
                         const newBudgetData = arrayMove(budgetData, oldIndex, newIndex);
-                        queryClient.setQueryData(['budget', currentMonth], (old: any) => ({ ...old, budget: newBudgetData }));
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                queryClient.setQueryData(['budget', currentMonth], (old: any) => ({ ...old, budget: newBudgetData }));
 
                         // Sync backend
-                        const groupItems = newBudgetData.filter(i => i.category_group_id === activeItem.category_group_id);
+                        const groupItems = newBudgetData.filter(i => i.categoryGroupId === activeItem.categoryGroupId);
                         const categoriesToUpdate = groupItems.map((item, index) => ({
-                            id: item.category_id,
-                            sort_order: index,
-                            category_group_id: item.category_group_id
+                            id: item.categoryId,
+                            sortOrder: index,
+                            categoryGroupId: item.categoryGroupId
                         }));
 
                         reorderMutation.mutate({ type: 'category', items: categoriesToUpdate });
@@ -481,8 +474,8 @@ export default function BudgetPage() {
 
                     // If dropped on an item in the new group
                     if (overItem) {
-                        const oldItemIdx = newBudgetData.findIndex(i => i.category_id === activeItem.category_id);
-                        const targetItemIdx = newBudgetData.findIndex(i => i.category_id === overItem!.category_id);
+                        const oldItemIdx = newBudgetData.findIndex(i => i.categoryId === activeItem.categoryId);
+                        const targetItemIdx = newBudgetData.findIndex(i => i.categoryId === overItem!.categoryId);
 
                         // Move in the flat array
                         const [movedItem] = newBudgetData.splice(oldItemIdx, 1);
@@ -490,14 +483,14 @@ export default function BudgetPage() {
                     } else if (overGroup) {
                         // Dropped on group header -> move to top or bottom of group?
                         // Make it first item in group?
-                        const groupItems = newBudgetData.filter(i => i.category_group_id === overGroup!.id);
-                        const oldItemIdx = newBudgetData.findIndex(i => i.category_id === activeItem.category_id);
+
+                        const oldItemIdx = newBudgetData.findIndex(i => i.categoryId === activeItem.categoryId);
                         const [movedItem] = newBudgetData.splice(oldItemIdx, 1);
 
                         // Insert after the group's "last" item? OR if group empty, doesn't matter where in flat list, 
                         // as long as grouped correctly. But for `arrayMove` stability we might want to keep groups contiguous.
                         // Let's find index of first item of this group.
-                        const firstGroupItemIdx = newBudgetData.findIndex(i => i.category_group_id === overGroup!.id);
+                        const firstGroupItemIdx = newBudgetData.findIndex(i => i.categoryGroupId === overGroup!.id);
                         if (firstGroupItemIdx !== -1) {
                             newBudgetData.splice(firstGroupItemIdx, 0, movedItem);
                         } else {
@@ -509,6 +502,7 @@ export default function BudgetPage() {
                         }
                     }
 
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     queryClient.setQueryData(['budget', currentMonth], (old: any) => ({ ...old, budget: newBudgetData }));
 
                     // Sync BOTH groups (source and dest)
@@ -519,13 +513,13 @@ export default function BudgetPage() {
                     // But if we want to be safe, we update both.
                     // Since we lost track of source, we can just update the destination group's order.
 
-                    const targetGroupId = activeItem.category_group_id;
-                    const targetGroupItems = newBudgetData.filter(i => i.category_group_id === targetGroupId && i.category_id !== null);
+                    const targetGroupId = activeItem.categoryGroupId;
+                    const targetGroupItems = newBudgetData.filter(i => i.categoryGroupId === targetGroupId && i.categoryId !== null);
 
                     const categoriesToUpdate = targetGroupItems.map((item, index) => ({
-                        id: item.category_id,
-                        sort_order: index, // 0-based index in new group
-                        category_group_id: targetGroupId
+                        id: item.categoryId,
+                        sortOrder: index,
+                        categoryGroupId: targetGroupId
                     }));
 
                     reorderMutation.mutate({ type: 'category', items: categoriesToUpdate });
@@ -561,6 +555,7 @@ export default function BudgetPage() {
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2 p-1.5 rounded-2xl shadow-neu-sm bg-background/50 backdrop-blur-sm">
                             <button
+                                data-testid="month-prev"
                                 onClick={() => navigateMonth(-1)}
                                 className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95"
                                 title="Mes Anterior"
@@ -573,10 +568,11 @@ export default function BudgetPage() {
                             >
                                 Hoy
                             </button>
-                            <div className="px-4 flex flex-col items-center min-w-[140px]">
+                            <div data-testid="month-display" className="px-4 flex flex-col items-center min-w-[140px]">
                                 <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
                             </div>
                             <button
+                                data-testid="month-next"
                                 onClick={() => navigateMonth(1)}
                                 className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95"
                                 title="Mes Siguiente"
@@ -591,7 +587,7 @@ export default function BudgetPage() {
                         <div className={`bg-background px-8 py-2 rounded-[2rem] flex flex-col items-center shadow-neu-md relative group cursor-pointer hover:shadow-neu-lg transition-all duration-500 overflow-hidden min-w-[220px] ${animatedRTA < -0.5 ? 'ring-2 ring-red-400/50' : animatedRTA > 0.5 ? 'ring-2 ring-emerald-400/30' : ''
                             }`}>
                             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <span className={`text-2xl font-black tracking-tighter leading-none relative z-10 tabular-nums ${animatedRTA < -0.5 ? 'text-red-500' : animatedRTA > 0.5 ? 'text-emerald-600' : 'text-foreground'
+                            <span data-testid="rta-amount" className={`text-2xl font-black tracking-tighter leading-none relative z-10 tabular-nums ${animatedRTA < -0.5 ? 'text-red-500' : animatedRTA > 0.5 ? 'text-emerald-600' : 'text-foreground'
                                 }`}>{formatCurrency(Math.round(animatedRTA))}</span>
                             <div className="flex items-center gap-2 mt-0.5 relative z-10">
                                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">Ready to Assign</span>
@@ -699,7 +695,7 @@ export default function BudgetPage() {
                             <div style={{
                                 transition: 'padding-top 0s' // Instant padding change to prevent animation lag
                             }}>
-                                <table className="w-full border-collapse">
+                                <table data-testid="budget-table" className="w-full border-collapse">
                                     <thead className="sticky top-0 bg-background z-10"
                                         style={{
                                             boxShadow: '0 3px 8px 0 var(--neu-dark)',
@@ -715,7 +711,7 @@ export default function BudgetPage() {
                                                             type="checkbox"
                                                             className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
                                                             checked={(() => {
-                                                                const validCount = budgetData.filter(i => i.category_id !== null).length;
+                                                                const validCount = budgetData.filter(i => i.categoryId !== null).length;
                                                                 return validCount > 0 && selectedIds.size === validCount;
                                                             })()}
                                                             onChange={toggleAll}
@@ -768,7 +764,7 @@ export default function BudgetPage() {
                                                 // Hidden groups default to collapsed; regular groups default to expanded
                                                 const defaultExpanded = !group.hidden;
                                                 const isExpanded = activeType === 'group' ? false : (expandedGroups[group.name] ?? defaultExpanded);
-                                                const allSelected = group.items.length > 0 && group.items.every(i => selectedIds.has(i.category_id!));
+                                                const allSelected = group.items.length > 0 && group.items.every(i => selectedIds.has(i.categoryId!));
 
                                                 return (
                                                     <React.Fragment key={group.id}>
@@ -783,16 +779,16 @@ export default function BudgetPage() {
                                                         />
 
                                                         {isExpanded && (
-                                                            <SortableContext items={group.items.map(i => `item-${i.category_id}`)} strategy={verticalListSortingStrategy}>
+                                                            <SortableContext items={group.items.map(i => `item-${i.categoryId}`)} strategy={verticalListSortingStrategy}>
                                                                 {group.items.map((item) => {
-                                                                    if (!item.category_id) return null;
+                                                                    if (!item.categoryId) return null;
 
                                                                     return (
                                                                         <BudgetItemRow
-                                                                            key={item.category_id}
+                                                                            key={item.categoryId}
                                                                             item={item}
-                                                                            isSelected={selectedIds.has(item.category_id)}
-                                                                            isEditing={editingId === item.category_id}
+                                                                            isSelected={selectedIds.has(item.categoryId)}
+                                                                            isEditing={editingId === item.categoryId}
                                                                             editingValue={editValue}
                                                                             assignEditingId={assignEditingId}
                                                                             assignEditValue={assignEditValue}
@@ -806,10 +802,11 @@ export default function BudgetPage() {
                                                                             onCancelEditName={() => setEditingId(null)}
                                                                             onStartEditAssigned={(id, val) => {
                                                                                 setAssignEditingId(id);
-                                                                                // Show clean number (no currency/locale formatting)
-                                                                                // so user can edit a plain number like "5600"
+                                                                                // Convert milliunits → display value (÷1000)
+                                                                                // so user edits "1000" not "1000000" for $1,000
                                                                                 const num = parseFloat(val) || 0;
-                                                                                setAssignEditValue(num === 0 ? '' : num.toString());
+                                                                                const display = num / 1000;
+                                                                                setAssignEditValue(display === 0 ? '' : display.toString());
                                                                                 assignEditingIdRef.current = id;
                                                                             }}
                                                                             onUpdateAssigned={handleUpdateAssigned}
@@ -836,7 +833,7 @@ export default function BudgetPage() {
                                 {activeId ? (() => {
                                     return (
                                         <div style={{
-                                            width: tableContainerRef.current?.querySelector('table')?.offsetWidth || 'auto',
+                                            width: activeTableWidth || 'auto',
                                             cursor: 'grabbing',
                                             transform: `translateY(${dragScrollCorrection}px)`,
                                         }}>
@@ -910,7 +907,7 @@ export default function BudgetPage() {
                                                             );
                                                         } else if (activeType === 'item') {
                                                             const categoryId = Number(activeId.replace('item-', ''));
-                                                            const item = budgetData.find(i => i.category_id === categoryId);
+                                                            const item = budgetData.find(i => i.categoryId === categoryId);
                                                             if (!item) return null;
 
                                                             return (
@@ -930,7 +927,7 @@ export default function BudgetPage() {
                                                                             <div className="absolute left-0 top-0 bottom-0 w-px bg-border/40 ml-2" />
                                                                             <div className="flex items-center w-full group/text pl-4">
                                                                                 <span className="text-sm font-medium text-foreground">
-                                                                                    {item.category_name}
+                                                                                    {item.categoryName}
                                                                                 </span>
                                                                             </div>
                                                                         </div>
@@ -954,7 +951,7 @@ export default function BudgetPage() {
                                                                             <button className={`min-w-[100px] py-1 px-3 rounded-lg text-[11px] font-black text-right shadow-sm border ${item.available > 0
                                                                                 ? 'bg-emerald-500 text-white border-emerald-500'
                                                                                 : item.available < 0
-                                                                                    ? item.overspending_type === 'credit'
+                                                                                    ? item.overspendingType === 'credit'
                                                                                         ? 'bg-amber-500 text-white border-amber-500'
                                                                                         : 'bg-rose-500 text-white border-rose-500'
                                                                                     : 'bg-muted text-muted-foreground border-transparent'

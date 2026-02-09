@@ -1,27 +1,140 @@
 /**
- * Test helpers — creates an isolated, in-memory SQLite database for each test.
+ * Test helpers — creates an isolated, in-process PGlite database for each test.
  *
  * Usage:
- *   const { db, fns } = createTestDb();
- *   // db = raw better-sqlite3 instance (for direct SQL inspection)
- *   // fns = all lib/db.ts functions bound to this in-memory database
+ *   const { db, fns } = await createTestDb();
+ *   // db = Drizzle DB instance (for Drizzle queries in tests)
+ *   // fns = all repo functions bound to this instance
  */
-import Database from 'better-sqlite3';
-import fs from 'fs';
-import path from 'path';
-import { createDbFunctions } from '../db';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
+import { sql } from 'drizzle-orm';
+import * as schema from '../db/schema';
+import { createDbFunctions } from '../repos';
+import type { DrizzleDB } from '../repos/client';
+import { budgetMonths } from '../db/schema';
+import { milliunit, ZERO, type Milliunit } from '../engine/primitives';
 
-const schemaPath = path.join(process.cwd(), 'db', 'schema.sql');
-const schema = fs.readFileSync(schemaPath, 'utf-8');
+/** Shorthand for creating a branded Milliunit from a number in tests */
+export const mu = milliunit;
+export { ZERO, type Milliunit };
 
-export function createTestDb() {
-    const db = new Database(':memory:');
-    db.pragma('foreign_keys = ON');
-    db.exec(schema);
+/** Shape of a raw budget_months row from DB in tests */
+export interface RawBudgetMonthRow {
+    id: number;
+    category_id: number;
+    month: string;
+    assigned: number;
+    activity: number;
+    available: number;
+}
 
-    const fns = createDbFunctions(db);
+export async function createTestDb() {
+    const pglite = new PGlite();
 
-    return { db, fns };
+    const drizzleDb = drizzle(pglite, { schema }) as unknown as DrizzleDB;
+
+    // Create enums
+    await drizzleDb.execute(sql`
+        CREATE TYPE account_type AS ENUM ('checking', 'savings', 'credit', 'cash', 'investment', 'tracking')
+    `);
+    await drizzleDb.execute(sql`
+        CREATE TYPE cleared_status AS ENUM ('Cleared', 'Uncleared', 'Reconciled')
+    `);
+
+    // Create all tables using raw SQL (matching the Drizzle schema exactly)
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS accounts (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            type account_type NOT NULL,
+            balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            cleared_balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            uncleared_balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            note TEXT DEFAULT '',
+            closed BOOLEAN DEFAULT false NOT NULL,
+            created_at TEXT DEFAULT now()
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS category_groups (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0 NOT NULL,
+            hidden BOOLEAN DEFAULT false NOT NULL,
+            is_income BOOLEAN DEFAULT false NOT NULL
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS categories (
+            id SERIAL PRIMARY KEY,
+            category_group_id INTEGER NOT NULL REFERENCES category_groups(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0 NOT NULL,
+            hidden BOOLEAN DEFAULT false NOT NULL,
+            linked_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            payee TEXT,
+            category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+            memo TEXT,
+            outflow DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            inflow DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            cleared cleared_status DEFAULT 'Uncleared' NOT NULL,
+            flag TEXT,
+            created_at TEXT DEFAULT now()
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_transactions_account ON transactions(account_id)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_transactions_date ON transactions(date)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_transactions_category ON transactions(category_id)
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS transfers (
+            id SERIAL PRIMARY KEY,
+            from_transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+            to_transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS budget_months (
+            id SERIAL PRIMARY KEY,
+            category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+            month TEXT NOT NULL,
+            assigned DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            activity DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            available DOUBLE PRECISION DEFAULT 0 NOT NULL
+        )
+    `);
+    await drizzleDb.execute(sql`
+        CREATE UNIQUE INDEX budget_months_cat_month ON budget_months(category_id, month)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_budget_months_category ON budget_months(category_id)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_budget_months_month ON budget_months(month)
+    `);
+
+    const fns = createDbFunctions(drizzleDb);
+
+    return { db: drizzleDb, drizzleDb, fns };
 }
 
 /**
@@ -30,34 +143,34 @@ export function createTestDb() {
  * - 1 category group with N categories
  * - Returns { accountId, groupId, categoryIds }
  */
-export function seedBasicBudget(fns: ReturnType<typeof createDbFunctions>, options?: {
+export async function seedBasicBudget(fns: ReturnType<typeof createDbFunctions>, options?: {
     categoryCount?: number;
-    accountType?: string;
+    accountType?: 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'tracking';
     accountName?: string;
     accountBalance?: number;
 }) {
     const categoryCount = options?.categoryCount ?? 3;
-    const accountType = options?.accountType ?? 'checking';
+    const accountType = options?.accountType ?? 'checking' as const;
     const accountName = options?.accountName ?? 'Checking';
     const accountBalance = options?.accountBalance ?? 0;
 
-    const accountResult = fns.createAccount({
+    const accountResult = await fns.createAccount({
         name: accountName,
         type: accountType,
         balance: accountBalance,
     });
-    const accountId = Number(accountResult.lastInsertRowid);
+    const accountId = accountResult.id;
 
-    const groupResult = fns.createCategoryGroup('Essentials');
-    const groupId = Number(groupResult.lastInsertRowid);
+    const groupResult = await fns.createCategoryGroup('Essentials');
+    const groupId = groupResult.id;
 
     const categoryIds: number[] = [];
     for (let i = 0; i < categoryCount; i++) {
-        const catResult = fns.createCategory({
+        const catResult = await fns.createCategory({
             name: `Category ${i + 1}`,
             category_group_id: groupId,
         });
-        categoryIds.push(Number(catResult.lastInsertRowid));
+        categoryIds.push(catResult.id);
     }
 
     return { accountId, groupId, categoryIds };
@@ -67,9 +180,9 @@ export function seedBasicBudget(fns: ReturnType<typeof createDbFunctions>, optio
  * Seeds enough categories to pass the "complete month" threshold (>=10 entries)
  * used by getReadyToAssign's latest-month detection.
  */
-export function seedCompleteMonth(
+export async function seedCompleteMonth(
     fns: ReturnType<typeof createDbFunctions>,
-    db: Database.Database,
+    db: DrizzleDB,
     month: string,
     groupId: number,
     options?: { categoryCount?: number }
@@ -78,19 +191,22 @@ export function seedCompleteMonth(
     const categoryIds: number[] = [];
 
     for (let i = 0; i < count; i++) {
-        const catResult = fns.createCategory({
+        const catResult = await fns.createCategory({
             name: `Fill Cat ${i + 1}`,
             category_group_id: groupId,
         });
-        const catId = Number(catResult.lastInsertRowid);
+        const catId = catResult.id;
         categoryIds.push(catId);
 
         // Insert a budget_months row with assigned=0, activity=0, available=0
         // just to make the month "complete" for RTA calculation
-        db.prepare(`
-      INSERT INTO budget_months (category_id, month, assigned, activity, available)
-      VALUES (?, ?, 0, 0, 0)
-    `).run(catId, month);
+        await db.insert(budgetMonths).values({
+            categoryId: catId,
+            month,
+            assigned: ZERO,
+            activity: ZERO,
+            available: ZERO,
+        });
     }
 
     return categoryIds;

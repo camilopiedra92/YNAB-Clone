@@ -2,24 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, ArrowRight, ChevronRight, History, Minus, Equal, Landmark, CreditCard } from 'lucide-react';
+import { Wallet, ChevronRight, History, Minus, Equal, Landmark, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/format';
 
 interface Account {
   id: number;
   name: string;
   type: string;
   balance: number;
-  cleared_balance: number;
-  closed?: number;
+  clearedBalance: number;
+  closed?: boolean;
 }
 
 interface Transaction {
   id: number;
   date: string;
   payee: string;
-  account_name: string;
-  category_name: string;
+  accountName: string;
+  categoryName: string;
   outflow: number;
   inflow: number;
   cleared: string;
@@ -53,13 +54,7 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  // formatCurrency is imported from @/lib/format
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('es-CO', {
@@ -73,7 +68,7 @@ export default function Home() {
   const totalCredit = accounts.reduce((sum, acc) =>
     acc.type === 'credit' ? sum + acc.balance : sum, 0);
   const netWorth = totalCash + totalCredit;
-  const totalCleared = accounts.reduce((sum, acc) => sum + acc.cleared_balance, 0);
+
 
   if (loading) {
     return (
@@ -183,11 +178,11 @@ export default function Home() {
                         </td>
                         <td className="py-1 px-3">
                           <p className="text-xs font-semibold text-foreground leading-tight">{t.payee}</p>
-                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">{t.account_name}</p>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">{t.accountName}</p>
                         </td>
                         <td className="py-1 px-3">
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-black text-muted-foreground shadow-neu-inset-sm">
-                            {t.category_name || 'SIN CATEGORÍA'}
+                            {t.categoryName || 'SIN CATEGORÍA'}
                           </span>
                         </td>
                         <td className={`py-1 px-3 text-right font-bold text-xs tabular-nums ${t.inflow > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -211,7 +206,7 @@ export default function Home() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {accounts.filter(a => a.closed !== 1).slice(0, 5).map((account) => (
+                {accounts.filter(a => !a.closed).slice(0, 5).map((account) => (
                   <div
                     key={account.id}
                     className="flex items-center justify-between p-4 rounded-2xl shadow-neu-sm hover:shadow-neu-md transition-all duration-300 group cursor-pointer"

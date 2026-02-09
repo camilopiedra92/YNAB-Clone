@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAccounts, type Account } from '@/hooks/useAccounts';
 import AccountEditModal from './AccountEditModal';
+import { formatCurrency } from '@/lib/format';
 
 const mainNavigation = [
     { name: 'Plan', href: '/budget', icon: LayoutDashboard },
@@ -34,14 +36,7 @@ const groupIcons: Record<string, typeof Landmark> = {
     'Closed': Lock,
 };
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 const accountTypeIcons: Record<string, typeof Building2> = {
     'checking': Building2,
@@ -62,7 +57,7 @@ export default function Sidebar() {
     });
 
     const groupedAccounts = useMemo(() => accounts.reduce((acc, account) => {
-        if (account.closed === 1) {
+        if (account.closed) {
             if (!acc['Closed']) acc['Closed'] = [];
             acc['Closed'].push(account);
             return acc;
@@ -144,6 +139,7 @@ export default function Sidebar() {
                                 <Link
                                     key={item.name}
                                     href={item.href}
+                                    data-testid={`sidebar-nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
                                     className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 group`}
                                     style={isActive ? {
                                         boxShadow: 'inset 3px 3px 6px 0 rgba(0,0,0,0.35), inset -3px -3px 6px 0 rgba(255,255,255,0.04)',
@@ -237,6 +233,7 @@ export default function Sidebar() {
                                                         <Link
                                                             key={account.id}
                                                             href={`/accounts/${account.id}`}
+                                                            data-testid={`sidebar-account-${account.id}`}
                                                             className={`relative flex items-center justify-between pl-8 pr-3 py-[7px] rounded-lg text-[13px] group/item transition-all duration-200 ${isAccountActive
                                                                 ? 'text-white'
                                                                 : 'text-white/55 hover:text-white/80'

@@ -61,7 +61,7 @@ export default function AccountEditModal({ account, onClose }: AccountEditModalP
         }
     };
 
-    const isClosed = account.closed === 1;
+    const isClosed = !!account.closed;
 
     return (
         <div

@@ -33,7 +33,7 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
         if (!isOpen) {
             const parsed = parseISO(`${currentMonth}-01`);
             if (isValid(parsed)) {
-                setViewDate(parsed);
+                setTimeout(() => setViewDate(parsed), 0);
             }
         }
     }, [currentMonth, isOpen]);
