@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { budgets, budgetShares } from '../db/schema';
+import { budgets, budgetShares, users } from '../db/schema';
 import type { DrizzleDB } from '../db/client';
 
 export type BudgetMetadata = {
@@ -9,6 +9,16 @@ export type BudgetMetadata = {
   currencySymbol: string;
   currencyDecimals: number;
   role: string;
+};
+
+export type BudgetShareInfo = {
+  id: number;
+  budgetId: number;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: string;
+  createdAt: Date | null;
 };
 
 export function createBudgetsFunctions(database: DrizzleDB) {
@@ -127,11 +137,76 @@ export function createBudgetsFunctions(database: DrizzleDB) {
     return result;
   }
 
+  // ── Share Management ──
+
+  /**
+   * List all shares for a budget (excluding the owner).
+   * Returns user info (name, email) alongside share data.
+   */
+  async function getShares(budgetId: number): Promise<BudgetShareInfo[]> {
+    const rows = await database.select({
+      id: budgetShares.id,
+      budgetId: budgetShares.budgetId,
+      userId: budgetShares.userId,
+      userName: users.name,
+      userEmail: users.email,
+      role: budgetShares.role,
+      createdAt: budgetShares.createdAt,
+    })
+    .from(budgetShares)
+    .innerJoin(users, eq(budgetShares.userId, users.id))
+    .where(eq(budgetShares.budgetId, budgetId));
+
+    return rows;
+  }
+
+  /**
+   * Add a share — invite a user to a budget.
+   * The unique index on (budget_id, user_id) prevents duplicates.
+   */
+  async function addShare(budgetId: number, userId: string, role: string = 'editor') {
+    const [result] = await database.insert(budgetShares).values({
+      budgetId,
+      userId,
+      role,
+    }).returning();
+
+    return result;
+  }
+
+  /**
+   * Update the role of an existing share.
+   */
+  async function updateShareRole(shareId: number, role: string) {
+    const [result] = await database.update(budgetShares)
+      .set({ role })
+      .where(eq(budgetShares.id, shareId))
+      .returning();
+
+    return result;
+  }
+
+  /**
+   * Remove a share — revoke a user's access to a budget.
+   */
+  async function removeShare(shareId: number) {
+    const [result] = await database.delete(budgetShares)
+      .where(eq(budgetShares.id, shareId))
+      .returning();
+
+    return result;
+  }
+
   return {
     getBudgets,
     getBudget,
     createBudget,
     updateBudget,
     deleteBudget,
+    getShares,
+    addShare,
+    updateShareRole,
+    removeShare,
   };
 }
+

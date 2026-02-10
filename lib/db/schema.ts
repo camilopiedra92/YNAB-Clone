@@ -109,7 +109,10 @@ export const budgetShares = pgTable('budget_shares', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   role: text().notNull().default('editor'), // 'editor' | 'viewer'
-});
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  uniqueIndex('budget_shares_budget_user').on(table.budgetId, table.userId),
+]);
 
 export const accounts = pgTable('accounts', {
   id: serial().primaryKey(),

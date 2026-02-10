@@ -1,13 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useRouter } from 'next/navigation';
-import { Plus, Wallet, ChevronRight, LogOut } from 'lucide-react';
+import { Plus, Wallet, ChevronRight, LogOut, Share2 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import ShareBudgetModal from '@/components/ShareBudgetModal';
 
 export default function BudgetsPage() {
   const { data: budgets, isLoading } = useBudgets();
   const router = useRouter();
+  const [shareModal, setShareModal] = useState<{ budgetId: number; budgetName: string } | null>(null);
 
   const handleSelectBudget = (id: number) => {
     router.push(`/budgets/${id}/budget`);
@@ -44,31 +47,50 @@ export default function BudgetsPage() {
 
         <div className="grid gap-6">
           {budgets?.map((budget) => (
-            <button
-              key={budget.id}
-              onClick={() => handleSelectBudget(budget.id)}
-              className="w-full text-left p-6 rounded-[2rem] bg-background shadow-[8px_8px_16px_var(--neu-dark),-8px_-8px_16px_var(--neu-light)] hover:shadow-[inset_4px_4px_8px_var(--neu-dark),inset_-4px_-4px_8px_var(--neu-light)] transition-all duration-300 group flex items-center justify-between"
-            >
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)]">
-                  <Wallet className="w-7 h-7 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                    {budget.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground uppercase tracking-wider">
-                      {budget.role === 'owner' ? 'Propietario' : 'Editor'}
-                    </span>
-                    <span className="text-sm text-muted-foreground italic">
-                      {budget.currencySymbol} {budget.currencyCode}
-                    </span>
+            <div key={budget.id} className="relative group/card">
+              <button
+                onClick={() => handleSelectBudget(budget.id)}
+                className="w-full text-left p-6 rounded-[2rem] bg-background shadow-[8px_8px_16px_var(--neu-dark),-8px_-8px_16px_var(--neu-light)] hover:shadow-[inset_4px_4px_8px_var(--neu-dark),inset_-4px_-4px_8px_var(--neu-light)] transition-all duration-300 group flex items-center justify-between"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)]">
+                    <Wallet className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
+                      {budget.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground uppercase tracking-wider">
+                        {budget.role === 'owner' ? 'Propietario' : budget.role === 'editor' ? 'Editor' : 'Viewer'}
+                      </span>
+                      <span className="text-sm text-muted-foreground italic">
+                        {budget.currencySymbol} {budget.currencyCode}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-            </button>
+                <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </button>
+
+              {/* Share button — visible on hover for owners */}
+              {budget.role === 'owner' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShareModal({ budgetId: budget.id, budgetName: budget.name });
+                  }}
+                  className="absolute top-4 right-16 p-2.5 rounded-xl bg-background
+                    shadow-[3px_3px_6px_var(--neu-dark),-3px_-3px_6px_var(--neu-light)]
+                    hover:shadow-[inset_2px_2px_4px_var(--neu-dark),inset_-2px_-2px_4px_var(--neu-light)]
+                    opacity-0 group-hover/card:opacity-100 transition-all duration-200
+                    text-muted-foreground hover:text-primary z-10"
+                  title="Compartir presupuesto"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           ))}
 
           <button
@@ -84,6 +106,18 @@ export default function BudgetsPage() {
           </button>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {shareModal && (
+        <ShareBudgetModal
+          isOpen={true}
+          onClose={() => setShareModal(null)}
+          budgetId={shareModal.budgetId}
+          budgetName={shareModal.budgetName}
+          isOwner={true}
+        />
+      )}
     </div>
   );
 }
+

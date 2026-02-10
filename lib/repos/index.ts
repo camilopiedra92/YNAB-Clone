@@ -84,6 +84,10 @@ export const {
   createBudget,
   updateBudget,
   deleteBudget,
+  getShares,
+  addShare,
+  updateShareRole,
+  removeShare,
   // User repo
   getUserByEmail,
   createUser,
