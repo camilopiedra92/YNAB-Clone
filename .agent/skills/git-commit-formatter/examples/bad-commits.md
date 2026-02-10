@@ -153,8 +153,23 @@ The query was including future-dated transactions which inflated RTA.
 **Problem:** Missing blank line between header and body.
 **Fix:**
 
-```
 fix(rta): correct cash balance query
 
 The query was including future-dated transactions which inflated RTA.
+
+```
+
+---
+
+## ❌ Including "raw" control characters in commit message or file
+
+```
+
+chore: add \n# DB backup to .gitignore
+
+```
+
+**Problem:** Using literal `\n` or other control characters in descriptions or file updates (via `echo`) creates corrupted files or messy history.
+**Fix:** Use proper file manipulation tools to ensure the file is valid. Description should be human-readable.
+**Fix (Description):** `chore: add backup exclusion to .gitignore`
 ```

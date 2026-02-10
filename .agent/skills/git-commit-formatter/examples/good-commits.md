@@ -98,6 +98,29 @@ Per rule 05, all financial math lives in lib/engine/cc-payment.ts.
 The repo layer queries data and delegates to engine functions.
 ```
 
+## Agent and Scripting (DX)
+
+```
+feat(skills): add code-review skill with scan-antipatterns script
+
+Provide a framework for comprehensive PR reviews. Includes:
+- SKILL.md with checklist and architecture rules
+- scripts/scan-antipatterns.sh to automate common rule checks
+```
+
+```
+chore(dx): implement with-local-tmp.sh helper for macOS permission issues
+
+Wrapper script to set TMPDIR=.tmp and ensure directory exists.
+Prevents vitest/tsx failures due to /var/folders EPERM on macOS.
+```
+
+```
+feat(workflows): add factory-reset and project-health-check
+
+Enable one-command environment setup and QA smoke testing for developers.
+```
+
 ## Revert
 
 ```
