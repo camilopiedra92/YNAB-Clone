@@ -1,4 +1,7 @@
-
+/**
+ * Debug: Verify transfers and specific payee data in the database.
+ * Usage: npm run db:verify
+ */
 import db from '../lib/repos/client';
 import { sql } from 'drizzle-orm';
 
@@ -16,4 +19,6 @@ async function main() {
   console.log(linkedTransfers);
 }
 
-main().catch(console.error);
+main()
+  .then(() => process.exit(0))
+  .catch((err) => { console.error(err); process.exit(1); });

@@ -1,3 +1,8 @@
+/**
+ * ONE-TIME MIGRATION — Already applied. Kept for reference only.
+ * Backfills user + budget for pre-multitenancy data.
+ * Usage: npm run db:migrate-tenants
+ */
 import db from '../lib/repos/client';
 import * as schema from '../lib/db/schema';
 import { isNull } from 'drizzle-orm';

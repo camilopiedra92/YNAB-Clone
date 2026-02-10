@@ -4,19 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run db:migrate && next dev",
-    "build": "next build",
-    "start": "npm run db:migrate && next start",
-    "lint": "eslint",
-    "test": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env node_modules/vitest/vitest.mjs run",
-    "test:coverage": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env node_modules/vitest/vitest.mjs run --coverage",
-    "test:watch": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env node_modules/vitest/vitest.mjs",
-    "test:e2e": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env node_modules/@playwright/test/cli.js test",
-    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
-    "db:import": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env --import tsx/esm scripts/import-ynab-data.ts",
-    "db:migrate": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env --import tsx/esm scripts/migrate-db.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
-    "health:check": "mkdir -p .tmp && TMPDIR=.tmp node --env-file=.env --import tsx/esm scripts/health-check.ts"
+    "dev": "./scripts/with-local-tmp.sh bash -c 'npm run db:migrate && next dev'",
+    "build": "./scripts/with-local-tmp.sh next build",
+    "start": "./scripts/with-local-tmp.sh bash -c 'npm run db:migrate && next start'",
+    "lint": "./scripts/with-local-tmp.sh eslint",
+    "typecheck": "./scripts/with-local-tmp.sh npx tsc --noEmit",
+
+    "test": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs run",
+    "test:coverage": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs run --coverage",
+    "test:watch": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs",
+    "test:e2e": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/@playwright/test/cli.js test",
+
+    "db:generate": "./scripts/with-local-tmp.sh drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/migrate-db.ts",
+    "db:import": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/import-ynab-data.ts",
+    "db:studio": "./scripts/with-local-tmp.sh drizzle-kit studio --config=drizzle.config.ts",
+    "db:verify": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/verify-db.ts",
+    "db:migrate-cc": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/migrate-cc-categories.ts",
+    "db:migrate-tenants": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/migrate-to-multitenancy.ts",
+
+    "db:debug-import": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/debug-import.ts",
+    "db:debug-rta": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/debug-rta.ts",
+
+    "health:check": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/health-check.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

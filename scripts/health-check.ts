@@ -116,7 +116,7 @@ async function main() {
 
   logStep('Type Checking (TypeScript)');
   // Using tsc --noEmit to check types without generating files
-  if (!runCommand('npx tsc --noEmit', 'Type checking failed')) {
+  if (!runCommand('npm run typecheck', 'Type checking failed')) {
     process.exit(1);
   }
   logSuccess('Type Checking Passed');

@@ -1,3 +1,8 @@
+/**
+ * ONE-TIME MIGRATION — Already applied. Kept for reference only.
+ * Creates CC Payment categories linked to CC accounts.
+ * Usage: npm run db:migrate-cc
+ */
 import { eq, and, sql, max, isNotNull } from 'drizzle-orm';
 import db from '../lib/repos/client';
 import * as schema from '../lib/db/schema';

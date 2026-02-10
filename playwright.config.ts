@@ -36,7 +36,7 @@ export default defineConfig({
     ],
     webServer: {
         // NOTE: DB name and port must match TEST_DB_NAME and TEST_BASE_URL from tests/test-constants.ts
-        command: `mkdir -p .tmp && TMPDIR=.tmp NODE_ENV=production NEXT_TEST_BUILD=1 DATABASE_URL=postgresql://localhost:5432/${TEST_DB_NAME} AUTH_SECRET=e2e-test-secret-at-least-32-characters-long AUTH_TRUST_HOST=true npx next build && TMPDIR=.tmp NODE_ENV=production NEXT_TEST_BUILD=1 DATABASE_URL=postgresql://localhost:5432/${TEST_DB_NAME} AUTH_SECRET=e2e-test-secret-at-least-32-characters-long AUTH_TRUST_HOST=true npx next start -p 3001`,
+        command: `./scripts/with-local-tmp.sh bash -c 'NODE_ENV=production NEXT_TEST_BUILD=1 DATABASE_URL=postgresql://localhost:5432/${TEST_DB_NAME} AUTH_SECRET=e2e-test-secret-at-least-32-characters-long AUTH_TRUST_HOST=true npx next build && NODE_ENV=production NEXT_TEST_BUILD=1 DATABASE_URL=postgresql://localhost:5432/${TEST_DB_NAME} AUTH_SECRET=e2e-test-secret-at-least-32-characters-long AUTH_TRUST_HOST=true npx next start -p 3001'`,
         url: TEST_BASE_URL,
         reuseExistingServer: true,
         timeout: 300_000,

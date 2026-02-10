@@ -5,7 +5,7 @@
  * diagnose RTA discrepancies. Uses Drizzle ORM with PostgreSQL.
  *
  * Usage:
- *   npx tsx scripts/debug-rta.ts
+ *   npm run db:debug-rta
  */
 import { eq, and, lte, sql } from 'drizzle-orm';
 import db from '../lib/repos/client';
