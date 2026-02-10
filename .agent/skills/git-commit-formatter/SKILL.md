@@ -1,9 +1,21 @@
 ---
 name: git-commit-formatter
-description: Formats and validates git commit messages according to the Conventional Commits specification. Use when making commits, writing commit messages, or reviewing commit history. Enforces type, scope, description, body, and footer conventions.
+description: Enforce the Conventional Commits specification for all Git commits in this project. Proactively manage staged changes, validate messages, and prevent redundant investigation cycles.
 ---
 
-# Skill: Git Commit Formatter
+# Skill: Git Commit Formatter (Conventional Commits)
+
+## 0. Mandatory Pre-flight Short-Circuit (Stop the Vueltas)
+
+**BEFORE running any Git commands or deep-dives:**
+
+1.  **Run Health Check**: Execute `bash .agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`.
+2.  **Obey the Verdict**:
+    - If the verdict is `🛑 [STOP]`, immediately inform the user: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END THE TURN**.
+    - Do **NOT** run `find`, `ls -R`, or check parent directories for `.git` if `git status` (via the script) succeeds.
+    - Do **NOT** try to "double check" if you are in the right folder if the script worked.
+
+## 1. Format Specification
 
 Use this skill **every time you write a git commit message**. It enforces the [Conventional Commits](https://www.conventionalcommits.org/) specification with automated validation.
 
@@ -159,23 +171,21 @@ See [examples/bad-commits.md](examples/bad-commits.md) for anti-patterns and wha
 
 These are specific rules to avoid common errors when using Git in this environment:
 
-### A. Context Verification (The "Fatal" Rule)
+### A. Project Root Lockdown
 
-If you see `fatal: not a git repository`:
-
-1.  **Stop and Reflect**: You are likely at the workspace root instead of the project root.
-2.  **Immediate Fix**: Switch to `Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app`.
-3.  **Proactive Check**: Before running any Git command, check if `.git` exists in the current directory.
+- **Never** look for `.git` in parent directories if you are already inside `ynab-app`.
+- If `git status` fails, assume you are in the wrong directory and go to `Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app` immediately.
+- Do **NOT** use `find` or `ls -R` to "discover" the repo.
 
 ### B. Command Efficiency (The "One-Turn" Rule)
 
 To avoid "giving many turns" (looping unnecessarily):
 
-1.  **Batch Actions**: If you have multiple files to stage, use `git add .` or list them all in one command.
-2.  **Combine Check & Commit**: If the status is already known from previous tool outputs, skip redundant `git status` calls and move straight to commit.
-3.  **Smart Status**: Use `git status -s` for a concise overview that is easier to parse in one glance.
+1.  **Trust the Script**: The `check-worktree-health.sh` is your single source of truth.
+2.  **Combine Check & Commit**: If the health check gives a `🚀 [PROCEED]`, move directly to staging and committing.
+3.  **Smart Status**: Use `git status -s` if you need a quick manual check, but prefer the health script.
 
-### B. Gitignore Awareness (The "Stuck" Rule)
+### C. Gitignore Awareness (The "Stuck" Rule)
 
 If a file won't stage or `git status` doesn't show it:
 
