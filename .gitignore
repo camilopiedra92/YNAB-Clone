@@ -60,3 +60,4 @@ backup_pre_multitenancy.sql
 .vscode/
 docs/export/
 tsx-*/
+.pglite
