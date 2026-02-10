@@ -55,3 +55,8 @@ test-results/
 backup_pre_multitenancy.sql
 .npm-cache
 .auth/
+
+# dev artifacts
+.vscode/
+docs/export/
+tsx-*/
