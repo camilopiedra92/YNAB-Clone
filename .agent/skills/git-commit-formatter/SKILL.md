@@ -5,29 +5,42 @@ description: Enforce the Conventional Commits specification for all Git commits 
 
 # Skill: Git Commit Formatter (Conventional Commits)
 
-## 🚨 THE GOLDEN RULE OF LOCATION (MANDATORY)
+## 🛑 THE SHORT-CIRCUIT PROTOCOL (ONE-TURN VICTORY)
 
-The project has a nested structure. You **MUST** verify your location before running any Git command. If you ignore this, you will waste turns and frustrate the user.
+To avoid "vueltas" (redundant loops) and frustrating the user, you **MUST** follow this protocol before doing ANYTHING else.
 
-- **Workspace Root (FORBIDDEN for Git):** `/Users/camilopiedra/Documents/YNAB`
-- **Project/Git Root (REQUIRED for Git):** `/Users/camilopiedra/Documents/YNAB/ynab-app`
+### Step 0: Mandatory Pre-flight Check
 
-### Actionable Rule:
+Run this exact command first. **Do NOT run `git status` or `ls` before this.**
 
-All Git commands (`git status`, `git add`, `git commit`, `git push`) and the health check script **MUST** be run with:
-`Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app`
+```bash
+# Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app
+bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
+```
+
+### Step 1: Obey the Verdict
+
+- **If Verdict is `🛑 [STOP]`**: Immediately state: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END YOUR TURN IMMEDIATELY**.
+- **Do NOT** "verify" the stop signal with `git status`, `git log`, or `ls`. The script is the authority.
+- **Do NOT** check parent folders. There is only one repo at `ynab-app`.
 
 ---
 
-## 🛑 Step 0: Mandatory Pre-flight Short-Circuit
+## 🚨 THE GOLDEN RULE OF LOCATION
 
-**BEFORE you do anything else (no `git status`, no `ls`, nothing):**
+The project has a nested structure. If you run Git in the wrong place, you fail.
 
-1.  **Run Health Check**: Execute `bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`.
-2.  **Obey the Verdict**:
-    - If the verdict is `🛑 [STOP]`, immediately inform the user: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END THE TURN IMMEDIATELY**.
-    - If you see `❌ Error: .git directory not found`, you are in the wrong directory. Go to `/Users/camilopiedra/Documents/YNAB/ynab-app`.
-    - **CRITICAL**: Do **NOT** run `git status` or check parent directories if the script tells you where you are or if everything is clean.
+- **Project/Git Root:** `/Users/camilopiedra/Documents/YNAB/ynab-app` (Run commands here)
+- **Workspace Root:** `/Users/camilopiedra/Documents/YNAB` (FORBIDDEN for Git)
+
+## 🚀 Turbo Flow (Standard Path)
+
+1. **Run Health Check**: `bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`
+2. **If STOP**: Inform user and EXIT.
+3. **If PROCEED**:
+   - `git add .` (if needed)
+   - `bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/smart-commit.sh "feat(ui): add button"`
+   - `git push`
 
 ---
 
@@ -209,15 +222,24 @@ These are specific rules to avoid common errors when using Git in this environme
 
 **The Fix**: Read the file system! The code is in `/Users/camilopiedra/Documents/YNAB/ynab-app`. Change your `Cwd` and stop investigating.
 
-## 9. The "Nothing to Commit" Short-Circuit (Stop the Vueltas)
+## 9. Failure Mode: "Verification Fatigue" (Do NOT do this)
 
-If the user asks to commit/push but your initial check shows a clean state:
+The user is frustrated by "vueltas". The following sequence is a **CRITICAL FAILURE**:
 
-1.  **Trust `git status`**: If `ynab-app` is clean and has no untracked files of interest, **STOP**.
-2.  **Fast-Fail Message**: Inform the user immediately:
-    > "El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."
-3.  **No Investigation**: Do NOT run `ls -R`, `find`, or check parent directories.
-4.  **Detecting the Trap**: If you run more than 1 `run_command` after a `🛑 [STOP]` verdict, you are in a loop. Break out.
+1. User: "Commit and push"
+2. Agent: `git status` (Manually)
+3. Agent: `git log` (Manually)
+4. Agent: `ls -la` (To "be sure")
+5. Agent: `git status --ignored`
+6. Agent: "Nothing to commit"
+
+**The Correct Sequence**:
+
+1. User: "Commit and push"
+2. Agent: `bash .../check-worktree-health.sh`
+3. Agent: (Sees `🛑 [STOP]`) "Nothing to commit. Ended turn."
+
+**TRUST THE HEALTH CHECK SCRIPT. ONE TURN ONLY.**
 
 ## Resources
 
