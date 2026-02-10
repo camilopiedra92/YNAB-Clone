@@ -28,7 +28,7 @@ HEALTH_REPORT=$("$HEALTH_CHECK" || true)
 
 # 4. Determine Action
 if echo "$HEALTH_REPORT" | grep -q "🛑 \[STOP\]"; then
-    echo "✨ Repo is clean and synced. No action needed."
+    echo "$HEALTH_REPORT"
     echo "📊 STATUS: SYNCED"
     exit 0
 fi

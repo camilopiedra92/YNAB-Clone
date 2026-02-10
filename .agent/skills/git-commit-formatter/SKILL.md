@@ -23,10 +23,14 @@ Running any of the following commands in the context of a commit/push task is co
 - ❌ `git status`
 - ❌ `git log`
 - ❌ `git diff`
+- ❌ `git ls-files`
 - ❌ `ls -R` (to find changes)
-- ❌ `find . -name ".git"` (to locate repo)
 
-**Why**: If `autopilot.sh` says "SYNCED", the task is complete. If it says "ACTION NEEDED", it will provide the diagnostic you need. Manual investigation is redundant and frustrates the USER.
+**The "No Second Opinion" Rule**:
+If `autopilot.sh` returns `📊 STATUS: SYNCED` or `📊 STATUS: SUCCESS`, you are **FORBIDDEN** from running any secondary Git or filesystem commands to "verify". The script is the final authority. Even if you _think_ there should be changes, trust the script.
+
+**Termination Protocol**:
+If `autopilot.sh` reports `SYNCED`, your very next response MUST be to inform the user that the repository is already up to date, and then STOP.
 
 ---
 
