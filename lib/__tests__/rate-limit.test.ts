@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   createRateLimiter,
   getClientIP,
+  rateLimitResponse,
   AUTH_LIMIT,
   API_LIMIT,
   IMPORT_LIMIT,
@@ -179,6 +180,24 @@ describe('Rate Limit Presets', () => {
     expect(IMPORT_LIMIT.maxRequests).toBe(3);
     expect(IMPORT_LIMIT.windowMs).toBe(300_000);
   });
+
+  it('AUTH_LIMIT uses relaxed limit when NEXT_TEST_BUILD is set', async () => {
+    const originalEnv = process.env.NEXT_TEST_BUILD;
+    process.env.NEXT_TEST_BUILD = 'true';
+    try {
+      // Force re-evaluation of the module-level constant
+      vi.resetModules();
+      const mod = await import('../rate-limit');
+      expect(mod.AUTH_LIMIT.maxRequests).toBe(100);
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.NEXT_TEST_BUILD;
+      } else {
+        process.env.NEXT_TEST_BUILD = originalEnv;
+      }
+      vi.resetModules();
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -219,5 +238,91 @@ describe('getClientIP', () => {
       headers: { 'x-forwarded-for': '  3.3.3.3 , 4.4.4.4' },
     });
     expect(getClientIP(request)).toBe('3.3.3.3');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// rateLimitResponse
+// ─────────────────────────────────────────────────────────────────────
+describe('rateLimitResponse', () => {
+  it('returns 429 with correct body and headers', async () => {
+    const resetAt = new Date(Date.now() + 30_000);
+    const result = {
+      success: false as const,
+      remaining: 0,
+      resetAt,
+    };
+
+    const response = rateLimitResponse(result);
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('X-RateLimit-Remaining')).toBe('0');
+    expect(response.headers.get('X-RateLimit-Reset')).toBe(resetAt.toISOString());
+    expect(response.headers.get('Retry-After')).toBeDefined();
+
+    const body = await response.json();
+    expect(body.error).toContain('Too many requests');
+    expect(body.retryAfter).toBeGreaterThan(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// MemoryStore cleanup interval
+// ─────────────────────────────────────────────────────────────────────
+describe('MemoryStore cleanup interval', () => {
+  it('prunes expired entries after 5-minute interval', async () => {
+    vi.useFakeTimers();
+    try {
+      const windowMs = 1000;
+      const limiter = createRateLimiter({ maxRequests: 2, windowMs });
+
+      // Exhaust the limiter for a key
+      await limiter.check('cleanup-key');
+      await limiter.check('cleanup-key');
+      expect((await limiter.check('cleanup-key')).success).toBe(false);
+
+      // Advance past the window so timestamps are expired
+      vi.advanceTimersByTime(windowMs + 1);
+
+      // Advance to trigger the 5-minute cleanup interval
+      vi.advanceTimersByTime(5 * 60_000);
+
+      // After cleanup, expired entries are pruned → key is fully reset
+      const result = await limiter.check('cleanup-key');
+      expect(result.success).toBe(true);
+      expect(result.remaining).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('partial cleanup keeps valid timestamps', async () => {
+    vi.useFakeTimers();
+    try {
+      const windowMs = 10 * 60_000; // 10-minute window (larger than 5-min cleanup interval)
+      const limiter = createRateLimiter({ maxRequests: 3, windowMs });
+
+      // Add request at t=0
+      await limiter.check('partial-key');
+
+      // Advance to just before the 5-min cleanup interval fires
+      vi.advanceTimersByTime(4 * 60_000 + 59_000); // t=4m59s
+
+      // Add request at t=4m59s — still within 10-min window
+      await limiter.check('partial-key');
+
+      // Advance 1s to trigger cleanup at t=5m
+      vi.advanceTimersByTime(1000);
+
+      // At cleanup (t=5m=300000ms):
+      //   - timestamp t=0: age 300000ms < 600000ms window → VALID
+      //   - timestamp t=299000: age 1000ms < 600000ms window → VALID
+      // Neither should be pruned, entry should NOT be deleted
+      const result = await limiter.check('partial-key');
+      expect(result.success).toBe(true);
+      expect(result.remaining).toBe(0); // 2 existing + this new one = 3 used, 0 remaining
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

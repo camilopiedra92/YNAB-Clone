@@ -369,6 +369,42 @@ describe('refreshAllBudgetActivity', () => {
             expect(ccRows).toHaveLength(1);
         }
     });
+
+    it('carries forward available across multiple months', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Set up prior month with assigned budget
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
+
+        // Create a transaction in the prior month to generate activity
+        await fns.createTransaction({
+            accountId,
+            date: today(),
+            payee: 'Store',
+            categoryId: categoryIds[0],
+            outflow: 100,
+        });
+
+        // Refresh the current month so budget_months rows exist with available values
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Now refresh the NEXT month — this forces the prevRows loop to execute
+        // because budget_months rows exist for the prior month
+        await fns.refreshAllBudgetActivity(budgetId, next);
+
+        // Category 0 should carry forward: available = carryforward(400) + assigned(0) + activity(0) = 400
+        const rows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, next)
+            ));
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0].available).toBe(400); // 500 assigned - 100 spent = 400 carried forward
+    });
 });
 
 // =====================================================================
@@ -940,5 +976,47 @@ describe('getBudgetInspectorData', () => {
         // (the null category_id row is skipped in the totals)
         expect(data.summary.available).toBe(0);
         expect(data.summary.activity).toBe(0);
+    });
+});
+
+// =====================================================================
+// refreshAllBudgetActivity — ghost entry cleanup (L479)
+// =====================================================================
+describe('refreshAllBudgetActivity — ghost cleanup', () => {
+    it('deletes ghost budget_months rows where assigned=0, activity=0, available=0', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+
+        // Create a budget_months row that will become a ghost after refresh
+        // (no transactions, no assignment → activity=0, available=0)
+        await db.insert(budgetMonths).values({
+            categoryId: categoryIds[2],
+            month,
+            assigned: ZERO,
+            activity: ZERO,
+            available: ZERO,
+        });
+
+        // Verify the row exists before refresh
+        const before = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[2]), eq(budgetMonths.month, month)));
+        expect(before).toHaveLength(1);
+
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Ghost row should be deleted
+        const after = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[2]), eq(budgetMonths.month, month)));
+        expect(after).toHaveLength(0);
+    });
+});
+
+// =====================================================================
+// ensureCreditCardPaymentCategory — nonexistent account (L527-528)
+// =====================================================================
+describe('ensureCreditCardPaymentCategory — edge cases', () => {
+    it('returns undefined for nonexistent account', async () => {
+        const result = await fns.ensureCreditCardPaymentCategory(999999, 'Ghost Card');
+        expect(result).toBeUndefined();
     });
 });

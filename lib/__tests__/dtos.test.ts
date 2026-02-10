@@ -189,6 +189,10 @@ describe('Transaction DTOs', () => {
       const dto = toTransactionDTO(row);
       expect(dto.cleared).toBe('Uncleared');
     });
+
+    it('throws when row is undefined', () => {
+      expect(() => toTransactionDTO(undefined)).toThrow('Transaction not found');
+    });
   });
 });
 

@@ -100,9 +100,8 @@ class MemoryStore implements RateLimitStore {
       }
     }, 5 * 60_000);
 
-    if (cleanupInterval && typeof cleanupInterval === 'object' && 'unref' in cleanupInterval) {
-      cleanupInterval.unref();
-    }
+    // Allow Node.js process to exit even if cleanup is pending
+    cleanupInterval.unref();
   }
 
   get(key: string) {

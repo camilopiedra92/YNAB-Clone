@@ -16,6 +16,12 @@ export default defineConfig({
                 'lib/repos/client.ts',   // Production I/O singleton — not unit-testable
                 'lib/engine/types.ts',   // Type-only file — no runtime code
                 'lib/persistence/**',    // IndexedDB persistence — tested via E2E
+                'lib/auth.ts',           // NextAuth Node config — tested via E2E
+                'lib/auth.config.ts',    // NextAuth Edge config — tested via E2E
+                'lib/auth-helpers.ts',   // Auth session helpers — tested via E2E
+                'lib/tenant-context.ts', // RLS tenant context — tested via E2E
+                'lib/db/schema.ts',      // Declarative Drizzle schema — no executable logic
+                'lib/__tests__/**',      // Test infrastructure — not production code
             ],
         },
     },

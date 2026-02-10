@@ -79,7 +79,7 @@ export function createTransactionFunctions(
     }
 
     const limitClause = filters?.limit ? sql`LIMIT ${filters.limit}` : sql``;
-    const whereExtra = conditions.length > 0 ? sql.join(conditions, sql` `) : sql``;
+    const whereExtra = sql.join(conditions, sql` `);
 
     return queryRows<TransactionRow>(database, sql`
       SELECT 

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, today } from './test-helpers';
+import { createTestDb, today, currentMonth, nextMonth, mu } from './test-helpers';
 import type { createDbFunctions } from '../repos';
 import type { DrizzleDB } from '../repos/client';
 
@@ -90,6 +90,14 @@ describe('Transaction Filters', () => {
 
         const txs = await fns.getTransactions({ budgetId });
         expect(txs.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('returns transactions without budgetId filter', async () => {
+        await fns.createTransaction({ accountId, date: today(), payee: 'No Budget Filter', outflow: 10 });
+
+        // Cast to bypass TypeScript — testing runtime-defensive branch
+        const txs = await fns.getTransactions({ accountId } as Parameters<typeof fns.getTransactions>[0]);
+        expect(txs.length).toBeGreaterThanOrEqual(1);
     });
 
     it('returns transfer metadata in getTransactions', async () => {
@@ -385,5 +393,364 @@ describe('Create Transaction - Defaults', () => {
         expect(tx.inflow).toBe(0);
         expect(tx.cleared).toBe('Uncleared');
         expect(tx.flag).toBeNull();
+    });
+});
+
+// =====================================================================
+// Atomic Composite Operations
+// =====================================================================
+describe('Atomic Operations', () => {
+    it('createTransactionAtomic creates transaction and updates account balance', async () => {
+        const result = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Atomic Store',
+            outflow: 500,
+            cleared: 'Cleared',
+        });
+        expect(result.id).toBeDefined();
+
+        const account = (await fns.getAccount(budgetId, accountId))!;
+        expect(account.balance).toBe(-500);
+    });
+
+    it('createTransactionAtomic triggers budget activity when categorized', async () => {
+        // Assign some budget first
+        await fns.updateBudgetAssignment(budgetId, categoryId, today().slice(0, 7), mu(1000));
+
+        await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Budget Store',
+            outflow: 300,
+            categoryId,
+        });
+
+        const budget = await fns.getBudgetForMonth(budgetId, today().slice(0, 7));
+        const cat = budget.find((b: { categoryId: number }) => b.categoryId === categoryId);
+        expect(cat).toBeDefined();
+        // Activity should reflect the outflow
+        expect(cat!.activity).toBe(-300);
+    });
+
+    it('createTransactionAtomic triggers CC payment budget for CC account', async () => {
+        // Create a CC account
+        const ccAcc = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccGroup = await fns.createCategoryGroup('CC Payments', budgetId);
+        const ccCat = await fns.createCategory({
+            name: 'Visa Payment',
+            category_group_id: ccGroup.id,
+            linked_account_id: ccAcc.id,
+        });
+
+        // Give the spending category some budget
+        await fns.updateBudgetAssignment(budgetId, categoryId, today().slice(0, 7), mu(500));
+
+        // Spend on CC
+        await fns.createTransactionAtomic(budgetId, {
+            accountId: ccAcc.id,
+            date: today(),
+            payee: 'CC Purchase',
+            outflow: 200,
+            categoryId,
+        });
+
+        // CC account balance should be updated
+        const ccAccount = (await fns.getAccount(budgetId, ccAcc.id))!;
+        expect(ccAccount.balance).toBe(-200);
+    });
+
+    it('updateTransactionAtomic updates and recalculates balances', async () => {
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Original',
+            outflow: 100,
+            categoryId,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            outflow: 300,
+        });
+
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.outflow).toBe(300);
+
+        // Account balance should reflect the new outflow
+        const account = (await fns.getAccount(budgetId, accountId))!;
+        expect(account.balance).toBe(-300);
+    });
+
+    it('deleteTransactionAtomic deletes and recalculates', async () => {
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'To Delete',
+            outflow: 500,
+            categoryId,
+        });
+
+        const txn = await fns.getTransaction(budgetId, tx.id);
+        await fns.deleteTransactionAtomic(budgetId, txn);
+
+        // Transaction should be gone
+        const deleted = await fns.getTransaction(budgetId, tx.id);
+        expect(deleted).toBeUndefined();
+
+        // Account balance should be restored
+        const account = (await fns.getAccount(budgetId, accountId))!;
+        expect(account.balance).toBe(0);
+    });
+
+    it('toggleClearedAtomic toggles cleared and updates balance', async () => {
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Toggle Me',
+            outflow: 100,
+            cleared: 'Uncleared',
+        });
+
+        await fns.toggleClearedAtomic(budgetId, tx.id, accountId);
+
+        const toggled = await fns.getTransaction(budgetId, tx.id);
+        expect(toggled.cleared).toBe('Cleared');
+
+        const account = (await fns.getAccount(budgetId, accountId))!;
+        expect(account.clearedBalance).toBe(-100);
+    });
+
+    it('reconcileAccountAtomic reconciles and updates balances', async () => {
+        // Create a cleared transaction
+        await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Cleared Tx',
+            outflow: 500,
+            cleared: 'Cleared',
+        });
+
+        await fns.reconcileAccountAtomic(budgetId, accountId);
+
+        // After reconciliation, cleared transactions become Reconciled
+        const txs = await fns.getTransactions({ budgetId, accountId });
+        const reconciledTxs = txs.filter(t => t.cleared === 'Reconciled');
+        expect(reconciledTxs).toHaveLength(1);
+    });
+
+    it('updateTransactionAtomic handles CC transaction date change across months', async () => {
+        // Create a CC account
+        const ccAcc = await fns.createAccount({ name: 'Test CC', type: 'credit', budgetId });
+        await fns.ensureCreditCardPaymentCategory(ccAcc.id, 'Test CC');
+
+        // Assign budget to the category
+        const month = currentMonth();
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(1000));
+
+        // Create CC transaction in current month
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId: ccAcc.id,
+            date: today(),
+            payee: 'CC Store',
+            outflow: 200,
+            categoryId,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+
+        // Change the date to next month (cross-month)
+        const nextMo = nextMonth(month);
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            date: `${nextMo}-15`,
+        });
+
+        // Verify the date was updated
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.date).toBe(`${nextMo}-15`);
+    });
+
+    it('deleteTransactionAtomic handles CC account transaction', async () => {
+        // Create a CC account
+        const ccAcc = await fns.createAccount({ name: 'Delete CC', type: 'credit', budgetId });
+        await fns.ensureCreditCardPaymentCategory(ccAcc.id, 'Delete CC');
+
+        await fns.updateBudgetAssignment(budgetId, categoryId, currentMonth(), mu(1000));
+
+        // Create CC transaction
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId: ccAcc.id,
+            date: today(),
+            payee: 'CC Purchase',
+            outflow: 300,
+            categoryId,
+        });
+
+        const txn = await fns.getTransaction(budgetId, tx.id);
+
+        // Delete it — should trigger CC payment budget update
+        await fns.deleteTransactionAtomic(budgetId, txn);
+
+        // Transaction should be gone
+        const deleted = await fns.getTransaction(budgetId, tx.id);
+        expect(deleted).toBeUndefined();
+
+        // CC account balance should be restored to 0
+        const ccAccount = (await fns.getAccount(budgetId, ccAcc.id))!;
+        expect(ccAccount.balance).toBe(0);
+    });
+
+    it('updateTransactionAtomic handles category change', async () => {
+        // Create a second category to change to
+        const cat2Result = await fns.createCategory({ name: 'Rent', category_group_id: groupId });
+        const cat2Id = cat2Result.id;
+
+        const month = currentMonth();
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(1000));
+        await fns.updateBudgetAssignment(budgetId, cat2Id, month, mu(500));
+
+        // Create transaction in category 1
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Changing Category',
+            outflow: 200,
+            categoryId,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+
+        // Change category from categoryId to cat2Id
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            categoryId: cat2Id,
+        });
+
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.categoryId).toBe(cat2Id);
+    });
+
+    it('updateTransactionAtomic handles uncategorized transaction update', async () => {
+        // Create a transaction WITHOUT a category
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'No Category',
+            outflow: 100,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+        expect(original.categoryId).toBeNull();
+
+        // Update the payee — no budget activity needed since no category
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            payee: 'Updated No Category',
+        });
+
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.payee).toBe('Updated No Category');
+    });
+
+    it('updateTransactionAtomic handles clearing category to null', async () => {
+        await fns.updateBudgetAssignment(budgetId, categoryId, currentMonth(), mu(1000));
+
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Will Remove Category',
+            outflow: 200,
+            categoryId,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+
+        // Clear category to null
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            categoryId: null,
+        });
+
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.categoryId).toBeNull();
+    });
+
+    it('updateTransactionAtomic handles cross-month date change on categorized cash tx', async () => {
+        const month = currentMonth();
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(1000));
+
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Cross Month Cash',
+            outflow: 150,
+            categoryId,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+
+        // Change date to next month — categorized cash tx crosses months
+        const nextMo = nextMonth(month);
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            date: `${nextMo}-15`,
+        });
+
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.date).toBe(`${nextMo}-15`);
+    });
+
+    it('createTransactionAtomic handles inflow-only (no outflow)', async () => {
+        // Trigger L376 `data.outflow || 0` fallback — no outflow provided
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Inflow Only',
+            inflow: 500,
+        });
+
+        const txn = await fns.getTransaction(budgetId, tx.id);
+        expect(txn.inflow).toBe(500);
+        expect(txn.outflow).toBe(0);
+    });
+
+    it('updateTransactionAtomic handles CC same-month payee change', async () => {
+        const ccAcc = await fns.createAccount({ name: 'Same Month CC', type: 'credit', budgetId });
+        await fns.ensureCreditCardPaymentCategory(ccAcc.id, 'Same Month CC');
+
+        await fns.updateBudgetAssignment(budgetId, categoryId, currentMonth(), mu(1000));
+
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId: ccAcc.id,
+            date: today(),
+            payee: 'CC Same Month',
+            outflow: 150,
+            categoryId,
+        });
+
+        const original = await fns.getTransaction(budgetId, tx.id);
+
+        // Change only payee — same month, same account → L425 false branch
+        await fns.updateTransactionAtomic(budgetId, tx.id, original, {
+            payee: 'CC Same Month Updated',
+        });
+
+        const updated = await fns.getTransaction(budgetId, tx.id);
+        expect(updated.payee).toBe('CC Same Month Updated');
+    });
+
+    it('deleteTransactionAtomic handles uncategorized transaction', async () => {
+        // Create a transaction WITHOUT a category — hits L437 false branch
+        const tx = await fns.createTransactionAtomic(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'No Category Delete',
+            outflow: 100,
+        });
+
+        const txn = await fns.getTransaction(budgetId, tx.id);
+        expect(txn.categoryId).toBeNull();
+
+        await fns.deleteTransactionAtomic(budgetId, txn);
+
+        const deleted = await fns.getTransaction(budgetId, tx.id);
+        expect(deleted).toBeUndefined();
     });
 });
