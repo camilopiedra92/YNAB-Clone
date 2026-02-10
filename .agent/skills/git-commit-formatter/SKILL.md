@@ -174,50 +174,39 @@ These are specific rules to avoid common errors when using Git in this environme
 
 ### A. Project Root Lockdown
 
-- **Never** look for `.git` in parent directories if you are already inside `ynab-app`.
+- **Repo Authority**: The ONLY git repository is at `/Users/camilopiedra/Documents/YNAB/ynab-app`.
+- **Never** look for `.git` in parent directories (e.g., `/Users/camilopiedra/Documents/YNAB`).
 - If `git status` fails, assume you are in the wrong directory and go to `Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app` immediately.
-- Do **NOT** use `find` or `ls -R` to "discover" the repo.
 
 ### B. Command Efficiency (The "One-Turn" Rule)
 
-To avoid "giving many turns" (looping unnecessarily):
-
 1.  **Trust the Script**: The `check-worktree-health.sh` is your single source of truth.
-2.  **Combine Check & Commit**: If the health check gives a `🚀 [PROCEED]`, move directly to staging and committing in the _same_ step if possible.
-3.  **Smart Status**: Use `git status -s` if you need a quick manual check, but prefer the health script.
-4.  **No Discovery Purgatory**: If `git status` says clean but you _feel_ something is missing, verify `.gitignore` _once_ and then STOP. Do not loop.
+2.  **No "Double-Checking"**: If the script says `🛑 [STOP]`, do NOT run `git log`, `git status`, or `ls`. Every extra command is a wasted turn.
 
-### C. Gitignore Awareness (The "Stuck" Rule)
+### C. Why Agents Fail (The Loop of Death)
 
-If a file won't stage or `git status` doesn't show it:
+**Scenario**: User asks for a commit ➔ Agent runs Health Check ➔ Health Check says `🛑 [STOP]`.
 
-1.  Check if it's ignored: `git check-ignore -v <path>`
-2.  If ignored but needs tracking, update `.gitignore` first.
-3.  Use `git status -uno` to clear the noise if there are hundreds of untracked files.
+**The Failure Mode (Do NOT do this)**:
 
-### C. Atomic Edits (The "Newline" Rule)
+- "Let me just check `git status` to be sure..."
+- "Wait, is there a `.git` in the parent folder?"
+- "Maybe there are unpushed commits? Let me check `git log`..."
+- "Are there ignored files that should be tracked?"
 
-When editing `.gitignore` or similar files:
+**The Result**: 5+ wasted turns to confirm a "Nothing to do" state.
 
-1.  **Avoid `echo "..." >> .gitignore`**: This often introduces incorrect characters or formatting.
-2.  **Use `replace_file_content`**: It's more reliable for maintaining correct line breaks and ensuring the file doesn't end up with values like `\n# DB backup`.
-
-### D. Identity Management
-
-If Git complains about local identity:
-
-- Use `git commit -m "..." --author="Camilo Piedrahita Hernández <camilopiedra@Camilos-MacBook-Pro.local>"` if you need to fix a commit author, or just follow the user's lead if they've already set it up.
+**The Fix**: When you see `🛑 [STOP]`, you **MUST** stop and report. Any attempt to "verify" the stop signal is a violation of this skill.
 
 ## 9. The "Nothing to Commit" Short-Circuit (Stop the Vueltas)
 
 If the user asks to commit/push but your initial check shows a clean state:
 
 1.  **Trust `git status`**: If `ynab-app` is clean and has no untracked files of interest, **STOP**.
-2.  **Check Unpushed Commits**: Run `git log @{u}..` to see if there are commits waiting to be pushed (the health script does this for you).
-3.  **Fast-Fail Message**: If there are no changes AND no unpushed commits, inform the user immediately:
+2.  **Fast-Fail Message**: Inform the user immediately:
     > "El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."
-4.  **No Investigation**: Do NOT run `ls -R`, `find`, or check parent directories unless the user explicitly mentions a file that you can't find.
-5.  **Detecting the Trap**: If you find yourself running more than 3 `run_command` calls just to "see what to commit", you are in a loop. Break out and report status.
+3.  **No Investigation**: Do NOT run `ls -R`, `find`, or check parent directories.
+4.  **Detecting the Trap**: If you run more than 1 `run_command` after a `🛑 [STOP]` verdict, you are in a loop. Break out.
 
 ## Resources
 
