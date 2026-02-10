@@ -1,6 +1,6 @@
 ---
 name: git-commit-formatter
-description: Professional, zero-loop Git workflow. Enforces Conventional Commits and atomic "Autopilot" execution.
+description: "MANDATORY for any git commit, push, save, subir, or enviar request. Executes npm run git:sync as a single atomic command — zero exploration, zero loops. Enforces Conventional Commits format."
 ---
 
 # Skill: Git Commit Formatter (Professional Protocol)
