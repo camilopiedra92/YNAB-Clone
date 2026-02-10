@@ -58,5 +58,35 @@ else
   git diff --stat | sed 's/^/   /'
 fi
 
+# 3. Final Verdict for Agent
+echo ""
+echo "⚖️ Final Verdict:"
+IS_CLEAN=true
+if [ -n "$(git status --porcelain)" ]; then
+  echo "   ❌ Worktree is DIRTY (has changes)."
+  IS_CLEAN=false
+else
+  echo "   ✅ Worktree is CLEAN."
+fi
+
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+if [ -n "$UPSTREAM" ]; then
+  UNPUSHED=$(git log "$UPSTREAM"..HEAD --oneline)
+  if [ -n "$UNPUSHED" ]; then
+    echo "   ❌ There are UNPUSHED commits."
+    IS_CLEAN=false
+  else
+    echo "   ✅ Everything is PUSHED to $UPSTREAM."
+  fi
+else
+  echo "   ⚠️  No upstream configured."
+fi
+
+if [ "$IS_CLEAN" = true ]; then
+  echo "🛑 [STOP] Nothing to commit or push. Inform the user and end the turn."
+else
+  echo "🚀 [PROCEED] Staged/changes or unpushed commits detected."
+fi
+
 echo ""
 echo "🚀 Next Step: Choose your type(scope) based on the stats above."

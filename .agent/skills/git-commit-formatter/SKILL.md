@@ -196,6 +196,16 @@ If Git complains about local identity:
 
 - Use `git commit -m "..." --author="Camilo Piedrahita Hernández <camilopiedra@Camilos-MacBook-Pro.local>"` if you need to fix a commit author, or just follow the user's lead if they've already set it up.
 
+## 9. The "Nothing to Commit" Short-Circuit (Stop the Vueltas)
+
+If the user asks to commit/push but your initial check shows a clean state:
+
+1.  **Trust `git status`**: If `ynab-app` is clean and has no untracked files of interest, **STOP**.
+2.  **Check Unpushed Commits**: Run `git log @{u}..` to see if there are commits waiting to be pushed.
+3.  **Fast-Fail Message**: If there are no changes AND no unpushed commits, inform the user immediately:
+    > "El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."
+4.  **No Investigation**: Do NOT run `ls -R`, `find`, or check parent directories unless the user explicitly mentions a file that you can't find.
+
 ## Resources
 
 | File                                                             | Purpose                                      |
