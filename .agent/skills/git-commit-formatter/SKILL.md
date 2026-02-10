@@ -228,6 +228,39 @@ See [examples/good-commits.md](examples/good-commits.md) for 10+ real-world exam
 
 See [examples/bad-commits.md](examples/bad-commits.md) for anti-patterns and what's wrong with each.
 
+## 8. Common Agent Pitfalls (Lessons Learned)
+
+These are specific rules to avoid common errors when using Git in this environment:
+
+### A. Context Verification (The "Fatal" Rule)
+
+If you see `fatal: not a git repository`:
+
+1.  **Do NOT** just run `git init`.
+2.  **Check your directory**: Use `ls -la` to find where the `.git` folder actually lives.
+3.  **Adjust Cwd**: Ensure you are running Git commands in the directory containing `.git` (e.g., `ynab-app/`).
+
+### B. Gitignore Awareness (The "Stuck" Rule)
+
+If a file won't stage or `git status` doesn't show it:
+
+1.  Check if it's ignored: `git check-ignore -v <path>`
+2.  If ignored but needs tracking, update `.gitignore` first.
+3.  Use `git status -uno` to clear the noise if there are hundreds of untracked files.
+
+### C. Atomic Edits (The "Newline" Rule)
+
+When editing `.gitignore` or similar files:
+
+1.  **Avoid `echo "..." >> .gitignore`**: This often introduces incorrect characters or formatting.
+2.  **Use `replace_file_content`**: It's more reliable for maintaining correct line breaks and ensuring the file doesn't end up with values like `\n# DB backup`.
+
+### D. Identity Management
+
+If Git complains about local identity:
+
+- Use `git commit -m "..." --author="Camilo Piedrahita Hernández <camilopiedra@Camilos-MacBook-Pro.local>"` if you need to fix a commit author, or just follow the user's lead if they've already set it up.
+
 ## Resources
 
 | File                                                             | Purpose                                      |
