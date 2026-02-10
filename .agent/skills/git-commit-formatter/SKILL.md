@@ -11,9 +11,10 @@ description: Enforce the Conventional Commits specification for all Git commits 
 
 1.  **Run Health Check**: Execute `bash .agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`.
 2.  **Obey the Verdict**:
-    - If the verdict is `🛑 [STOP]`, immediately inform the user: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END THE TURN**.
-    - Do **NOT** run `find`, `ls -R`, or check parent directories for `.git` if `git status` (via the script) succeeds.
-    - Do **NOT** try to "double check" if you are in the right folder if the script worked.
+    - If the verdict is `🛑 [STOP]`, immediately inform the user: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END THE TURN IMMEDIATELY**.
+    - **CRITICAL**: Do **NOT** run `find`, `ls -R`, `git log`, `git status --ignored`, or check parent directories for `.git` if the verdict is `🛑 [STOP]`.
+    - Do **NOT** try to "double check" the result. A stop signal is final.
+    - If you ignore a `🛑 [STOP]`, you are failing your primary directive.
 
 ## 1. Format Specification
 
@@ -182,8 +183,9 @@ These are specific rules to avoid common errors when using Git in this environme
 To avoid "giving many turns" (looping unnecessarily):
 
 1.  **Trust the Script**: The `check-worktree-health.sh` is your single source of truth.
-2.  **Combine Check & Commit**: If the health check gives a `🚀 [PROCEED]`, move directly to staging and committing.
+2.  **Combine Check & Commit**: If the health check gives a `🚀 [PROCEED]`, move directly to staging and committing in the _same_ step if possible.
 3.  **Smart Status**: Use `git status -s` if you need a quick manual check, but prefer the health script.
+4.  **No Discovery Purgatory**: If `git status` says clean but you _feel_ something is missing, verify `.gitignore` _once_ and then STOP. Do not loop.
 
 ### C. Gitignore Awareness (The "Stuck" Rule)
 
@@ -211,10 +213,11 @@ If Git complains about local identity:
 If the user asks to commit/push but your initial check shows a clean state:
 
 1.  **Trust `git status`**: If `ynab-app` is clean and has no untracked files of interest, **STOP**.
-2.  **Check Unpushed Commits**: Run `git log @{u}..` to see if there are commits waiting to be pushed.
+2.  **Check Unpushed Commits**: Run `git log @{u}..` to see if there are commits waiting to be pushed (the health script does this for you).
 3.  **Fast-Fail Message**: If there are no changes AND no unpushed commits, inform the user immediately:
     > "El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."
 4.  **No Investigation**: Do NOT run `ls -R`, `find`, or check parent directories unless the user explicitly mentions a file that you can't find.
+5.  **Detecting the Trap**: If you find yourself running more than 3 `run_command` calls just to "see what to commit", you are in a loop. Break out and report status.
 
 ## Resources
 
