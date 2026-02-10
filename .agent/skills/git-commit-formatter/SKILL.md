@@ -5,17 +5,26 @@ description: Enforce the Conventional Commits specification for all Git commits 
 
 # Skill: Git Commit Formatter (Conventional Commits)
 
+## 🛑 THE DIRECTORY LOCK (READ FIRST)
+
+The project structure is **nested**. Running Git commands in the wrong directory causes "vueltas" (loops) and frustrates the user.
+
+- **VALID Git Root**: `/Users/camilopiedra/Documents/YNAB/ynab-app`
+- **INVALID Workspace Root**: `/Users/camilopiedra/Documents/YNAB`
+
+If you see `fatal: not a git repository`: **DO NOT INVESTIGATE.** Do not run `ls`, do not run `find`. Simply change your `Cwd` to the Valid Git Root and try again.
+
 ## 🛑 THE SHORT-CIRCUIT PROTOCOL (ONE-TURN VICTORY)
 
-To avoid "vueltas" (redundant loops) and frustrating the user, you **MUST** follow this protocol before doing ANYTHING else.
+To avoid "vueltas" and frustrating the user, you **MUST** follow this protocol before doing ANYTHING else.
 
 ### Step 0: Mandatory Pre-flight Check
 
-Run this exact command first. **Do NOT run `git status` or `ls` before this.**
+Whenever a user asks for "commit", "push", or "sync", your **FIRST** command must be precisely this (concatenated for speed):
 
 ```bash
-# Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app
-bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
+# Force directory and run health check
+cd /Users/camilopiedra/Documents/YNAB/ynab-app && bash .agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
 ```
 
 ### Step 1: Obey the Verdict
@@ -23,6 +32,7 @@ bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-format
 - **If Verdict is `🛑 [STOP]`**: Immediately state: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END YOUR TURN IMMEDIATELY**.
 - **Do NOT** "verify" the stop signal with `git status`, `git log`, or `ls`. The script is the authority.
 - **Do NOT** check parent folders. There is only one repo at `ynab-app`.
+- **Do NOT** run `git status` separately if you already ran the health check.
 
 ---
 
