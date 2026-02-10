@@ -47,9 +47,6 @@ db/*.db
 # local tmp (tsx/vitest IPC — avoids macOS /var/folders EPERM)
 .tmp/
 
-# agent
-.agent/
-
 # build/test artifacts
 node-compile-cache/
 playwright-report/

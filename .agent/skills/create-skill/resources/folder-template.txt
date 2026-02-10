@@ -1,0 +1,16 @@
+.agent/skills/<skill-name>/
+├── SKILL.md              # Main instructions (required)
+│                         #   - YAML frontmatter: name + description
+│                         #   - Markdown body: steps, rules, references
+│
+├── examples/             # Reference implementations (optional)
+│   ├── <pattern>.ts      #   - Annotated, runnable code
+│   └── <pattern>.spec.ts #   - One file per pattern/layer
+│
+├── scripts/              # Helper scripts (optional)
+│   ├── <action>.sh       #   - Atomic: one script = one task
+│   └── <action>.ts       #   - Must support --help flag
+│
+└── resources/            # Templates and assets (optional)
+    ├── template.md       #   - Reusable templates
+    └── checklist.md      #   - Reference checklists
