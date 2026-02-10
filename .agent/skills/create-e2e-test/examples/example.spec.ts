@@ -10,7 +10,7 @@
  * - Auth is automatic via auth.setup.ts dependency
  */
 import { test, expect } from '@playwright/test';
-import { gotoBudgetPage, gotoFirstAccount, getTestBudgetId } from './e2e-helpers';
+import { gotoBudgetPage } from './e2e-helpers';
 
 test.describe('Goals Feature', () => {
 

@@ -7,17 +7,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
 
 let fns: ReturnType<typeof createDbFunctions>;
-let db: DrizzleDB;
 let accountId: number;
 let budgetId: number;
 
 beforeEach(async () => {
     const result = await createTestDb();
     fns = result.fns;
-    db = result.db;
     budgetId = result.defaultBudgetId;
 
     const account = await fns.createAccount({

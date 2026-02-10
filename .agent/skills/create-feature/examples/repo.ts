@@ -7,7 +7,7 @@
  */
 import { eq, and } from 'drizzle-orm';
 import { goals } from '../db/schema';
-import { milliunit, ZERO } from '../engine/primitives';
+import { milliunit } from '../engine/primitives';
 import type { DrizzleDB } from './client';
 
 export function createGoalFunctions(database: DrizzleDB) {

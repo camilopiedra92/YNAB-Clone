@@ -11,16 +11,14 @@
  * - Each test gets a fresh database (beforeEach)
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, mu, ZERO } from './test-helpers';
-import type { DrizzleDB } from '../repos/client';
+import { createTestDb, seedBasicBudget, mu } from './test-helpers';
+
 
 describe('Goals', () => {
-  let db: DrizzleDB;
   let fns: Awaited<ReturnType<typeof createTestDb>>['fns'];
 
   beforeEach(async () => {
     const ctx = await createTestDb();
-    db = ctx.db;
     fns = ctx.fns;
   });
 
