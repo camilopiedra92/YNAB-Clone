@@ -11,7 +11,7 @@
  *
  * Usage:
  *   const limiter = createRateLimiter(AUTH_LIMIT);
- *   const result = limiter.check(ip);
+ *   const result = await limiter.check(ip);
  *   if (!result.success) return NextResponse.json(..., { status: 429 });
  */
 
@@ -62,12 +62,13 @@ export interface RateLimitResult {
 
 export interface RateLimiter {
   /** Check if a request from the given key is allowed */
-  check(key: string): RateLimitResult;
+  check(key: string): Promise<RateLimitResult> | RateLimitResult;
   /** Reset the rate limit for a given key (useful for testing) */
-  reset(key: string): void;
+  reset(key: string): Promise<void> | void;
   /** Clear all entries (useful for testing) */
-  clear(): void;
+  clear(): Promise<void> | void;
 }
+
 
 /**
  * Create a sliding-window rate limiter.
@@ -76,40 +77,69 @@ export interface RateLimiter {
  * A periodic cleanup runs every 5 minutes to remove stale entries
  * for keys that haven't been seen recently.
  */
-export function createRateLimiter(config: RateLimitConfig): RateLimiter {
-  const store = new Map<string, RateLimitEntry>();
+// ── Storage Abstraction ─────────────────────────────────────────────
+export interface RateLimitStore {
+  get(key: string): Promise<RateLimitEntry | undefined> | RateLimitEntry | undefined;
+  set(key: string, entry: RateLimitEntry): Promise<void> | void;
+  delete(key: string): Promise<void> | void;
+  clear(): Promise<void> | void;
+}
 
-  // Periodic cleanup of stale entries (every 5 minutes)
-  const cleanupInterval = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store) {
-      // Remove timestamps outside the window
-      entry.timestamps = entry.timestamps.filter(
-        (ts) => now - ts < config.windowMs
-      );
-      // Remove the entry entirely if no timestamps remain
-      if (entry.timestamps.length === 0) {
-        store.delete(key);
+class MemoryStore implements RateLimitStore {
+  private store = new Map<string, RateLimitEntry>();
+
+  constructor(windowMs: number) {
+    // Periodic cleanup
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [key, entry] of this.store) {
+        entry.timestamps = entry.timestamps.filter((ts) => now - ts < windowMs);
+        if (entry.timestamps.length === 0) {
+          this.store.delete(key);
+        }
       }
-    }
-  }, 5 * 60_000);
+    }, 5 * 60_000);
 
-  // Don't let the cleanup timer prevent Node.js from exiting
-  if (cleanupInterval && typeof cleanupInterval === 'object' && 'unref' in cleanupInterval) {
-    cleanupInterval.unref();
+    if (cleanupInterval && typeof cleanupInterval === 'object' && 'unref' in cleanupInterval) {
+      cleanupInterval.unref();
+    }
   }
 
+  get(key: string) {
+    return this.store.get(key);
+  }
+
+  set(key: string, entry: RateLimitEntry) {
+    this.store.set(key, entry);
+  }
+
+  delete(key: string) {
+    this.store.delete(key);
+  }
+
+  clear() {
+    this.store.clear();
+  }
+}
+
+/**
+ * Create a sliding-window rate limiter.
+ * Supports swappable storage (Memory, Redis, etc.)
+ */
+export function createRateLimiter(config: RateLimitConfig, store?: RateLimitStore): RateLimiter {
+  const effectiveStore = store || new MemoryStore(config.windowMs);
+
   return {
-    check(key: string): RateLimitResult {
+    async check(key: string): Promise<RateLimitResult> {
       const now = Date.now();
-      let entry = store.get(key);
+      let entry = await effectiveStore.get(key);
 
       if (!entry) {
         entry = { timestamps: [] };
-        store.set(key, entry);
       }
 
       // Prune timestamps outside the current window
+      // (Note: MemoryStore does this periodically, but doing it on read ensures strictness)
       entry.timestamps = entry.timestamps.filter(
         (ts) => now - ts < config.windowMs
       );
@@ -122,11 +152,14 @@ export function createRateLimiter(config: RateLimitConfig): RateLimiter {
       );
 
       if (entry.timestamps.length >= config.maxRequests) {
+        // Even if blocked, we might want to update the store if we were tracking "last blocked" etc.
+        // But for simple sliding window, we just return fail.
         return { success: false, remaining: 0, resetAt };
       }
 
       // Record this request
       entry.timestamps.push(now);
+      await effectiveStore.set(key, entry);
 
       return {
         success: true,
@@ -135,15 +168,18 @@ export function createRateLimiter(config: RateLimitConfig): RateLimiter {
       };
     },
 
-    reset(key: string): void {
-      store.delete(key);
+    async reset(key: string): Promise<void> {
+      await effectiveStore.delete(key);
     },
 
-    clear(): void {
-      store.clear();
+    async clear(): Promise<void> {
+      await effectiveStore.clear();
     },
-  };
+  } as unknown as RateLimiter; // Cast to maintain sync signature compatibility if possible?
+  // Wait, RateLimiter interface in line 63 defines synchronous returns?
+  // I need to update RateLimiter interface to be Promise-based if I want to support Redis.
 }
+
 
 // ── Singleton Limiters (shared across API routes) ───────────────────
 

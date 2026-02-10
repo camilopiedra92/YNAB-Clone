@@ -84,5 +84,8 @@ export const {
   createBudget,
   updateBudget,
   deleteBudget,
+  // User repo
+  getUserByEmail,
+  createUser,
 } = fns;
 

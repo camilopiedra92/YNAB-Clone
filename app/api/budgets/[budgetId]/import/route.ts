@@ -15,7 +15,7 @@ export async function POST(
     try {
         // Rate limiting — imports are expensive operations
         const ip = getClientIP(request);
-        const limit = importLimiter.check(ip);
+        const limit = await importLimiter.check(ip);
         if (!limit.success) return rateLimitResponse(limit);
         const { budgetId: budgetIdStr } = await params;
         const budgetId = parseInt(budgetIdStr, 10);

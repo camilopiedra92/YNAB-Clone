@@ -10,9 +10,8 @@ export const { GET } = handlers;
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
-  const limit = authLimiter.check(ip);
+  const limit = await authLimiter.check(ip);
   if (!limit.success) return rateLimitResponse(limit);
 
   return handlers.POST(request);
 }
-

@@ -18,6 +18,7 @@ import { createTransactionFunctions } from './transactions';
 import { createBudgetFunctions } from './budget';
 import { createBudgetsFunctions } from './budgets';
 import { createCategoryFunctions } from './categories';
+import { createUserFunctions } from './users';
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { SQL } from 'drizzle-orm';
@@ -82,6 +83,7 @@ export function createDbFunctions(database: DrizzleDB) {
   });
 
   const budgets = createBudgetsFunctions(database);
+  const users = createUserFunctions(database, {});
 
   return {
     ...accounts,
@@ -89,5 +91,6 @@ export function createDbFunctions(database: DrizzleDB) {
     ...budget,
     ...categories,
     ...budgets,
+    ...users,
   };
 }

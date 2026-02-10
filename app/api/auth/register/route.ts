@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
-import db from '@/lib/repos/client';
-import { users } from '@/lib/db/schema';
+import { getUserByEmail, createUser } from '@/lib/repos';
 import { RegisterSchema } from '@/lib/schemas/auth';
 import { authLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit';
 
@@ -10,7 +8,7 @@ export async function POST(request: Request) {
   try {
     // Rate limiting — prevent brute-force registration
     const ip = getClientIP(request);
-    const limit = authLimiter.check(ip);
+    const limit = await authLimiter.check(ip);
     if (!limit.success) return rateLimitResponse(limit);
     const body = await request.json();
 
@@ -26,11 +24,8 @@ export async function POST(request: Request) {
     const normalizedEmail = email.toLowerCase();
 
     // Check if user already exists
-    const [existing] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, normalizedEmail))
-      .limit(1);
+    // Check if user already exists
+    const existing = await getUserByEmail(normalizedEmail);
 
     if (existing) {
       return NextResponse.json(
@@ -43,14 +38,12 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        name,
-        email: normalizedEmail,
-        password: hashedPassword,
-      })
-      .returning({ id: users.id, email: users.email, name: users.name });
+    // Create user
+    const newUser = await createUser({
+      name,
+      email: normalizedEmail,
+      passwordHash: hashedPassword,
+    });
 
     return NextResponse.json(
       { id: newUser.id, email: newUser.email, name: newUser.name },

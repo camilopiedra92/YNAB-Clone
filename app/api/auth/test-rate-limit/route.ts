@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   const ip = getClientIP(request);
-  const limit = testLimiter.check(ip);
+  const limit = await testLimiter.check(ip);
   if (!limit.success) return rateLimitResponse(limit);
 
   return NextResponse.json({ ok: true, remaining: limit.remaining });

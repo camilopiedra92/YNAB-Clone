@@ -26,6 +26,64 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "next-env.d.ts",
   ]),
+  {
+    files: ["lib/engine/**/*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "react",
+              message: "Engine must be pure logic. No React dependencies allowed.",
+            },
+            {
+              name: "drizzle-orm",
+              message: "Engine must be pure logic. No ORM dependencies allowed. Pass plain data.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["@/lib/db/*", "@/lib/repos/*", "@/hooks/*", "@/components/*", "@/app/*"],
+              message: "Engine must be pure logic and cannot import from other layers.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["lib/repos/**/*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/hooks/*", "@/components/*", "@/app/*", "react", "react-dom"],
+              message: "Repositories cannot import from Frontend/UI layer.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["app/**/*", "hooks/**/*", "components/**/*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/lib/db/*"],
+              message: "Frontend cannot import directly from DB. Use Repositories (Server Actions) or API.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

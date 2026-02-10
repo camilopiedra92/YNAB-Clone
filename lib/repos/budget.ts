@@ -8,7 +8,7 @@
  * Cross-repo dependencies are injected via `deps`:
  * - `createCategory` from categories repo (for ensureCreditCardPaymentCategory)
  */
-import { eq, and, sql, lt, gt, max, type InferSelectModel } from 'drizzle-orm';
+import { eq, and, sql, lt, gt, max, inArray, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, categoryGroups, budgetMonths, transactions } from '../db/schema';
 import { currentDate, yearMonth } from '../db/sql-helpers';
 import type { DrizzleDB } from './client';
@@ -392,20 +392,111 @@ export function createBudgetFunctions(
   }
 
   async function refreshAllBudgetActivity(budgetId: number, month: string) {
-    // Sequential execution — no transaction wrapper to avoid PGlite deadlock
-    // (updateBudgetActivity and updateCreditCardPaymentBudget use `database` internally)
-    const cats = await database.selectDistinct({ categoryId: transactions.categoryId })
-      .from(transactions)
-      .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    // 1. Get all activity for the month
+    const activityRows = await queryRows<{ categoryId: number; activity: number }>(database, sql`
+      SELECT 
+        ${transactions.categoryId} as "categoryId",
+        COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0) as "activity"
+      FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
+      WHERE ${transactions.categoryId} IS NOT NULL
+        AND ${yearMonth(transactions.date)} = ${month}
+        AND ${transactions.date} <= ${currentDate()}
+        AND ${accounts.budgetId} = ${budgetId}
+      GROUP BY ${transactions.categoryId}
+    `);
+    const activityMap = new Map<number, Milliunit>();
+    for (const row of activityRows) activityMap.set(row.categoryId, m(row.activity));
+
+    // 2. Get existing budget rows for this month
+    const existingRows = await database.select().from(budgetMonths)
+      .innerJoin(categories, eq(budgetMonths.categoryId, categories.id))
       .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
       .where(and(
-      eq(categoryGroups.budgetId, budgetId)
+        eq(budgetMonths.month, month),
+        eq(categoryGroups.budgetId, budgetId)
       ));
+    const existingMap = new Map<number, typeof existingRows[0]>();
+    for (const row of existingRows) existingMap.set(row.budget_months.categoryId, row);
 
-    for (const cat of cats) {
-      await updateBudgetActivity(budgetId, cat.categoryId!, month);
+    // 3. Get carryforward (latest previous available) for ALL categories
+    const prevRows = await queryRows<{ categoryId: number; available: number }>(database, sql`
+      SELECT DISTINCT ON (${budgetMonths.categoryId})
+        ${budgetMonths.categoryId} as "categoryId",
+        ${budgetMonths.available} as "available"
+      FROM ${budgetMonths}
+      JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
+      JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
+      WHERE ${budgetMonths.month} < ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
+      ORDER BY ${budgetMonths.categoryId}, ${budgetMonths.month} DESC
+    `);
+    const carryforwardMap = new Map<number, Milliunit>();
+    for (const row of prevRows) carryforwardMap.set(row.categoryId, m(row.available));
+
+    // 4. Identify all categories that need updates
+    const allCategories = await database.select({ id: categories.id, linkedAccountId: categories.linkedAccountId })
+        .from(categories)
+        .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
+        .where(eq(categoryGroups.budgetId, budgetId));
+
+    const updates: { 
+        categoryId: number; 
+        month: string; 
+        assigned: Milliunit; 
+        activity: Milliunit; 
+        available: Milliunit;
+    }[] = [];
+    
+    const deletes: number[] = [];
+
+    for (const cat of allCategories) {
+        if (cat.linkedAccountId) continue;
+
+        const activity = activityMap.get(cat.id) || ZERO;
+        const existing = existingMap.get(cat.id)?.budget_months;
+        const carryforward = carryforwardMap.get(cat.id) || ZERO;
+        const assigned = m(existing?.assigned);
+
+        const available = calculateBudgetAvailable(carryforward, assigned, activity);
+
+        if (assigned === 0 && activity === 0 && available === 0) {
+            if (existing) deletes.push(existing.id);
+        } else {
+            updates.push({
+                categoryId: cat.id,
+                month,
+                assigned,
+                activity,
+                available
+            });
+        }
     }
 
+    // 5. Bulk Write
+    await database.transaction(async (tx) => {
+        if (deletes.length > 0) {
+            await tx.delete(budgetMonths).where(inArray(budgetMonths.id, deletes));
+        }
+        
+        if (updates.length > 0) {
+             for (let i = 0; i < updates.length; i += 1000) {
+                const chunk = updates.slice(i, i + 1000);
+                await tx.insert(budgetMonths)
+                    .values(chunk)
+                    .onConflictDoUpdate({
+                        target: [budgetMonths.categoryId, budgetMonths.month],
+                        set: {
+                            activity: sql`excluded.activity`,
+                            available: sql`excluded.available`,
+                            assigned: sql`excluded.assigned`
+                        }
+                    });
+             }
+        }
+    });
+
+    // 6. Handle CC Payment Categories
     const ccAccounts = await database.select({ id: accounts.id })
       .from(accounts)
       .where(and(eq(accounts.type, 'credit'), eq(accounts.budgetId, budgetId)));

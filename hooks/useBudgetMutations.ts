@@ -11,6 +11,7 @@ import {
     toMilliunits,
     type Milliunit,
 } from '@/lib/engine';
+import type { BudgetResponseDTO } from '@/lib/dtos';
 
 
 
@@ -124,8 +125,7 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
             const calendarMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             const isPastMonth = currentMonth < calendarMonth;
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            queryClient.setQueryData(['budget', budgetId, currentMonth], (old: any) => {
+            queryClient.setQueryData<BudgetResponseDTO>(['budget', budgetId, currentMonth], (old) => {
                 if (!old) return old;
                 return {
                     ...old,
@@ -148,8 +148,7 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
                 const { budget, readyToAssign, rtaBreakdown, overspendingTypes, inspectorData } = data.serverData;
                 if (budget && readyToAssign !== undefined) {
                     // Server now returns DTOs with overspendingType already merged
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    queryClient.setQueryData(['budget', budgetId, currentMonth], (old: any) => {
+                    queryClient.setQueryData<BudgetResponseDTO>(['budget', budgetId, currentMonth], (old) => {
                         if (!old) return old;
                         return {
                             ...old,
