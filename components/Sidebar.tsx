@@ -4,6 +4,8 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut, useSession } from 'next-auth/react';
+import { useParams, useRouter } from 'next/navigation';
 import {
     LayoutDashboard,
     PieChart,
@@ -18,10 +20,13 @@ import {
     Lock,
     TrendingUp,
     Building2,
-    Pencil
+    Pencil,
+    Upload
 } from 'lucide-react';
 import { useAccounts, type Account } from '@/hooks/useAccounts';
+import { useBudgets, useBudget } from '@/hooks/useBudgets';
 import AccountEditModal from './AccountEditModal';
+import ImportModal from './ImportModal';
 import { formatCurrency } from '@/lib/format';
 
 const mainNavigation = [
@@ -47,8 +52,22 @@ const accountTypeIcons: Record<string, typeof Building2> = {
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const { data: accounts = [] } = useAccounts();
+    const params = useParams();
+    const router = useRouter();
+    const budgetId = params.budgetId ? parseInt(params.budgetId as string) : undefined;
+
+    const { data: session } = useSession();
+    const { data: accounts = [] } = useAccounts(budgetId);
+    const { data: budgets = [] } = useBudgets();
+    const { data: activeBudget } = useBudget(budgetId);
+
+    const [isBudgetSelectorOpen, setIsBudgetSelectorOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+    const [isImportOpen, setIsImportOpen] = useState(false);
+
+    const userName = session?.user?.name ?? 'Usuario';
+    const userEmail = session?.user?.email ?? '';
+    const userInitial = userName.charAt(0).toUpperCase();
 
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         'Cash': true,
@@ -98,11 +117,15 @@ export default function Sidebar() {
                     background: 'hsl(222 35% 18%)',
                 }}
             >
-                {/* Profile Header */}
+                {/* Budget Selection Header */}
                 <div className="relative p-4 pb-3">
-                    <div className="flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer group transition-all duration-300"
+                    <div 
+                        className="flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer group transition-all duration-300 hover:bg-white/[0.03]"
+                        onClick={() => setIsBudgetSelectorOpen(!isBudgetSelectorOpen)}
                         style={{
-                            boxShadow: '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.04)',
+                            boxShadow: isBudgetSelectorOpen 
+                                ? 'inset 3px 3px 8px 0 rgba(0,0,0,0.3), inset -3px -3px 8px 0 rgba(255,255,255,0.04)'
+                                : '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.04)',
                         }}
                     >
                         <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
@@ -115,14 +138,66 @@ export default function Sidebar() {
                         </div>
                         <div className="overflow-hidden flex-1 min-w-0">
                             <h1 className="text-[13px] font-semibold text-white/95 truncate tracking-tight leading-tight">
-                                Compartido - COP
+                                {activeBudget?.name || 'Cargando...'}
                             </h1>
                             <p className="text-[11px] text-white/40 truncate mt-0.5 group-hover:text-white/50 transition-colors">
-                                camilopiedra92@gmail.com
+                                {activeBudget?.currencyCode} ({activeBudget?.currencySymbol})
                             </p>
                         </div>
-                        <ChevronDown className="w-4 h-4 text-white/30 group-hover:text-white/50 transition-colors shrink-0" />
+                        <ChevronDown className={`w-4 h-4 text-white/30 group-hover:text-white/50 transition-all duration-300 ${isBudgetSelectorOpen ? 'rotate-180' : ''}`} />
                     </div>
+
+                    {/* Budget Dropdown */}
+                    {isBudgetSelectorOpen && (
+                        <div className="absolute left-4 right-4 top-[calc(100%-8px)] z-[60] py-2 rounded-2xl bg-[#2a3042] shadow-[8px_8px_24px_rgba(0,0,0,0.5)] border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="px-2 pb-2 mb-1 border-b border-white/5">
+                                <p className="px-3 py-1 text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Seleccionar Presupuesto</p>
+                                {budgets.filter(b => b.id !== budgetId).map(budget => (
+                                    <button
+                                        key={budget.id}
+                                        onClick={() => {
+                                            setIsBudgetSelectorOpen(false);
+                                            router.push(`/budgets/${budget.id}/budget`);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-white/70 hover:text-white transition-all text-left group"
+                                    >
+                                        <Wallet className="w-4 h-4 text-white/20 group-hover:text-primary-300" />
+                                        <span className="truncate">{budget.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setIsBudgetSelectorOpen(false);
+                                    router.push('/budgets/new');
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-primary-300 font-semibold transition-all text-left"
+                            >
+                                <PlusCircle className="w-4 h-4" />
+                                <span>Nuevo Presupuesto</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsBudgetSelectorOpen(false);
+                                    setIsImportOpen(true);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-emerald-300/80 font-semibold transition-all text-left"
+                            >
+                                <Upload className="w-4 h-4" />
+                                <span>Importar Datos</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsBudgetSelectorOpen(false);
+                                    router.push('/budgets');
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-white/40 hover:text-white transition-all text-left"
+                            >
+                                <Settings className="w-4 h-4" />
+                                <span>Gestionar Todos</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Divider */}
@@ -132,8 +207,13 @@ export default function Sidebar() {
                 <div className="flex-1 overflow-y-auto custom-scrollbar py-4 px-3 space-y-1 relative">
                     {/* Main Navigation */}
                     <nav className="space-y-1.5 mb-6">
-                        {mainNavigation.map((item) => {
-                            const isActive = pathname === item.href || (item.href === '/accounts' && pathname.startsWith('/accounts'));
+                        {[
+                            { name: 'Dashboard', href: `/budgets/${budgetId}/dashboard`, icon: LayoutDashboard },
+                            { name: 'Plan', href: `/budgets/${budgetId}/budget`, icon: LayoutDashboard },
+                            { name: 'Reflect', href: `/budgets/${budgetId}/reports`, icon: PieChart },
+                            { name: 'All Accounts', href: `/budgets/${budgetId}/accounts`, icon: Wallet },
+                        ].map((item) => {
+                            const isActive = pathname === item.href;
                             const Icon = item.icon;
                             return (
                                 <Link
@@ -227,12 +307,12 @@ export default function Sidebar() {
                                                 </div>
                                             ) : (
                                                 accs.map((account) => {
-                                                    const isAccountActive = pathname === `/accounts/${account.id}`;
+                                                    const isAccountActive = pathname === `/budgets/${budgetId}/accounts/${account.id}`;
                                                     const AccIcon = accountTypeIcons[account.type] || Building2;
                                                     return (
                                                         <Link
                                                             key={account.id}
-                                                            href={`/accounts/${account.id}`}
+                                                            href={`/budgets/${budgetId}/accounts/${account.id}`}
                                                             data-testid={`sidebar-account-${account.id}`}
                                                             className={`relative flex items-center justify-between pl-8 pr-3 py-[7px] rounded-lg text-[13px] group/item transition-all duration-200 ${isAccountActive
                                                                 ? 'text-white'
@@ -321,21 +401,26 @@ export default function Sidebar() {
 
                     <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-1">
-                            <button className="p-2 rounded-lg text-white/25 hover:text-white/50 transition-all duration-200">
+                            <div className="p-2 rounded-lg">
                                 <span className="w-7 h-7 rounded-full bg-primary-500 flex items-center justify-center text-[11px] font-bold text-white"
                                     style={{
                                         boxShadow: '2px 2px 5px 0 rgba(0,0,0,0.3), -2px -2px 5px 0 rgba(255,255,255,0.03)',
                                     }}
+                                    title={userName}
                                 >
-                                    N
+                                    {userInitial}
                                 </span>
-                            </button>
+                            </div>
                         </div>
                         <div className="flex items-center gap-0.5">
                             <button className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200" title="Settings">
                                 <Settings className="w-[15px] h-[15px]" />
                             </button>
-                            <button className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200" title="Log out">
+                            <button
+                                className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
+                                title="Cerrar sesión"
+                                onClick={() => signOut({ callbackUrl: '/auth/login' })}
+                            >
                                 <LogOut className="w-[15px] h-[15px]" />
                             </button>
                         </div>
@@ -350,6 +435,12 @@ export default function Sidebar() {
                     onClose={() => setEditingAccount(null)}
                 />
             )}
+
+            {/* Import Modal */}
+            <ImportModal
+                isOpen={isImportOpen}
+                onClose={() => setIsImportOpen(false)}
+            />
         </>
     );
 }

@@ -7,7 +7,7 @@
  * To generate migrations after modifying this file:
  *   npm run db:generate
  */
-import { pgTable, pgEnum, serial, integer, text, boolean, date, index, uniqueIndex, customType } from 'drizzle-orm/pg-core';
+import { pgTable, pgEnum, serial, integer, text, boolean, date, index, uniqueIndex, customType, uuid, timestamp } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { ZERO, type Milliunit } from '../engine/primitives';
 
@@ -77,8 +77,43 @@ export const clearedStatusEnum = pgEnum('cleared_status', [
 // Tables
 // ═══════════════════════════════════════════════════════════════════════
 
+export const users = pgTable('users', {
+  id: uuid().primaryKey().defaultRandom(),
+  name: text().notNull(),
+  email: text().notNull().unique(),
+  password: text().notNull(), // bcrypt hash
+  failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+  lockedUntil: timestamp('locked_until'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const budgets = pgTable('budgets', {
+  id: serial().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text().notNull(),
+  currencyCode: text('currency_code').notNull().default('COP'),
+  currencySymbol: text('currency_symbol').notNull().default('$'),
+  currencyDecimals: integer('currency_decimals').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const budgetShares = pgTable('budget_shares', {
+  id: serial().primaryKey(),
+  budgetId: integer('budget_id')
+    .notNull()
+    .references(() => budgets.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  role: text().notNull().default('editor'), // 'editor' | 'viewer'
+});
+
 export const accounts = pgTable('accounts', {
   id: serial().primaryKey(),
+  budgetId: integer('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
   name: text().notNull(),
   type: accountTypeEnum().notNull(),
   balance: money().notNull().default(ZERO),
@@ -87,15 +122,20 @@ export const accounts = pgTable('accounts', {
   note: text().default(''),
   closed: boolean().notNull().default(false),
   createdAt: text('created_at').default(sql`now()`),
-});
+}, (table) => [
+  index('idx_accounts_budget').on(table.budgetId),
+]);
 
 export const categoryGroups = pgTable('category_groups', {
   id: serial().primaryKey(),
+  budgetId: integer('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
   name: text().notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
   hidden: boolean().notNull().default(false),
   isIncome: boolean('is_income').notNull().default(false),
-});
+}, (table) => [
+  index('idx_category_groups_budget').on(table.budgetId),
+]);
 
 export const categories = pgTable('categories', {
   id: serial().primaryKey(),
@@ -154,11 +194,40 @@ export const transfers = pgTable('transfers', {
 // Relations (for Drizzle relational queries)
 // ═══════════════════════════════════════════════════════════════════════
 
-export const accountsRelations = relations(accounts, ({ many }) => ({
+export const budgetsRelations = relations(budgets, ({ one, many }) => ({
+  user: one(users, {
+    fields: [budgets.userId],
+    references: [users.id],
+  }),
+  accounts: many(accounts),
+  categoryGroups: many(categoryGroups),
+  shares: many(budgetShares),
+}));
+
+export const budgetSharesRelations = relations(budgetShares, ({ one }) => ({
+  budget: one(budgets, {
+    fields: [budgetShares.budgetId],
+    references: [budgets.id],
+  }),
+  user: one(users, {
+    fields: [budgetShares.userId],
+    references: [users.id],
+  }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one, many }) => ({
+  budget: one(budgets, {
+    fields: [accounts.budgetId],
+    references: [budgets.id],
+  }),
   transactions: many(transactions),
 }));
 
-export const categoryGroupsRelations = relations(categoryGroups, ({ many }) => ({
+export const categoryGroupsRelations = relations(categoryGroups, ({ one, many }) => ({
+  budget: one(budgets, {
+    fields: [categoryGroups.budgetId],
+    references: [budgets.id],
+  }),
   categories: many(categories),
 }));
 

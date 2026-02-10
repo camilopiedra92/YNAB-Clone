@@ -17,6 +17,7 @@ export { createDbFunctions } from './client';
 export { createAccountFunctions } from './accounts';
 export { createTransactionFunctions } from './transactions';
 export { createBudgetFunctions } from './budget';
+export { createBudgetsFunctions } from './budgets';
 export { createCategoryFunctions } from './categories';
 
 // Re-export types
@@ -77,5 +78,11 @@ export const {
   updateCategoryOrder,
   createCategoryGroup,
   createCategory,
+  // Budgets (Entity) repo
+  getBudgets,
+  getBudget,
+  createBudget,
+  updateBudget,
+  deleteBudget,
 } = fns;
 

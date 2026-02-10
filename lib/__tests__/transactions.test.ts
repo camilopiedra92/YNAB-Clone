@@ -6,6 +6,7 @@ import type { DrizzleDB } from '../repos/client';
 
 let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
+let budgetId: number;
 let accountId: number;
 let groupId: number;
 let categoryId: number;
@@ -14,11 +15,12 @@ beforeEach(async () => {
     const testDb = await createTestDb();
     db = testDb.db;
     fns = testDb.fns;
+    budgetId = testDb.defaultBudgetId;
 
-    const accResult = await fns.createAccount({ name: 'Checking', type: 'checking' });
+    const accResult = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
     accountId = accResult.id;
 
-    const grpResult = await fns.createCategoryGroup('Essentials');
+    const grpResult = await fns.createCategoryGroup('Essentials', budgetId);
     groupId = grpResult.id;
 
     const catResult = await fns.createCategory({ name: 'Groceries', category_group_id: groupId });
@@ -36,7 +38,7 @@ describe('Transaction Filters', () => {
         await fns.createTransaction({ accountId, date: today(), payee: 'Store', outflow: 50, categoryId });
         await fns.createTransaction({ accountId, date: today(), payee: 'Landlord', outflow: 1000, categoryId: cat2Id });
 
-        const txs = await fns.getTransactions({ categoryId });
+        const txs = await fns.getTransactions({ budgetId,  categoryId });
         expect(txs).toHaveLength(1);
         expect(txs[0].payee).toBe('Store');
     });
@@ -45,7 +47,7 @@ describe('Transaction Filters', () => {
         await fns.createTransaction({ accountId, date: '2025-01-01', payee: 'Old', outflow: 10 });
         await fns.createTransaction({ accountId, date: '2025-06-15', payee: 'Recent', outflow: 20 });
 
-        const txs = await fns.getTransactions({ startDate: '2025-06-01' });
+        const txs = await fns.getTransactions({ budgetId,  startDate: '2025-06-01' });
         expect(txs).toHaveLength(1);
         expect(txs[0].payee).toBe('Recent');
     });
@@ -54,7 +56,7 @@ describe('Transaction Filters', () => {
         await fns.createTransaction({ accountId, date: '2025-01-01', payee: 'Old', outflow: 10 });
         await fns.createTransaction({ accountId, date: '2025-06-15', payee: 'Recent', outflow: 20 });
 
-        const txs = await fns.getTransactions({ endDate: '2025-03-01' });
+        const txs = await fns.getTransactions({ budgetId,  endDate: '2025-03-01' });
         expect(txs).toHaveLength(1);
         expect(txs[0].payee).toBe('Old');
     });
@@ -64,7 +66,7 @@ describe('Transaction Filters', () => {
             await fns.createTransaction({ accountId, date: today(), payee: `Store ${i}`, outflow: i * 10 });
         }
 
-        const txs = await fns.getTransactions({ limit: 3 });
+        const txs = await fns.getTransactions({ budgetId,  limit: 3 });
         expect(txs).toHaveLength(3);
     });
 
@@ -73,7 +75,7 @@ describe('Transaction Filters', () => {
         await fns.createTransaction({ accountId, date: '2025-03-15', payee: 'B', outflow: 20, categoryId });
         await fns.createTransaction({ accountId, date: '2025-06-15', payee: 'C', outflow: 30, categoryId });
 
-        const txs = await fns.getTransactions({
+        const txs = await fns.getTransactions({ budgetId, 
             categoryId,
             startDate: '2025-02-01',
             endDate: '2025-05-01',
@@ -86,22 +88,22 @@ describe('Transaction Filters', () => {
         await fns.createTransaction({ accountId, date: today(), payee: 'A', outflow: 10 });
         await fns.createTransaction({ accountId, date: today(), payee: 'B', outflow: 20 });
 
-        const txs = await fns.getTransactions();
+        const txs = await fns.getTransactions({ budgetId });
         expect(txs.length).toBeGreaterThanOrEqual(2);
     });
 
     it('returns transfer metadata in getTransactions', async () => {
-        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings' });
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
         const acc2Id = acc2Result.id;
 
-        const transfer = await fns.createTransfer({
+        const transfer = await fns.createTransfer(budgetId, {
             fromAccountId: accountId,
             toAccountId: acc2Id,
             amount: 100,
             date: today(),
         });
 
-        const txs = await fns.getTransactions({ accountId });
+        const txs = await fns.getTransactions({ budgetId,  accountId });
         expect(txs).toHaveLength(1);
         expect(txs[0].transferId).toBeDefined();
         expect(txs[0].transferAccountId).toBe(acc2Id);
@@ -131,8 +133,8 @@ describe('Update Transaction - All Fields', () => {
     });
 
     it('updates date', async () => {
-        await fns.updateTransaction(txId, { date: '2025-07-01' });
-        const tx = await fns.getTransaction(txId);
+        await fns.updateTransaction(budgetId, txId, { date: '2025-07-01' });
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.date).toBe('2025-07-01');
     });
 
@@ -140,44 +142,44 @@ describe('Update Transaction - All Fields', () => {
         const cat2Result = await fns.createCategory({ name: 'Dining', category_group_id: groupId });
         const cat2Id = cat2Result.id;
 
-        await fns.updateTransaction(txId, { categoryId: cat2Id });
-        const tx = await fns.getTransaction(txId);
+        await fns.updateTransaction(budgetId, txId, { categoryId: cat2Id });
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.categoryId).toBe(cat2Id);
     });
 
     it('updates memo', async () => {
-        await fns.updateTransaction(txId, { memo: 'Updated memo' });
-        const tx = await fns.getTransaction(txId);
+        await fns.updateTransaction(budgetId, txId, { memo: 'Updated memo' });
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.memo).toBe('Updated memo');
     });
 
     it('updates inflow', async () => {
-        await fns.updateTransaction(txId, { inflow: 500 });
-        const tx = await fns.getTransaction(txId);
+        await fns.updateTransaction(budgetId, txId, { inflow: 500 });
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.inflow).toBe(500);
     });
 
     it('updates cleared status', async () => {
-        await fns.updateTransaction(txId, { cleared: 'Cleared' });
-        const tx = await fns.getTransaction(txId);
+        await fns.updateTransaction(budgetId, txId, { cleared: 'Cleared' });
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.cleared).toBe('Cleared');
     });
 
     it('updates flag', async () => {
-        await fns.updateTransaction(txId, { flag: 'blue' });
-        const tx = await fns.getTransaction(txId);
+        await fns.updateTransaction(budgetId, txId, { flag: 'blue' });
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.flag).toBe('blue');
     });
 
     it('does nothing with empty update object', async () => {
-        const result = await fns.updateTransaction(txId, {});
+        const result = await fns.updateTransaction(budgetId, txId, {});
         expect(result).toBeUndefined();
-        const tx = await fns.getTransaction(txId);
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.payee).toBe('Original');
     });
 
     it('updates multiple fields at once', async () => {
-        await fns.updateTransaction(txId, {
+        await fns.updateTransaction(budgetId, txId, {
             payee: 'New Payee',
             date: '2025-08-01',
             memo: 'New memo',
@@ -186,7 +188,7 @@ describe('Update Transaction - All Fields', () => {
             cleared: 'Cleared',
             flag: 'green',
         });
-        const tx = await fns.getTransaction(txId);
+        const tx = await fns.getTransaction(budgetId, txId);
         expect(tx.payee).toBe('New Payee');
         expect(tx.date).toBe('2025-08-01');
         expect(tx.memo).toBe('New memo');
@@ -202,7 +204,7 @@ describe('Update Transaction - All Fields', () => {
 // =====================================================================
 describe('Toggle Cleared - Edge Cases', () => {
     it('returns null for non-existent transaction', async () => {
-        const result = await fns.toggleTransactionCleared(99999);
+        const result = await fns.toggleTransactionCleared(budgetId, 99999);
         expect(result).toBeNull();
     });
 });
@@ -212,33 +214,33 @@ describe('Toggle Cleared - Edge Cases', () => {
 // =====================================================================
 describe('Transfer Helpers', () => {
     it('getTransferByTransactionId returns the linked transfer', async () => {
-        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings' });
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
         const acc2Id = acc2Result.id;
 
-        const transfer = await fns.createTransfer({
+        const transfer = await fns.createTransfer(budgetId, {
             fromAccountId: accountId,
             toAccountId: acc2Id,
             amount: 100,
             date: today(),
         });
 
-        const found = (await fns.getTransferByTransactionId(transfer.fromTransactionId))!;
+        const found = (await fns.getTransferByTransactionId(budgetId, transfer.fromTransactionId))!;
         expect(found).toBeDefined();
         expect(found.id).toBe(transfer.transferId);
     });
 
     it('getTransferByTransactionId works for to_transaction_id', async () => {
-        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings' });
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
         const acc2Id = acc2Result.id;
 
-        const transfer = await fns.createTransfer({
+        const transfer = await fns.createTransfer(budgetId, {
             fromAccountId: accountId,
             toAccountId: acc2Id,
             amount: 100,
             date: today(),
         });
 
-        const found = (await fns.getTransferByTransactionId(transfer.toTransactionId))!;
+        const found = (await fns.getTransferByTransactionId(budgetId, transfer.toTransactionId))!;
         expect(found).toBeDefined();
         expect(found.id).toBe(transfer.transferId);
     });
@@ -247,19 +249,19 @@ describe('Transfer Helpers', () => {
         const result = await fns.createTransaction({ accountId, date: today(), payee: 'Store', outflow: 50 });
         const txId = result.id;
 
-        const found = await fns.getTransferByTransactionId(txId);
+        const found = await fns.getTransferByTransactionId(budgetId, txId);
         expect(found).toBeUndefined();
     });
 
     it('deleteTransfer throws for non-existent transfer', async () => {
-        await expect(fns.deleteTransfer(99999)).rejects.toThrow();
+        await expect(fns.deleteTransfer(budgetId, 99999)).rejects.toThrow();
     });
 
     it('createTransfer with memo and cleared status', async () => {
-        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings' });
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
         const acc2Id = acc2Result.id;
 
-        const transfer = await fns.createTransfer({
+        const transfer = await fns.createTransfer(budgetId, {
             fromAccountId: accountId,
             toAccountId: acc2Id,
             amount: 200,
@@ -268,11 +270,11 @@ describe('Transfer Helpers', () => {
             cleared: 'Cleared',
         });
 
-        const fromTx = await fns.getTransaction(transfer.fromTransactionId);
+        const fromTx = await fns.getTransaction(budgetId, transfer.fromTransactionId);
         expect(fromTx.memo).toBe('Monthly transfer');
         expect(fromTx.cleared).toBe('Cleared');
 
-        const toTx = await fns.getTransaction(transfer.toTransactionId);
+        const toTx = await fns.getTransaction(budgetId, transfer.toTransactionId);
         expect(toTx.memo).toBe('Monthly transfer');
         expect(toTx.cleared).toBe('Cleared');
     });
@@ -280,20 +282,20 @@ describe('Transfer Helpers', () => {
     it('createTransfer updates account balances', async () => {
         // Start with initial balances by creating inflow transactions
         await fns.createTransaction({ accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
-        await fns.updateAccountBalances(accountId);
+        await fns.updateAccountBalances(budgetId, accountId);
 
-        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings' });
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
         const acc2Id = acc2Result.id;
 
-        await fns.createTransfer({
+        await fns.createTransfer(budgetId, {
             fromAccountId: accountId,
             toAccountId: acc2Id,
             amount: 300,
             date: today(),
         });
 
-        const acc1 = (await fns.getAccount(accountId))!;
-        const acc2 = (await fns.getAccount(acc2Id))!;
+        const acc1 = (await fns.getAccount(budgetId, accountId))!;
+        const acc2 = (await fns.getAccount(budgetId, acc2Id))!;
         expect(acc1.balance).toBe(700); // 1000 - 300
         expect(acc2.balance).toBe(300);
     });
@@ -309,7 +311,7 @@ describe('Create Transaction - Defaults', () => {
             date: today(),
         });
         const id = result.id;
-        const tx = await fns.getTransaction(id);
+        const tx = await fns.getTransaction(budgetId, id);
 
         expect(tx.payee).toBeNull();
         expect(tx.categoryId).toBeNull();

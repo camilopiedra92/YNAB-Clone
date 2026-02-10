@@ -8,19 +8,21 @@ import { eq, and } from 'drizzle-orm';
 
 let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
+let budgetId: number;
 
 beforeEach(async () => {
     const testDb = await createTestDb();
     db = testDb.db;
     fns = testDb.fns;
+    budgetId = testDb.defaultBudgetId;
 });
 
 describe('Budget Assignment', () => {
     it('creates a budget_months entry when assigned > 0', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -35,10 +37,10 @@ describe('Budget Assignment', () => {
     });
 
     it('does NOT create a row when assigned = 0 (ghost entry prevention)', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(0));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(0));
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -51,11 +53,11 @@ describe('Budget Assignment', () => {
     });
 
     it('deletes ghost entry when assigned set back to 0', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
         // Create a row
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
         let rows = await db.select()
             .from(budgetMonths)
             .where(and(
@@ -65,7 +67,7 @@ describe('Budget Assignment', () => {
         expect(rows).toHaveLength(1);
 
         // Set back to 0 — should delete
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(0));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(0));
         rows = await db.select()
             .from(budgetMonths)
             .where(and(
@@ -76,7 +78,7 @@ describe('Budget Assignment', () => {
     });
 
     it('propagates delta to future months', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
         const nextM = (() => {
             const [y, m] = month.split('-').map(Number);
@@ -85,9 +87,9 @@ describe('Budget Assignment', () => {
         })();
 
         // Assign in current month
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
         // Assign in next month
-        await fns.updateBudgetAssignment(categoryIds[0], nextM, mu(200));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], nextM, mu(200));
 
         // Next month available = carryforward(500) + assigned(200) = 700
         let nextRows = await db.select()
@@ -99,7 +101,7 @@ describe('Budget Assignment', () => {
         expect(nextRows[0].available).toBe(700);
 
         // Now update current month — delta should propagate
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(800));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(800));
 
         nextRows = await db.select()
             .from(budgetMonths)
@@ -112,10 +114,10 @@ describe('Budget Assignment', () => {
     });
 
     it('rejects NaN values', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.updateBudgetAssignment(categoryIds[0], month, NaN as any);
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, NaN as any);
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -127,10 +129,10 @@ describe('Budget Assignment', () => {
     });
 
     it('rejects Infinity values', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.updateBudgetAssignment(categoryIds[0], month, Infinity as any);
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, Infinity as any);
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -142,10 +144,10 @@ describe('Budget Assignment', () => {
     });
 
     it('clamps extreme values', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(999_999_999_999_999));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(999_999_999_999_999));
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -157,7 +159,7 @@ describe('Budget Assignment', () => {
     });
 
     it('includes carryforward when creating new entry in future month', async () => {
-        const { categoryIds } = await seedBasicBudget(fns);
+        const { categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
         const nextM = (() => {
             const [y, m] = month.split('-').map(Number);
@@ -166,10 +168,10 @@ describe('Budget Assignment', () => {
         })();
 
         // Assign in current month — creates available = 500
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Now assign in next month — should include carryforward
-        await fns.updateBudgetAssignment(categoryIds[0], nextM, mu(200));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], nextM, mu(200));
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -183,11 +185,11 @@ describe('Budget Assignment', () => {
 
 describe('Budget Activity', () => {
     it('calculates activity from transactions', async () => {
-        const { accountId, categoryIds } = await seedBasicBudget(fns);
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
         // Assign budget
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Spend against the category
         await fns.createTransaction({
@@ -197,7 +199,7 @@ describe('Budget Activity', () => {
             outflow: mu(100),
         });
 
-        await fns.updateBudgetActivity(categoryIds[0], month);
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
 
         const rows = await db.select()
             .from(budgetMonths)
@@ -211,10 +213,10 @@ describe('Budget Activity', () => {
     });
 
     it('handles inflows to a category (refunds)', async () => {
-        const { accountId, categoryIds } = await seedBasicBudget(fns);
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(200));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         // Refund
         await fns.createTransaction({
@@ -224,7 +226,7 @@ describe('Budget Activity', () => {
             inflow: mu(50),
         });
 
-        await fns.updateBudgetActivity(categoryIds[0], month);
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
 
         const rows = await db.select()
             .from(budgetMonths)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { BudgetItem } from './useBudget';
+import { BudgetItem } from './useBudgetTable';
 import {
     parseLocaleNumber,
     MAX_ASSIGNED_VALUE,
@@ -35,12 +35,12 @@ interface ReorderParams {
 
 // ─── Hooks ───────────────────────────────────────────────────────────
 
-export function useUpdateAssigned(currentMonth: string) {
+export function useUpdateAssigned(budgetId: number, currentMonth: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
         // Per-category mutationKey prevents rapid edits on different categories from colliding
-        mutationKey: ['budget-update-assigned'],
+        mutationKey: ['budget-update-assigned', budgetId],
         meta: { errorMessage: 'Error al guardar la asignación', broadcastKeys: ['budget', 'accounts'] },
         mutationFn: async ({ categoryId, value, currentBudgetData }: UpdateAssignedParams) => {
             const parsed = parseLocaleNumber(value);
@@ -56,10 +56,11 @@ export function useUpdateAssigned(currentMonth: string) {
                 return { skipped: true, numericValue };
             }
 
-            const res = await fetch('/api/budget', {
+            const res = await fetch(`/api/budgets/${budgetId}/budget`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    budgetId,
                     categoryId,
                     month: currentMonth,
                     assigned: numericValue,
@@ -79,10 +80,10 @@ export function useUpdateAssigned(currentMonth: string) {
 
         onMutate: async ({ categoryId, value, currentBudgetData }) => {
             // Cancel any outgoing refetches so they don't overwrite our optimistic update
-            await queryClient.cancelQueries({ queryKey: ['budget', currentMonth] });
+            await queryClient.cancelQueries({ queryKey: ['budget', budgetId, currentMonth] });
 
             // Snapshot previous data for rollback
-            const previous = queryClient.getQueryData(['budget', currentMonth]);
+            const previous = queryClient.getQueryData(['budget', budgetId, currentMonth]);
 
             // ── Use engine for EXACT optimistic calculation ──
             const parsed = parseLocaleNumber(value);
@@ -124,7 +125,7 @@ export function useUpdateAssigned(currentMonth: string) {
             const isPastMonth = currentMonth < calendarMonth;
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            queryClient.setQueryData(['budget', currentMonth], (old: any) => {
+            queryClient.setQueryData(['budget', budgetId, currentMonth], (old: any) => {
                 if (!old) return old;
                 return {
                     ...old,
@@ -148,7 +149,7 @@ export function useUpdateAssigned(currentMonth: string) {
                 if (budget && readyToAssign !== undefined) {
                     // Server now returns DTOs with overspendingType already merged
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    queryClient.setQueryData(['budget', currentMonth], (old: any) => {
+                    queryClient.setQueryData(['budget', budgetId, currentMonth], (old: any) => {
                         if (!old) return old;
                         return {
                             ...old,
@@ -166,7 +167,7 @@ export function useUpdateAssigned(currentMonth: string) {
         onError: (_error, _variables, context) => {
             // Rollback to previous state
             if (context?.previous) {
-                queryClient.setQueryData(['budget', currentMonth], context.previous);
+                queryClient.setQueryData(['budget', budgetId, currentMonth], context.previous);
             }
             // Error toast handled by global MutationCache via meta.errorMessage
         },
@@ -178,41 +179,41 @@ export function useUpdateAssigned(currentMonth: string) {
             // This prevents a completed mutation's refetch from overwriting the optimistic
             // update of a still-in-flight rapid edit on a different category.
             const stillPending = queryClient.isMutating({
-                mutationKey: ['budget-update-assigned'],
+                mutationKey: ['budget-update-assigned', budgetId],
             });
 
             if (stillPending <= 1) {
                 // Invalidate ALL budget months, not just currentMonth.
                 // RTA is cumulative — assigning in Feb affects March's RTA too.
-                queryClient.invalidateQueries({ queryKey: ['budget'] });
+                queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
                 // Remove stale prefetched months so navigation forces a fresh fetch
                 // instead of serving cached data with wrong RTA values.
                 // Active queries (currentMonth) are protected — removeQueries
                 // only evicts inactive cache entries.
                 queryClient.removeQueries({
-                    queryKey: ['budget'],
-                    predicate: (query) => query.queryKey[1] !== currentMonth,
+                    queryKey: ['budget', budgetId],
+                    predicate: (query) => query.queryKey[2] !== currentMonth,
                 });
             }
         },
     });
 }
 
-export function useUpdateCategoryName() {
+export function useUpdateCategoryName(budgetId: number) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ['budget-update-category-name'],
+        mutationKey: ['budget-update-category-name', budgetId],
         meta: { errorMessage: 'Error al renombrar categoría', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ categoryId, newName, currentName }: UpdateCategoryNameParams) => {
             if (!newName.trim() || newName === currentName) {
                 return { skipped: true };
             }
 
-            const res = await fetch('/api/categories', {
+            const res = await fetch(`/api/budgets/${budgetId}/categories`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: categoryId, name: newName }),
+                body: JSON.stringify({ budgetId, id: categoryId, name: newName }),
             });
 
             if (!res.ok) throw new Error('Error al renombrar categoría');
@@ -225,23 +226,23 @@ export function useUpdateCategoryName() {
 
         onSettled: (_data) => {
             if (!_data?.skipped) {
-                queryClient.invalidateQueries({ queryKey: ['budget'] });
+                queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
             }
         },
     });
 }
 
-export function useReorderCategories() {
+export function useReorderCategories(budgetId: number) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ['budget-reorder'],
+        mutationKey: ['budget-reorder', budgetId],
         meta: { errorMessage: 'Error al reordenar', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ type, items }: ReorderParams) => {
-            const res = await fetch('/api/categories/reorder', {
+            const res = await fetch(`/api/budgets/${budgetId}/categories/reorder`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, items }),
+                body: JSON.stringify({ budgetId, type, items }),
             });
 
             if (!res.ok) throw new Error('Error al reordenar');
@@ -252,23 +253,23 @@ export function useReorderCategories() {
 
         onError: () => {
             // Error toast handled by global MutationCache via meta.errorMessage
-            queryClient.invalidateQueries({ queryKey: ['budget'] });
+            queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
         },
     });
 }
 
 // ─── Create Category Group ───────────────────────────────────────────
-export function useCreateCategoryGroup() {
+export function useCreateCategoryGroup(budgetId: number) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ['budget-create-category-group'],
+        mutationKey: ['budget-create-category-group', budgetId],
         meta: { errorMessage: 'Error al crear grupo de categorías', broadcastKeys: ['budget', 'categories', 'category-groups'] },
         mutationFn: async (name: string) => {
-            const res = await fetch('/api/category-groups', {
+            const res = await fetch(`/api/budgets/${budgetId}/category-groups`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, budgetId }),
             });
 
             if (!res.ok) {
@@ -286,23 +287,23 @@ export function useCreateCategoryGroup() {
         },
 
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['budget'] });
+            queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
         },
     });
 }
 
 // ─── Create Category ─────────────────────────────────────────────────
-export function useCreateCategory() {
+export function useCreateCategory(budgetId: number) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ['budget-create-category'],
+        mutationKey: ['budget-create-category', budgetId],
         meta: { errorMessage: 'Error al crear categoría', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ name, categoryGroupId }: { name: string; categoryGroupId: number }) => {
-            const res = await fetch('/api/categories', {
+            const res = await fetch(`/api/budgets/${budgetId}/categories`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, categoryGroupId }),
+                body: JSON.stringify({ budgetId, name, categoryGroupId }),
             });
 
             if (!res.ok) {

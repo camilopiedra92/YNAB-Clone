@@ -1,21 +1,24 @@
 import { z } from 'zod';
 
 export const CreateCategorySchema = z.object({
-    name: z.string().min(1, 'Category name is required').max(100),
+    budgetId: z.number().int().positive('budgetId is required'),
+    name: z.string().trim().min(1, 'Category name is required').max(100),
     categoryGroupId: z.number().int().positive('categoryGroupId is required'),
 });
 
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
 
 export const UpdateCategoryNameSchema = z.object({
+    budgetId: z.number().int().positive('budgetId is required'),
     id: z.number().int().positive('Category ID is required'),
-    name: z.string().min(1, 'Category name is required').max(100),
+    name: z.string().trim().min(1, 'Category name is required').max(100),
 });
 
 export type UpdateCategoryNameInput = z.infer<typeof UpdateCategoryNameSchema>;
 
 export const CreateCategoryGroupSchema = z.object({
-    name: z.string().min(1, 'Group name is required').max(100),
+    budgetId: z.number().int().positive('budgetId is required'),
+    name: z.string().trim().min(1, 'Group name is required').max(100),
 });
 
 export type CreateCategoryGroupInput = z.infer<typeof CreateCategoryGroupSchema>;
@@ -27,6 +30,7 @@ const ReorderItemSchema = z.object({
 });
 
 export const ReorderSchema = z.object({
+    budgetId: z.number().int().positive('budgetId is required'),
     type: z.enum(['group', 'category'] as const),
     items: z.array(ReorderItemSchema).min(1, 'At least one item is required'),
 });

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import { gotoFirstAccount as navigateToAccount, gotoBudgetPage } from './e2e-helpers';
 
 /**
  * Account & Category Management E2E Tests
@@ -12,27 +13,22 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 // Helper: wait for budget page to fully load
-async function waitForBudgetLoad(page: Page) {
-    await page.goto('/budget');
-    await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+async function waitForBudgetLoad(page: Page, request: APIRequestContext) {
+    await gotoBudgetPage(page, request);
     const firstRow = page.locator('[data-testid^="category-row-"]').first();
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 }
 
 // Helper: navigate to first account
-async function goToFirstAccount(page: Page) {
-    await page.goto('/budget');
-    await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
-    const firstAccount = page.locator('[data-testid^="sidebar-account-"]').first();
-    await expect(firstAccount).toBeVisible({ timeout: 5_000 });
-    await firstAccount.click();
-    await expect(page).toHaveURL(/\/accounts\/\d+/);
-    await expect(page.getByTestId('account-name')).toBeVisible({ timeout: 10_000 });
+async function goToFirstAccount(page: Page, request: APIRequestContext) {
+    await navigateToAccount(page, request);
+    // Wait for transactions to render
+    await expect(page.locator('[data-testid^="transaction-row-"]').first()).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe('Account Page', () => {
-    test('shows account name and balance breakdown', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('shows account name and balance breakdown', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Account name should be visible
         const accountName = page.getByTestId('account-name');
@@ -51,8 +47,8 @@ test.describe('Account Page', () => {
         await expect(header).toContainText('Working Balance');
     });
 
-    test('Add Transaction button opens modal', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('Add Transaction button opens modal', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Click "Add Transaction"
         await page.getByTestId('add-transaction-button').click();
@@ -70,8 +66,8 @@ test.describe('Account Page', () => {
         await expect(page.getByTestId('transaction-form')).not.toBeVisible({ timeout: 3_000 });
     });
 
-    test('search filters transactions by payee', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('search filters transactions by payee', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Wait for transactions to load
         const firstRow = page.locator('[data-testid^="transaction-row-"]').first();
@@ -98,8 +94,8 @@ test.describe('Account Page', () => {
         expect(countReset).toBe(countBefore);
     });
 
-    test('Reconcile button opens reconciliation modal', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('Reconcile button opens reconciliation modal', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Click Reconcile
         await page.getByTestId('reconcile-button').click();
@@ -112,9 +108,8 @@ test.describe('Account Page', () => {
 });
 
 test.describe('All Accounts Page', () => {
-    test('shows aggregated transaction list', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('shows aggregated transaction list', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Click "All Accounts" in sidebar
         const allAccountsLink = page.getByTestId('sidebar-nav-all-accounts');
@@ -130,8 +125,8 @@ test.describe('All Accounts Page', () => {
 });
 
 test.describe('Category Group Creation', () => {
-    test('create a new category group via the budget toolbar', async ({ page }) => {
-        await waitForBudgetLoad(page);
+    test('create a new category group via the budget toolbar', async ({ page, request }) => {
+        await waitForBudgetLoad(page, request);
 
         // Click the "Category Group" button in toolbar
         const createGroupBtn = page.getByText('Category Group', { exact: false });
@@ -158,8 +153,8 @@ test.describe('Category Group Creation', () => {
 });
 
 test.describe('Budget Inspector', () => {
-    test('selecting a category shows the inspector panel', async ({ page }) => {
-        await waitForBudgetLoad(page);
+    test('selecting a category shows the inspector panel', async ({ page, request }) => {
+        await waitForBudgetLoad(page, request);
 
         // Click on a category row to select it (not the assigned cell)
         const firstRow = page.locator('[data-testid^="category-row-"]').first();

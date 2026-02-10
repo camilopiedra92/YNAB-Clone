@@ -7,6 +7,7 @@
 /** Shape returned by getCategories() without groupId (joined with groups) */
 interface CategoryRow {
   id: number;
+  budgetId: number;
   name: string;
   groupName?: string;
   categoryGroupId: number;
@@ -17,6 +18,7 @@ interface CategoryRow {
 /** Shape returned by getCategoryGroups() */
 interface CategoryGroupRow {
   id: number;
+  budgetId: number;
   name: string;
   hidden: boolean | number;
   sortOrder?: number;
@@ -27,6 +29,7 @@ interface CategoryGroupRow {
 
 export interface CategoryDTO {
   id: number;
+  budgetId: number;
   name: string;
   groupName: string;
   categoryGroupId: number;
@@ -36,6 +39,7 @@ export interface CategoryDTO {
 
 export interface CategoryGroupDTO {
   id: number;
+  budgetId: number;
   name: string;
   hidden: boolean;
   sortOrder: number;
@@ -47,6 +51,7 @@ export interface CategoryGroupDTO {
 export function toCategoryDTO(row: CategoryRow): CategoryDTO {
   return {
     id: row.id,
+    budgetId: row.budgetId,
     name: row.name,
     groupName: row.groupName ?? '',
     categoryGroupId: row.categoryGroupId,
@@ -58,10 +63,10 @@ export function toCategoryDTO(row: CategoryRow): CategoryDTO {
 export function toCategoryGroupDTO(row: CategoryGroupRow): CategoryGroupDTO {
   return {
     id: row.id,
+    budgetId: row.budgetId,
     name: row.name,
     hidden: !!row.hidden,
     sortOrder: row.sortOrder ?? 0,
     isIncome: !!row.isIncome,
   };
 }
-

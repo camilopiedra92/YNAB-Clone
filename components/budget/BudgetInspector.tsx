@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Zap, Clock, Edit3 } from 'lucide-react';
-import { InspectorData } from '@/hooks/useBudget';
+import { InspectorData } from '@/hooks/useBudgetTable';
 
 interface BudgetInspectorProps {
     data: InspectorData | null;

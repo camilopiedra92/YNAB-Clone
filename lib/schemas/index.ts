@@ -1,5 +1,12 @@
 export { validateBody } from './helpers';
-export { BudgetAssignmentSchema, type BudgetAssignmentInput } from './budget';
+export {
+    BudgetAssignmentSchema,
+    CreateBudgetSchema,
+    UpdateBudgetSchema,
+    type BudgetAssignmentInput,
+    type CreateBudgetInput,
+    type UpdateBudgetInput
+} from './budget';
 export {
     CreateTransactionSchema,
     CreateTransferSchema,

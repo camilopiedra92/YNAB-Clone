@@ -8,6 +8,7 @@ import type { TransactionDTO } from '@/lib/dtos';
 // TransactionPayload uses camelCase — matches the unified API contract
 interface TransactionPayload {
     id?: number;
+    budgetId: number;
     accountId: number;
     date: string;
     payee: string;
@@ -21,6 +22,7 @@ interface TransactionPayload {
 }
 
 interface ToggleClearedParams {
+    budgetId: number;
     transactionId: number;
     clearedStatus: string;
 }
@@ -45,7 +47,7 @@ export function useCreateTransaction() {
         meta: { errorMessage: 'Error al crear transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (payload: TransactionPayload) => {
-            const res = await fetch('/api/transactions', {
+            const res = await fetch(`/api/budgets/${payload.budgetId}/transactions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -73,6 +75,7 @@ export function useCreateTransaction() {
             // Create optimistic transaction with temporary negative ID (camelCase DTO shape)
             const optimistic: TransactionDTO = {
                 id: -Date.now(),
+                budgetId: payload.budgetId,
                 accountId: payload.accountId,
                 accountName: '',
                 date: payload.date,
@@ -124,7 +127,7 @@ export function useUpdateTransaction() {
         meta: { errorMessage: 'Error al actualizar transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (payload: TransactionPayload & { id: number }) => {
-            const res = await fetch('/api/transactions', {
+            const res = await fetch(`/api/budgets/${payload.budgetId}/transactions`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -194,8 +197,8 @@ export function useDeleteTransaction() {
         mutationKey: ['transaction-delete'],
         meta: { errorMessage: 'Error al eliminar transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
-        mutationFn: async (transactionId: number) => {
-            const res = await fetch(`/api/transactions?id=${transactionId}`, {
+        mutationFn: async ({ budgetId, transactionId }: { budgetId: number; transactionId: number }) => {
+            const res = await fetch(`/api/budgets/${budgetId}/transactions?id=${transactionId}`, {
                 method: 'DELETE',
             });
 
@@ -209,7 +212,7 @@ export function useDeleteTransaction() {
 
         retry: 1,
 
-        onMutate: async (transactionId) => {
+        onMutate: async ({ transactionId }) => {
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
             const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
@@ -264,15 +267,15 @@ export function useToggleCleared() {
         mutationKey: ['transaction-toggle-cleared'],
         meta: { errorMessage: 'Error al cambiar estado', broadcastKeys: ['transactions', 'accounts'] },
 
-        mutationFn: async ({ transactionId, clearedStatus }: ToggleClearedParams) => {
+        mutationFn: async ({ budgetId, transactionId, clearedStatus }: ToggleClearedParams) => {
             if (clearedStatus === 'Reconciled') {
                 return { skipped: true };
             }
 
-            const res = await fetch('/api/transactions', {
+            const res = await fetch(`/api/budgets/${budgetId}/transactions`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: transactionId, action: 'toggle-cleared' }),
+                body: JSON.stringify({ id: transactionId, budgetId, action: 'toggle-cleared' }),
             });
 
             if (!res.ok) {
@@ -332,11 +335,11 @@ export function useGetReconciliationInfo() {
         mutationKey: ['reconciliation-info'],
         meta: { errorMessage: 'Error al obtener información de reconciliación' },
 
-        mutationFn: async (accountId: number) => {
-            const res = await fetch('/api/transactions', {
+        mutationFn: async ({ budgetId, accountId }: { budgetId: number; accountId: number }) => {
+            const res = await fetch(`/api/budgets/${budgetId}/transactions`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get-reconciliation-info', accountId }),
+                body: JSON.stringify({ action: 'get-reconciliation-info', budgetId, accountId }),
             });
 
             if (!res.ok) {
@@ -359,12 +362,13 @@ export function useReconcileAccount() {
         mutationKey: ['reconcile-account'],
         meta: { errorMessage: 'Error al reconciliar', broadcastKeys: ['transactions', 'accounts', 'budget'] },
 
-        mutationFn: async ({ accountId, bankBalance }: { accountId: number; bankBalance: number }) => {
-            const res = await fetch('/api/transactions', {
+        mutationFn: async ({ budgetId, accountId, bankBalance }: { budgetId: number; accountId: number; bankBalance: number }) => {
+            const res = await fetch(`/api/budgets/${budgetId}/transactions`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'reconcile',
+                    budgetId,
                     accountId,
                     bankBalance,
                 }),

@@ -3,14 +3,15 @@ import { PlusCircle } from 'lucide-react';
 import { useCreateCategoryGroup } from '@/hooks/useBudgetMutations';
 
 interface CreateCategoryGroupPopoverProps {
+    budgetId: number;
     onSuccess: () => void;
 }
 
-export function CreateCategoryGroupPopover({ onSuccess }: CreateCategoryGroupPopoverProps) {
+export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCategoryGroupPopoverProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [name, setName] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
-    const createMutation = useCreateCategoryGroup();
+    const createMutation = useCreateCategoryGroup(budgetId);
 
     // Close on click outside
     useEffect(() => {

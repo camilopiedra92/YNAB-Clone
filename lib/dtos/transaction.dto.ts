@@ -4,12 +4,13 @@
 import type { TransactionRow } from '../repos/transactions';
 
 /** Input type for DTO conversion — core fields required, rest optional for partial/test usage */
-export type TransactionRowInput = Pick<TransactionRow, 'id' | 'accountId' | 'date'> & Partial<Omit<TransactionRow, 'id' | 'accountId' | 'date'>>;
+export type TransactionRowInput = Pick<TransactionRow, 'id' | 'budgetId' | 'accountId' | 'date'> & Partial<Omit<TransactionRow, 'id' | 'budgetId' | 'accountId' | 'date'>>;
 
 // ─── DTOs ────────────────────────────────────────────────────────────
 
 export interface TransactionDTO {
   id: number;
+  budgetId: number;
   accountId: number;
   accountName: string;
   date: string;
@@ -33,6 +34,7 @@ export function toTransactionDTO(row: TransactionRowInput | undefined): Transact
   if (!row) throw new Error('Transaction not found');
   return {
     id: row.id,
+    budgetId: row.budgetId!,
     accountId: row.accountId,
     accountName: row.accountName ?? '',
     date: row.date,

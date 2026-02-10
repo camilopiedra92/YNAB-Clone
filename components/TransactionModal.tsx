@@ -9,6 +9,15 @@ import CurrencyInput from './ui/CurrencyInput';
 import Select, { SelectOption } from './ui/Select';
 import { ArrowRightLeft } from 'lucide-react';
 
+/** Returns today's date in YYYY-MM-DD format using LOCAL timezone (not UTC). */
+function getLocalToday(): string {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 interface Account {
     id: number;
     name: string;
@@ -50,6 +59,7 @@ interface FormState {
 }
 
 interface TransactionModalProps {
+    budgetId: number;
     isOpen: boolean;
     onClose: () => void;
     onSave: () => void;
@@ -60,6 +70,7 @@ interface TransactionModalProps {
 }
 
 export default function TransactionModal({
+    budgetId,
     isOpen,
     onClose,
     onSave,
@@ -70,7 +81,7 @@ export default function TransactionModal({
 }: TransactionModalProps) {
     const [formData, setFormData] = useState<FormState>({
         accountId: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalToday(),
         payee: '',
         categoryId: null,
         memo: '',
@@ -116,7 +127,7 @@ export default function TransactionModal({
             } else {
                 setFormData({
                     accountId: currentAccountId || accounts[0]?.id || 0,
-                    date: new Date().toISOString().split('T')[0],
+                    date: getLocalToday(),
                     payee: '',
                     categoryId: null,
                     memo: '',
@@ -132,8 +143,7 @@ export default function TransactionModal({
         return () => clearTimeout(timer);
     }, [transaction, accounts, currentAccountId]);
 
-    const { data: payees = [] } = usePayees(isOpen);
-
+    const { data: payees = [] } = usePayees(budgetId, isOpen);
     const accountOptions: SelectOption[] = accounts.map(acc => ({
         value: acc.id,
         label: acc.name,
@@ -175,6 +185,7 @@ export default function TransactionModal({
                 updateTransaction.mutate(
                     {
                         id: transaction.id,
+                        budgetId,
                         accountId: formData.accountId,
                         date: formData.date,
                         payee: formData.payee,
@@ -190,6 +201,7 @@ export default function TransactionModal({
                 // Creating a new transfer
                 createTransaction.mutate(
                     {
+                        budgetId,
                         accountId: formData.accountId,
                         date: formData.date,
                         payee: '',
@@ -217,30 +229,26 @@ export default function TransactionModal({
 
         if (transaction?.id) {
             updateTransaction.mutate(
-                { id: transaction.id, ...payload },
+                { id: transaction.id, budgetId, ...payload },
                 { onSuccess: onSuccessCallback },
             );
         } else {
             createTransaction.mutate(
-                payload,
+                { budgetId, ...payload },
                 { onSuccess: onSuccessCallback },
             );
         }
     };
 
     const handleDelete = () => {
-        if (!transaction?.id) return;
-        const confirmMsg = isEditingTransfer
-            ? '¿Estás seguro de que deseas eliminar esta transferencia? Se eliminará de ambas cuentas.'
-            : '¿Estás seguro de que deseas eliminar esta transacción?';
-        if (!confirm(confirmMsg)) return;
-
-        deleteTransaction.mutate(transaction.id, {
-            onSuccess: () => {
-                onSave();
-                onClose();
-            },
-        });
+        if (transaction?.id && window.confirm('¿Estás seguro de que deseas eliminar esta transacción?')) {
+            deleteTransaction.mutate({ budgetId, transactionId: transaction.id }, {
+                onSuccess: () => {
+                    onSave();
+                    onClose();
+                },
+            });
+        }
     };
 
     return (

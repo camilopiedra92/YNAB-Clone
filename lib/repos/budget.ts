@@ -8,7 +8,7 @@
  * Cross-repo dependencies are injected via `deps`:
  * - `createCategory` from categories repo (for ensureCreditCardPaymentCategory)
  */
-import { eq, and, sql, lt, gt, max, isNull, isNotNull, type InferSelectModel } from 'drizzle-orm';
+import { eq, and, sql, lt, gt, max, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, categoryGroups, budgetMonths, transactions } from '../db/schema';
 import { currentDate, yearMonth } from '../db/sql-helpers';
 import type { DrizzleDB } from './client';
@@ -54,22 +54,26 @@ export function createBudgetFunctions(
   deps: BudgetRepoDeps,
 ) {
 
-  async function computeCarryforward(categoryId: number, targetMonth: string): Promise<Milliunit> {
+  async function computeCarryforward(budgetId: number, categoryId: number, targetMonth: string): Promise<Milliunit> {
     // 1. Query: get previous month's available
     const prevRows = await database.select({ available: budgetMonths.available })
       .from(budgetMonths)
       .where(and(
         eq(budgetMonths.categoryId, categoryId),
         lt(budgetMonths.month, targetMonth),
+        eq(categoryGroups.budgetId, budgetId)
       ))
+      .innerJoin(categories, eq(budgetMonths.categoryId, categories.id))
+      .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
       .orderBy(sql`${budgetMonths.month} DESC`)
       .limit(1);
 
     const prevAvailable = prevRows[0]?.available ?? null;
 
     // 2. Query: check if this is a CC Payment category
-    const categoryRows = await database.select({ linkedAccountId: categories.linkedAccountId })
+    const categoryRows = await database.select({ linkedAccountId: categories.linkedAccountId, budgetId: categoryGroups.budgetId })
       .from(categories)
+      .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
       .where(eq(categories.id, categoryId));
     const isCCPayment = !!categoryRows[0]?.linkedAccountId;
 
@@ -77,7 +81,7 @@ export function createBudgetFunctions(
     return engineCarryforward(prevAvailable, isCCPayment);
   }
 
-  async function getBudgetForMonth(month: string) {
+  async function getBudgetForMonth(budgetId: number, month: string) {
     const rows = await queryRows<BudgetRow>(database, sql`
       SELECT 
         CASE WHEN c.id IS NOT NULL THEN COALESCE(bm.id, -c.id) ELSE NULL END as "id",
@@ -95,7 +99,7 @@ export function createBudgetFunctions(
       FROM ${categoryGroups} cg
       LEFT JOIN ${categories} c ON c.category_group_id = cg.id
       LEFT JOIN ${budgetMonths} bm ON c.id = bm.category_id AND bm.month = ${month}
-      WHERE cg.is_income = false
+      WHERE cg.is_income = false AND cg.budget_id = ${budgetId}
       ORDER BY cg.sort_order, c.sort_order
     `);
 
@@ -107,7 +111,7 @@ export function createBudgetFunctions(
       r.assigned = m(r.assigned);
       r.activity = m(r.activity);
       if (r._budgetMonthId === null && r.categoryId !== null) {
-        r.available = await computeCarryforward(r.categoryId, month) as Milliunit;
+        r.available = await computeCarryforward(budgetId, r.categoryId, month) as Milliunit;
       } else {
         r.available = m(r.available);
       }
@@ -117,7 +121,7 @@ export function createBudgetFunctions(
     return result;
   }
 
-  async function getReadyToAssign(month: string): Promise<Milliunit> {
+  async function getReadyToAssign(budgetId: number, month: string): Promise<Milliunit> {
     // ── Query phase ──
 
     // 1. Cash on hand
@@ -125,7 +129,7 @@ export function createBudgetFunctions(
       SELECT COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0) as "total"
       FROM ${transactions}
       JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-      WHERE ${accounts.type} != 'credit' AND ${transactions.date} <= ${currentDate()}
+      WHERE ${accounts.type} != 'credit' AND ${transactions.date} <= ${currentDate()} AND ${accounts.budgetId} = ${budgetId}
     `);
 
     // 2. Positive CC balances
@@ -135,14 +139,18 @@ export function createBudgetFunctions(
         SELECT GREATEST(0, COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0)) as "positiveBalance"
         FROM ${transactions}
         JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-        WHERE ${accounts.type} = 'credit' AND ${transactions.date} <= ${currentDate()}
+        WHERE ${accounts.type} = 'credit' AND ${transactions.date} <= ${currentDate()} AND ${accounts.budgetId} = ${budgetId}
         GROUP BY ${accounts.id}
       ) sub
     `);
 
-    // 3. Latest month with COMPLETE budget data
+    // 3. Latest month with COMPLETE budget data (constrained to <= viewed month)
     const latestMonthRows = await queryRows<{ month: string }>(database, sql`
       SELECT month FROM ${budgetMonths}
+      JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
+      JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
+      WHERE ${categoryGroups.budgetId} = ${budgetId}
+        AND month <= ${month}
       GROUP BY month
       HAVING COUNT(*) >= 10
       ORDER BY month DESC
@@ -155,14 +163,20 @@ export function createBudgetFunctions(
       return (m(cashRows[0]!.total) + m(ccRows[0]!.total)) as Milliunit;
     }
 
-    // 4. Sum of all category available values for the latest month
-    const totalAvailableRows = await queryRows<{ total: number }>(database, sql`
-      SELECT COALESCE(SUM(${budgetMonths.available}), 0) as "total"
-      FROM ${budgetMonths}
-      JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
-      JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
-      WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} = ${latestMonth.month}
-    `);
+    // 4. Sum available using getBudgetForMonth (handles carryforward for missing rows)
+    // Per MEMORY §4c: aggregate queries MUST use getBudgetForMonth(), not raw SQL SUM.
+    const budgetRows = await getBudgetForMonth(budgetId, latestMonth.month);
+    let totalAvailableVal = ZERO as Milliunit;
+    let totalOverspendingVal = ZERO as Milliunit;
+    for (const row of budgetRows) {
+      if (row.categoryId !== null) {
+        totalAvailableVal = (totalAvailableVal + row.available) as Milliunit;
+        // Overspending: non-CC-payment categories with negative available
+        if (row.available < 0 && !row.linkedAccountId) {
+          totalOverspendingVal = (totalOverspendingVal + Math.abs(row.available)) as Milliunit;
+        }
+      }
+    }
 
     // 4b. Future assigned
     const futureAssignedRows = await queryRows<{ total: number }>(database, sql`
@@ -173,36 +187,26 @@ export function createBudgetFunctions(
       WHERE ${categoryGroups.isIncome} = false 
         AND ${budgetMonths.month} > ${latestMonth.month} 
         AND ${budgetMonths.month} <= ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
-    // 5. Overspending data
-    const totalOverspendingRows = await queryRows<{ total: number }>(database, sql`
-      SELECT COALESCE(SUM(ABS(${budgetMonths.available})), 0) as "total"
-      FROM ${budgetMonths}
-      JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
-      JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
-      WHERE ${categoryGroups.isIncome} = false
-        AND ${categories.linkedAccountId} IS NULL
-        AND ${budgetMonths.available} < 0
-        AND ${budgetMonths.month} = ${latestMonth.month}
-    `);
-
-    const cashOverspendingAmount = await getCashOverspendingForMonth(latestMonth.month);
+    // 5. Cash overspending
+    const cashOverspendingAmount = await getCashOverspendingForMonth(budgetId, latestMonth.month);
 
     // ── Compute phase: delegate to engine ──
     return calculateRTA({
       cashBalance: m(cashRows[0]!.total),
       positiveCCBalances: m(ccRows[0]!.total),
-      totalAvailable: m(totalAvailableRows[0]!.total),
+      totalAvailable: totalAvailableVal,
       futureAssigned: m(futureAssignedRows[0]!.total),
-      totalOverspending: m(totalOverspendingRows[0]!.total),
+      totalOverspending: totalOverspendingVal,
       cashOverspending: cashOverspendingAmount,
       currentMonth: new Date().toISOString().slice(0, 7),
       viewedMonth: month,
     });
   }
 
-  async function getReadyToAssignBreakdown(month: string) {
+  async function getReadyToAssignBreakdown(budgetId: number, month: string) {
     // ── Query phase ──
     const [yr, mo] = month.split('-').map(Number);
     const prevDate = new Date(yr, mo - 2);
@@ -219,6 +223,7 @@ export function createBudgetFunctions(
         AND ${accounts.type} != 'credit'
         AND ${yearMonth(transactions.date)} = ${month}
         AND ${transactions.date} <= ${currentDate()}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     // ➕ Positive CC balances
@@ -228,7 +233,7 @@ export function createBudgetFunctions(
         SELECT GREATEST(0, COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0)) as "positiveBalance"
         FROM ${transactions}
         JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-        WHERE ${accounts.type} = 'credit' AND ${transactions.date} <= ${currentDate()}
+        WHERE ${accounts.type} = 'credit' AND ${transactions.date} <= ${currentDate()} AND ${accounts.budgetId} = ${budgetId}
         GROUP BY ${accounts.id}
       ) sub
     `);
@@ -239,7 +244,7 @@ export function createBudgetFunctions(
       FROM ${budgetMonths}
       JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
-      WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} = ${month}
+      WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} = ${month} AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     // ➖ Assigned in future
@@ -248,14 +253,14 @@ export function createBudgetFunctions(
       FROM ${budgetMonths}
       JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
-      WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} > ${month}
+      WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} > ${month} AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     // ➖ Cash overspending from previous month
-    const cashOverspendingTotal = await getCashOverspendingForMonth(prevMonth);
+    const cashOverspendingTotal = await getCashOverspendingForMonth(budgetId, prevMonth);
 
     // RTA (already uses engine internally)
-    const rta = await getReadyToAssign(month);
+    const rta = await getReadyToAssign(budgetId, month);
 
     // ── Compute phase: delegate to engine ──
     return calculateRTABreakdown({
@@ -268,7 +273,7 @@ export function createBudgetFunctions(
     });
   }
 
-  async function updateBudgetAssignment(categoryId: number, month: string, assigned: Milliunit) {
+  async function updateBudgetAssignment(budgetId: number, categoryId: number, month: string, assigned: Milliunit) {
     // ── Validate phase: delegate to engine ──
     const validation = validateAssignment(assigned);
     if (!validation.valid && validation.clamped === 0) {
@@ -283,7 +288,7 @@ export function createBudgetFunctions(
       .where(and(eq(budgetMonths.categoryId, categoryId), eq(budgetMonths.month, month)));
     const existing = existingRows[0];
 
-    const carryforward = await computeCarryforward(categoryId, month);
+    const carryforward = await computeCarryforward(budgetId, categoryId, month);
 
     // ── Compute phase: delegate to engine ──
     const result = calculateAssignment({
@@ -350,18 +355,20 @@ export function createBudgetFunctions(
     });
   }
 
-  async function updateBudgetActivity(categoryId: number, month: string) {
+  async function updateBudgetActivity(budgetId: number, categoryId: number, month: string) {
     // ── Query phase ──
     const activityRows = await queryRows<{ activity: number }>(database, sql`
       SELECT COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0) as "activity"
       FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.categoryId} = ${categoryId} 
         AND ${yearMonth(transactions.date)} = ${month} 
         AND ${transactions.date} <= ${currentDate()}
+        AND ${accounts.budgetId} = ${budgetId}
     `);
 
     const activity = m(activityRows[0]!.activity);
-    const carryforward = await computeCarryforward(categoryId, month);
+    const carryforward = await computeCarryforward(budgetId, categoryId, month);
 
     const existingRows = await database.select({ assigned: budgetMonths.assigned })
       .from(budgetMonths)
@@ -384,29 +391,27 @@ export function createBudgetFunctions(
     }
   }
 
-  async function refreshAllBudgetActivity(month: string) {
+  async function refreshAllBudgetActivity(budgetId: number, month: string) {
     // Sequential execution — no transaction wrapper to avoid PGlite deadlock
     // (updateBudgetActivity and updateCreditCardPaymentBudget use `database` internally)
     const cats = await database.selectDistinct({ categoryId: transactions.categoryId })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
+      .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
       .where(and(
-        eq(yearMonth(transactions.date), month),
-        sql`${transactions.date} <= ${currentDate()}`,
-        isNotNull(transactions.categoryId),
-        isNull(categories.linkedAccountId)
+      eq(categoryGroups.budgetId, budgetId)
       ));
 
     for (const cat of cats) {
-      await updateBudgetActivity(cat.categoryId!, month);
+      await updateBudgetActivity(budgetId, cat.categoryId!, month);
     }
 
     const ccAccounts = await database.select({ id: accounts.id })
       .from(accounts)
-      .where(eq(accounts.type, 'credit'));
+      .where(and(eq(accounts.type, 'credit'), eq(accounts.budgetId, budgetId)));
 
     for (const acc of ccAccounts) {
-      await updateCreditCardPaymentBudget(acc.id, month);
+      await updateCreditCardPaymentBudget(budgetId, acc.id, month);
     }
   }
 
@@ -422,18 +427,38 @@ export function createBudgetFunctions(
     const category = await getCreditCardPaymentCategory(accountId);
     if (category) return category;
 
+    // Get budgetId from account
+    const accRows = await database.select({ budgetId: accounts.budgetId })
+      .from(accounts)
+      .where(eq(accounts.id, accountId));
+    const budgetId = accRows[0]?.budgetId;
+    if (!budgetId) {
+      console.error(`ensureCreditCardPaymentCategory: account ${accountId} not found or has no budgetId`);
+      return undefined;
+    }
+
     // Check/create CC group BEFORE deps call to avoid PGlite deadlock
     const ccGroupRows = await database.select({ id: categoryGroups.id })
       .from(categoryGroups)
-      .where(eq(categoryGroups.name, 'Credit Card Payments'));
+      .where(and(
+        eq(categoryGroups.name, 'Credit Card Payments'),
+        eq(categoryGroups.budgetId, budgetId)
+      ));
     let ccGroup = ccGroupRows[0];
 
     if (!ccGroup) {
       const maxOrderResult = await database.select({ maxOrder: max(categoryGroups.sortOrder) })
-        .from(categoryGroups);
+        .from(categoryGroups)
+        .where(eq(categoryGroups.budgetId, budgetId));
       const newOrder = (maxOrderResult[0]?.maxOrder ?? 0) + 1;
       const ccGroupResult = await database.insert(categoryGroups)
-        .values({ name: 'Credit Card Payments', sortOrder: newOrder, hidden: false, isIncome: false })
+        .values({ 
+          name: 'Credit Card Payments', 
+          sortOrder: newOrder, 
+          hidden: false, 
+          isIncome: false,
+          budgetId,
+        })
         .returning({ id: categoryGroups.id });
       ccGroup = { id: ccGroupResult[0].id };
     }
@@ -449,7 +474,7 @@ export function createBudgetFunctions(
     return rows[0];
   }
 
-  async function updateCreditCardPaymentBudget(accountId: number, month: string) {
+  async function updateCreditCardPaymentBudget(budgetId: number, accountId: number, month: string) {
     const ccCategory = await getCreditCardPaymentCategory(accountId);
     if (!ccCategory) return;
 
@@ -466,11 +491,13 @@ export function createBudgetFunctions(
         COALESCE(SUM(${transactions.outflow}), 0) as "catOutflow",
         COALESCE(SUM(${transactions.inflow}), 0) as "catInflow"
       FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.accountId} = ${accountId}
         AND ${yearMonth(transactions.date)} = ${month}
         AND ${transactions.date} <= ${currentDate()}
         AND ${transactions.categoryId} IS NOT NULL
         AND ${transactions.categoryId} != ${ccCategory.id}
+        AND ${accounts.budgetId} = ${budgetId}
       GROUP BY ${transactions.categoryId}
     `);
 
@@ -479,9 +506,12 @@ export function createBudgetFunctions(
     for (const catSpend of categorySpending) {
       const catBudgetRows = await database.select({ available: budgetMonths.available })
         .from(budgetMonths)
+        .innerJoin(categories, eq(budgetMonths.categoryId, categories.id))
+        .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
         .where(and(
           eq(budgetMonths.categoryId, catSpend.categoryId),
           eq(budgetMonths.month, month),
+          eq(categoryGroups.budgetId, budgetId)
         ));
       categoryAvailables.set(catSpend.categoryId, m(catBudgetRows[0]?.available));
     }
@@ -490,11 +520,13 @@ export function createBudgetFunctions(
     const paymentRows = await queryRows<{ totalPayments: number }>(database, sql`
       SELECT COALESCE(SUM(${transactions.inflow}), 0) as "totalPayments"
       FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.accountId} = ${accountId}
         AND ${yearMonth(transactions.date)} = ${month}
         AND ${transactions.date} <= ${currentDate()}
         AND ${transactions.categoryId} IS NULL
         AND ${transactions.inflow} > 0
+        AND ${accounts.budgetId} = ${budgetId}
     `);
 
     // 4. Previous month carryforward
@@ -544,7 +576,7 @@ export function createBudgetFunctions(
 
   // ====== Overspending Detection Functions ======
 
-  async function getCashOverspendingForMonth(month: string): Promise<Milliunit> {
+  async function getCashOverspendingForMonth(budgetId: number, month: string): Promise<Milliunit> {
     // ── Query phase ──
     const overspentCategories = await queryRows<{
       categoryId: number;
@@ -558,6 +590,7 @@ export function createBudgetFunctions(
         AND ${categories.linkedAccountId} IS NULL
         AND ${budgetMonths.available} < 0
         AND ${budgetMonths.month} = ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     // Query cash spending for each overspent category
@@ -570,6 +603,7 @@ export function createBudgetFunctions(
         WHERE ${transactions.categoryId} = ${cat.categoryId} 
           AND ${yearMonth(transactions.date)} = ${month} 
           AND ${accounts.type} != 'credit'
+          AND ${accounts.budgetId} = ${budgetId}
       `);
 
       inputs.push({
@@ -584,7 +618,7 @@ export function createBudgetFunctions(
     return calculateCashOverspending(inputs);
   }
 
-  async function getOverspendingTypes(month: string): Promise<Record<number, 'cash' | 'credit' | null>> {
+  async function getOverspendingTypes(budgetId: number, month: string): Promise<Record<number, 'cash' | 'credit' | null>> {
     const result: Record<number, 'cash' | 'credit' | null> = {};
 
     // ── Query phase ──
@@ -602,6 +636,7 @@ export function createBudgetFunctions(
       WHERE ${categoryGroups.isIncome} = false
         AND ${budgetMonths.available} < 0
         AND ${budgetMonths.month} = ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     for (const cat of overspentCategories) {
@@ -614,6 +649,7 @@ export function createBudgetFunctions(
           WHERE ${transactions.categoryId} = ${cat.categoryId} 
             AND ${yearMonth(transactions.date)} = ${month} 
             AND ${accounts.type} != 'credit'
+            AND ${accounts.budgetId} = ${budgetId}
         `);
         cashSpending = Math.max(0, m(cashActivityRows[0]!.total)) as unknown as number;
       }
@@ -632,7 +668,7 @@ export function createBudgetFunctions(
     return result;
   }
 
-  async function getBudgetInspectorData(month: string) {
+  async function getBudgetInspectorData(budgetId: number, month: string) {
     const [yr, mo] = month.split('-').map(Number);
     const prevDate = new Date(yr, mo - 2);
     const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
@@ -641,9 +677,9 @@ export function createBudgetFunctions(
     const twelveMonthsAgo = `${twelveMonthsAgoDate.getFullYear()}-${String(twelveMonthsAgoDate.getMonth() + 1).padStart(2, '0')}`;
 
     // ── Month Summary ──
-    const breakdown = await getReadyToAssignBreakdown(month);
+    const breakdown = await getReadyToAssignBreakdown(budgetId, month);
 
-    const budgetRows = await getBudgetForMonth(month);
+    const budgetRows = await getBudgetForMonth(budgetId, month);
 
     let totalAvailable = 0;
     let totalActivity = 0;
@@ -672,6 +708,7 @@ export function createBudgetFunctions(
           AND ${accounts.type} != 'credit'
           AND ${transactions.date} <= ${currentDate()}
           AND ${yearMonth(transactions.date)} >= ${twelveMonthsAgo} AND ${yearMonth(transactions.date)} < ${month}
+          AND ${accounts.budgetId} = ${budgetId}
         GROUP BY ${yearMonth(transactions.date)}
       ) sub
     `);
@@ -685,6 +722,7 @@ export function createBudgetFunctions(
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
       WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL 
         AND ${budgetMonths.available} < 0 AND ${budgetMonths.month} = ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     const ccShortfallRows = await queryRows<{ total: number }>(database, sql`
@@ -697,7 +735,7 @@ export function createBudgetFunctions(
       FROM ${accounts}
       LEFT JOIN ${categories} c ON c.linked_account_id = ${accounts.id}
       LEFT JOIN ${budgetMonths} bm ON bm.category_id = c.id AND bm.month = ${month}
-      WHERE ${accounts.type} = 'credit' AND ${accounts.closed} = false
+      WHERE ${accounts.type} = 'credit' AND ${accounts.closed} = false AND ${accounts.budgetId} = ${budgetId}
     `);
 
     const underfundedTotal = m(underfundedRegularRows[0]!.total) + m(ccShortfallRows[0]!.total);
@@ -709,6 +747,7 @@ export function createBudgetFunctions(
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
       WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL 
         AND ${budgetMonths.month} = ${prevMonthStr}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     const spentLastMonthRows = await queryRows<{ total: number }>(database, sql`
@@ -718,6 +757,7 @@ export function createBudgetFunctions(
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
       WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL 
         AND ${budgetMonths.month} = ${prevMonthStr}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     const avgAssignedRows = await queryRows<{ avgTotal: number }>(database, sql`
@@ -729,6 +769,7 @@ export function createBudgetFunctions(
         JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
         WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL
           AND ${budgetMonths.month} >= ${twelveMonthsAgo} AND ${budgetMonths.month} < ${month}
+          AND ${categoryGroups.budgetId} = ${budgetId}
         GROUP BY ${budgetMonths.month}
       ) sub
     `);
@@ -742,6 +783,7 @@ export function createBudgetFunctions(
         JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
         WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL
           AND ${budgetMonths.month} >= ${twelveMonthsAgo} AND ${budgetMonths.month} < ${month}
+          AND ${categoryGroups.budgetId} = ${budgetId}
         GROUP BY ${budgetMonths.month}
       ) sub
     `);
@@ -755,6 +797,7 @@ export function createBudgetFunctions(
         AND ${budgetMonths.available} > ${budgetMonths.assigned} 
         AND ${budgetMonths.assigned} > 0 AND ${budgetMonths.activity} >= 0
         AND ${budgetMonths.month} = ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     const resetAvailableRows = await queryRows<{ total: number }>(database, sql`
@@ -765,6 +808,7 @@ export function createBudgetFunctions(
       WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL
         AND ${budgetMonths.available} > 0 AND ${budgetMonths.assigned} = 0 AND ${budgetMonths.activity} = 0
         AND ${budgetMonths.month} = ${month}
+        AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
     const resetAssigned = totalAssigned;
@@ -776,6 +820,7 @@ export function createBudgetFunctions(
       JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
       WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} > ${month} AND ${budgetMonths.assigned} != 0
+        AND ${categoryGroups.budgetId} = ${budgetId}
       GROUP BY ${budgetMonths.month}
       ORDER BY ${budgetMonths.month}
     `);

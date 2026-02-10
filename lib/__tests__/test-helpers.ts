@@ -44,8 +44,43 @@ export async function createTestDb() {
 
     // Create all tables using raw SQL (matching the Drizzle schema exactly)
     await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
+            locked_until TIMESTAMP,
+            created_at TIMESTAMP DEFAULT now()
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS budgets (
+            id SERIAL PRIMARY KEY,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            currency_code TEXT DEFAULT 'COP' NOT NULL,
+            currency_symbol TEXT DEFAULT '$' NOT NULL,
+            currency_decimals INTEGER DEFAULT 0 NOT NULL,
+            created_at TIMESTAMP DEFAULT now(),
+            updated_at TIMESTAMP DEFAULT now()
+        )
+    `);
+
+    await drizzleDb.execute(sql`
+        CREATE TABLE IF NOT EXISTS budget_shares (
+            id SERIAL PRIMARY KEY,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role TEXT DEFAULT 'editor' NOT NULL
+        )
+    `);
+
+    await drizzleDb.execute(sql`
         CREATE TABLE IF NOT EXISTS accounts (
             id SERIAL PRIMARY KEY,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             type account_type NOT NULL,
             balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
@@ -56,15 +91,22 @@ export async function createTestDb() {
             created_at TEXT DEFAULT now()
         )
     `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_accounts_budget ON accounts(budget_id)
+    `);
 
     await drizzleDb.execute(sql`
         CREATE TABLE IF NOT EXISTS category_groups (
             id SERIAL PRIMARY KEY,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             sort_order INTEGER DEFAULT 0 NOT NULL,
             hidden BOOLEAN DEFAULT false NOT NULL,
             is_income BOOLEAN DEFAULT false NOT NULL
         )
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_category_groups_budget ON category_groups(budget_id)
     `);
 
     await drizzleDb.execute(sql`
@@ -134,7 +176,27 @@ export async function createTestDb() {
 
     const fns = createDbFunctions(drizzleDb);
 
-    return { db: drizzleDb, drizzleDb, fns };
+    // Create a default user and budget for convenience in tests
+    const userResult = await drizzleDb.insert(schema.users).values({
+        name: 'Default User',
+        email: 'default@test.com',
+        password: 'password',
+    }).returning();
+    const defaultUser = userResult[0];
+
+    const budgetResult = await drizzleDb.insert(schema.budgets).values({
+        userId: defaultUser.id,
+        name: 'Default Budget',
+    }).returning();
+    const defaultBudget = budgetResult[0];
+
+    return { 
+        db: drizzleDb, 
+        drizzleDb, 
+        fns, 
+        defaultUserId: defaultUser.id, 
+        defaultBudgetId: defaultBudget.id 
+    };
 }
 
 /**
@@ -148,20 +210,56 @@ export async function seedBasicBudget(fns: ReturnType<typeof createDbFunctions>,
     accountType?: 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'tracking';
     accountName?: string;
     accountBalance?: number;
+    db?: DrizzleDB;
+    budgetId?: number;
 }) {
     const categoryCount = options?.categoryCount ?? 3;
     const accountType = options?.accountType ?? 'checking' as const;
     const accountName = options?.accountName ?? 'Checking';
     const accountBalance = options?.accountBalance ?? 0;
+    const db = options?.db;
+    let budgetId = options?.budgetId;
+
+    if (!budgetId) {
+        if (!db) {
+            // This is a bit of a hack for existing tests that don't pass db.
+            // In our new createTestDb, there's always a user/budget.
+            // But we don't have an easy way to get it here without db.
+            // We'll try to use a default or throw if we really can't.
+            throw new Error('db or budgetId is required for seedBasicBudget');
+        }
+        
+        // Find existing budget
+        const budgets = await db.select().from(schema.budgets).limit(1);
+        if (budgets.length > 0) {
+            budgetId = budgets[0].id;
+        } else {
+            // Create user
+            const userResult = await db.insert(schema.users).values({
+                name: 'Test User',
+                email: `test-${Math.random()}@test.com`,
+                password: 'password',
+            }).returning();
+            const user = userResult[0];
+
+            // Create budget
+            const budgetResult = await db.insert(schema.budgets).values({
+                userId: user.id,
+                name: 'Test Budget',
+            }).returning();
+            budgetId = budgetResult[0].id;
+        }
+    }
 
     const accountResult = await fns.createAccount({
         name: accountName,
         type: accountType,
         balance: accountBalance,
+        budgetId,
     });
     const accountId = accountResult.id;
 
-    const groupResult = await fns.createCategoryGroup('Essentials');
+    const groupResult = await fns.createCategoryGroup('Essentials', budgetId);
     const groupId = groupResult.id;
 
     const categoryIds: number[] = [];
@@ -173,7 +271,7 @@ export async function seedBasicBudget(fns: ReturnType<typeof createDbFunctions>,
         categoryIds.push(catResult.id);
     }
 
-    return { accountId, groupId, categoryIds };
+    return { accountId, groupId, categoryIds, budgetId };
 }
 
 /**

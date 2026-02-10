@@ -12,7 +12,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { idbStorage } from './idb-storage';
 
 /** Bump this when the cache shape changes to invalidate old persisted data */
-export const APP_CACHE_VERSION = '1';
+export const APP_CACHE_VERSION = '2'; // Bumped: Phase 3 auth guards added
 
 export const persister = createAsyncStoragePersister({
     storage: idbStorage,

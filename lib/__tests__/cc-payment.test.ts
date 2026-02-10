@@ -8,11 +8,13 @@ import { eq, and } from 'drizzle-orm';
 
 let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
+let budgetId: number;
 
 beforeEach(async () => {
     const testDb = await createTestDb();
     db = testDb.db;
     fns = testDb.fns;
+    budgetId = testDb.defaultBudgetId;
 });
 
 describe('Credit Card Payment Budget', () => {
@@ -22,18 +24,18 @@ describe('Credit Card Payment Budget', () => {
      */
     async function setupCCScenario() {
         // Checking account
-        const checkResult = await fns.createAccount({ name: 'Checking', type: 'checking' });
+        const checkResult = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
         const checkingId = checkResult.id;
 
         // Credit card account
-        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit' });
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
         const ccAccountId = ccResult.id;
 
         // Create CC Payment category
         const ccCategory = (await fns.ensureCreditCardPaymentCategory(ccAccountId, 'Visa'))!;
 
         // Create spending categories
-        const groupResult = await fns.createCategoryGroup('Spending');
+        const groupResult = await fns.createCategoryGroup('Spending', budgetId);
         const groupId = groupResult.id;
 
         const cat1Result = await fns.createCategory({ name: 'Groceries', category_group_id: groupId });
@@ -53,7 +55,7 @@ describe('Credit Card Payment Budget', () => {
         const month = currentMonth();
 
         // Budget $200 for Groceries
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(200));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         // Spend $150 on CC (fully funded: 150 <= 200)
         await fns.createTransaction({
@@ -64,9 +66,9 @@ describe('Credit Card Payment Budget', () => {
         });
 
         // Update activity for the spending category first (to set available correctly)
-        await fns.updateBudgetActivity(categoryIds[0], month);
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
         // Then update CC Payment
-        await fns.updateCreditCardPaymentBudget(ccAccountId, month);
+        await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
 
         // Query CC Payment budget row via Drizzle
         const ccPaymentRows = await db.select()
@@ -90,7 +92,7 @@ describe('Credit Card Payment Budget', () => {
         const month = currentMonth();
 
         // Budget only $80 for Groceries
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(80));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(80));
 
         // Spend $100 on CC (partially funded: only $80 budgeted)
         await fns.createTransaction({
@@ -100,8 +102,8 @@ describe('Credit Card Payment Budget', () => {
             outflow: mu(100),
         });
 
-        await fns.updateBudgetActivity(categoryIds[0], month);
-        await fns.updateCreditCardPaymentBudget(ccAccountId, month);
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
+        await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
 
         // Query CC Payment budget row via Drizzle
         const ccPaymentRows = await db.select()
@@ -134,7 +136,7 @@ describe('Credit Card Payment Budget', () => {
         const month = currentMonth();
 
         // Budget and spend
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(200));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         await fns.createTransaction({
             accountId: ccAccountId,
@@ -151,8 +153,8 @@ describe('Credit Card Payment Budget', () => {
             inflow: mu(30),
         });
 
-        await fns.updateBudgetActivity(categoryIds[0], month);
-        await fns.updateCreditCardPaymentBudget(ccAccountId, month);
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
+        await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
 
         const ccPaymentRows = await db.select()
             .from(budgetMonths)
@@ -174,7 +176,7 @@ describe('Credit Card Payment Budget', () => {
         const month = currentMonth();
 
         // Budget and spend on CC
-        await fns.updateBudgetAssignment(categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         await fns.createTransaction({
             accountId: ccAccountId,
@@ -191,8 +193,8 @@ describe('Credit Card Payment Budget', () => {
             // category_id is NULL for payments
         });
 
-        await fns.updateBudgetActivity(categoryIds[0], month);
-        await fns.updateCreditCardPaymentBudget(ccAccountId, month);
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
+        await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
 
         const ccPaymentRows = await db.select()
             .from(budgetMonths)
@@ -211,7 +213,7 @@ describe('Credit Card Payment Budget', () => {
         const month = currentMonth();
 
         // No transactions on CC this month
-        await fns.updateCreditCardPaymentBudget(ccAccountId, month);
+        await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
 
         const ccPaymentRows = await db.select()
             .from(budgetMonths)
@@ -239,12 +241,12 @@ describe('Credit Card Payment Budget', () => {
         });
 
         // CC Payment should carry forward debt
-        const carryforward = await fns.computeCarryforward(ccCategoryId, next);
+        const carryforward = await fns.computeCarryforward(budgetId, ccCategoryId, next);
         expect(carryforward).toBe(-500);
     });
 
     it('ensureCreditCardPaymentCategory creates category and group if needed', async () => {
-        const ccResult = await fns.createAccount({ name: 'Amex', type: 'credit' });
+        const ccResult = await fns.createAccount({ name: 'Amex', type: 'credit', budgetId });
         const ccAccountId = ccResult.id;
 
         const category = (await fns.ensureCreditCardPaymentCategory(ccAccountId, 'Amex'))!;
@@ -254,13 +256,13 @@ describe('Credit Card Payment Budget', () => {
         expect(category.linkedAccountId).toBe(ccAccountId);
 
         // Verify group was created
-        const groups = await fns.getCategoryGroups();
+        const groups = await fns.getCategoryGroups(budgetId, );
         const ccGroup = groups.find((g: any) => g.name === 'Credit Card Payments');
         expect(ccGroup).toBeDefined();
     });
 
     it('ensureCreditCardPaymentCategory returns existing category on second call', async () => {
-        const ccResult = await fns.createAccount({ name: 'Amex', type: 'credit' });
+        const ccResult = await fns.createAccount({ name: 'Amex', type: 'credit', budgetId });
         const ccAccountId = ccResult.id;
 
         const cat1 = (await fns.ensureCreditCardPaymentCategory(ccAccountId, 'Amex'))!;

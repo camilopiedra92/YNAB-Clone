@@ -4,6 +4,10 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().url().min(1),
 
+  // Authentication (Auth.js v5)
+  AUTH_SECRET: z.string().min(32),
+  AUTH_URL: z.string().url().optional(), // Auto-detected in dev
+
   // Application
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3000),

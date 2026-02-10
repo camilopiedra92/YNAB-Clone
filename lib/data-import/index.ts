@@ -2,16 +2,13 @@
 /**
  * YNAB CSV Data Importer
  *
- * Reads YNAB export CSV files (Register + Plan) and populates the database
- * using Drizzle ORM — no raw SQL or driver-specific APIs.
- *
- * Usage:
- *   npx tsx scripts/import-ynab-data.ts
+ * Core import logic that populates the database from parsed CSV data.
+ * Two entry points:
+ *   - importDataFromCSV(budgetId, registerCSV, planCSV, targetDb) — for API upload
+ *   - importData(budgetId, targetDb) — for CLI (reads files from fs/env)
  */
-import fs from 'fs';
-import path from 'path';
 import { eq, and, like, sql, inArray } from 'drizzle-orm';
-import db from '../repos/client';
+import type { DrizzleDB } from '../repos/client';
 import {
   accounts,
   categoryGroups,
@@ -49,8 +46,8 @@ interface PlanRow {
   Available: string;
 }
 
-function parseCSV(filePath: string): any[] {
-  const content = fs.readFileSync(filePath, 'utf8');
+/** Parse CSV content string into an array of objects */
+export function parseCSV(content: string): any[] {
   const lines = content.split('\n').filter(line => line.trim());
 
   if (lines.length === 0) return [];
@@ -99,67 +96,40 @@ function parseDate(dateStr: string): string {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
-// ── Import Logic ─────────────────────────────────────────────────────
+// ── Import Logic (from CSV content strings) ─────────────────────────
 
-import env from '../env';
+export interface ImportStats {
+  accounts: number;
+  transactions: number;
+  transfers: number;
+  budgetEntries: number;
+  categoryGroups: number;
+}
 
-
-export async function importData(targetDb = db) {
+/**
+ * Import YNAB data from raw CSV content strings into a specific budget.
+ * This is the core function — no filesystem dependency.
+ */
+export async function importDataFromCSV(
+  budgetId: number,
+  registerCSVContent: string,
+  planCSVContent: string,
+  targetDb: DrizzleDB,
+): Promise<ImportStats> {
   console.log('Starting YNAB data import...');
 
-  // Use environment variables or default to the hardcoded paths for backward compatibility/local convenience
-  // but prioritize env vars for better infrastructure practices.
-  const envRegisterPath = env.YNAB_REGISTER_CSV;
-  const envPlanPath = env.YNAB_PLAN_CSV;
-
-  // Paths relative to project root as a base idea, but absolute paths from env are best
-  const projectRoot = process.cwd();
-  const defaultBaseDir = path.resolve(projectRoot, '..', 'YNAB Export - Compartido COP as of 2026-02-07 16-53');
-  
-  const registerPath = envRegisterPath || path.join(defaultBaseDir, 'Compartido COP as of 2026-02-07 16-53 - Register.csv');
-  const planPath = envPlanPath || path.join(defaultBaseDir, 'Compartido COP as of 2026-02-07 16-53 - Plan.csv');
-
-  if (!fs.existsSync(registerPath)) {
-    console.error('Register CSV not found at:', registerPath);
-    console.error('Please set YNAB_REGISTER_CSV environment variable.');
-    return;
-  }
-
-  if (!fs.existsSync(planPath)) {
-    console.error('Plan CSV not found at:', planPath);
-    console.error('Please set YNAB_PLAN_CSV environment variable.');
-    return;
-  }
-
-  const registerData = parseCSV(registerPath) as RegisterRow[];
-  const planData = parseCSV(planPath) as PlanRow[];
+  const registerData = parseCSV(registerCSVContent) as RegisterRow[];
+  const planData = parseCSV(planCSVContent) as PlanRow[];
 
   console.log(`Loaded ${registerData.length} transactions and ${planData.length} budget entries`);
   console.log('Register headers:', Object.keys(registerData[0] || {}));
 
-  // Clear existing data (order matters for FK constraints)
-  console.log('Clearing existing data...');
-  await targetDb.delete(transfers);
-  await targetDb.delete(transactions);
-  await targetDb.delete(budgetMonths);
-  await targetDb.delete(categories);
-  await targetDb.delete(categoryGroups);
-  await targetDb.delete(accounts);
-
-  // Reset autoincrement sequences (PostgreSQL)
-  // Note: We use execute() on the specific targetDb
-  try {
-    // Only attempt sequence reset if we have a way to execute raw SQL efficiently
-    // Drizzle's execute is fine
-    await targetDb.execute(sql`ALTER SEQUENCE accounts_id_seq RESTART WITH 1`);
-    await targetDb.execute(sql`ALTER SEQUENCE category_groups_id_seq RESTART WITH 1`);
-    await targetDb.execute(sql`ALTER SEQUENCE categories_id_seq RESTART WITH 1`);
-    await targetDb.execute(sql`ALTER SEQUENCE transactions_id_seq RESTART WITH 1`);
-    await targetDb.execute(sql`ALTER SEQUENCE transfers_id_seq RESTART WITH 1`);
-    await targetDb.execute(sql`ALTER SEQUENCE budget_months_id_seq RESTART WITH 1`);
-  } catch {
-    // Sequences might not exist yet or have different names — skip
-  }
+  // Clear existing data FOR THIS BUDGET ONLY (FK cascades handle children)
+  // accounts CASCADE → transactions CASCADE → transfers
+  // categoryGroups CASCADE → categories CASCADE → budgetMonths
+  console.log(`Clearing existing data for budget ${budgetId}...`);
+  await targetDb.delete(accounts).where(eq(accounts.budgetId, budgetId));
+  await targetDb.delete(categoryGroups).where(eq(categoryGroups.budgetId, budgetId));
 
   // ── Create Accounts ────────────────────────────────────────────
 
@@ -195,6 +165,7 @@ export async function importData(targetDb = db) {
 
     const result = await targetDb.insert(accounts)
       .values({
+        budgetId,
         name,
         type,
         balance: ZERO,
@@ -234,6 +205,7 @@ export async function importData(targetDb = db) {
   });
 
   let groupSortOrder = 0;
+  let categoryGroupCount = 0;
   for (const [groupName, cats] of categoryData) {
     const isIncome = groupName === 'Inflow';
     const hidden = groupName.includes('Hidden');
@@ -246,6 +218,7 @@ export async function importData(targetDb = db) {
 
     const groupResult = await targetDb.insert(categoryGroups)
       .values({
+        budgetId,
         name: groupName,
         sortOrder,
         hidden,
@@ -255,6 +228,7 @@ export async function importData(targetDb = db) {
 
     const groupId = groupResult[0].id;
     categoryGroupMap.set(groupName, groupId);
+    categoryGroupCount++;
 
     let categorySortOrder = 0;
     for (const categoryName of cats) {
@@ -509,5 +483,55 @@ export async function importData(targetDb = db) {
 
   console.log('Marked closed credit card accounts based on hidden categories');
   console.log('Data import completed successfully!');
+
+  return {
+    accounts: accountMap.size,
+    transactions: transactionCount,
+    transfers: transferCount,
+    budgetEntries: budgetCount,
+    categoryGroups: categoryGroupCount,
+  };
 }
 
+// ── CLI-compatible wrapper (reads from filesystem) ──────────────────
+
+/**
+ * Import YNAB data from CSV files on the filesystem.
+ * Used by scripts/import-ynab-data.ts and tests/global-setup.ts.
+ */
+export async function importData(budgetId: number, targetDb?: DrizzleDB): Promise<ImportStats> {
+  // Lazy-load fs, path, env, and db only when this function is called (Node.js only)
+  const fs = await import('fs');
+  const path = await import('path');
+  const env = (await import('../env')).default;
+  if (!targetDb) {
+    const clientModule = await import('../repos/client');
+    targetDb = clientModule.default;
+  }
+
+  const envRegisterPath = env.YNAB_REGISTER_CSV;
+  const envPlanPath = env.YNAB_PLAN_CSV;
+
+  const projectRoot = process.cwd();
+  const defaultBaseDir = path.resolve(projectRoot, '..', 'YNAB Export - Compartido COP as of 2026-02-07 16-53');
+
+  const registerPath = envRegisterPath || path.join(defaultBaseDir, 'Compartido COP as of 2026-02-07 16-53 - Register.csv');
+  const planPath = envPlanPath || path.join(defaultBaseDir, 'Compartido COP as of 2026-02-07 16-53 - Plan.csv');
+
+  if (!fs.existsSync(registerPath)) {
+    console.error('Register CSV not found at:', registerPath);
+    console.error('Please set YNAB_REGISTER_CSV environment variable.');
+    throw new Error(`Register CSV not found at: ${registerPath}`);
+  }
+
+  if (!fs.existsSync(planPath)) {
+    console.error('Plan CSV not found at:', planPath);
+    console.error('Please set YNAB_PLAN_CSV environment variable.');
+    throw new Error(`Plan CSV not found at: ${planPath}`);
+  }
+
+  const registerCSV = fs.readFileSync(registerPath, 'utf8');
+  const planCSV = fs.readFileSync(planPath, 'utf8');
+
+  return importDataFromCSV(budgetId, registerCSV, planCSV, targetDb);
+}

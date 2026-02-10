@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import { gotoFirstAccount as navigateToAccount } from './e2e-helpers';
 
 /**
  * Transaction CRUD E2E Tests
@@ -12,17 +13,8 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 // Helper: navigate to the first account page and wait for it to load
-async function goToFirstAccount(page: Page) {
-    await page.goto('/budget');
-    await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
-
-    const firstAccount = page.locator('[data-testid^="sidebar-account-"]').first();
-    await expect(firstAccount).toBeVisible({ timeout: 5_000 });
-    await firstAccount.click();
-
-    await expect(page).toHaveURL(/\/accounts\/\d+/);
-    // Wait for the account page to fully load
-    await expect(page.getByTestId('account-name')).toBeVisible({ timeout: 10_000 });
+async function goToFirstAccount(page: Page, request: APIRequestContext) {
+    await navigateToAccount(page, request);
     // Wait for transactions to render
     await expect(page.locator('[data-testid^="transaction-row-"]').first()).toBeVisible({ timeout: 10_000 });
 }
@@ -64,8 +56,8 @@ async function createTransaction(page: Page, opts: { payee: string; amount: stri
 }
 
 test.describe('Transaction CRUD', () => {
-    test('create an outflow transaction', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('create an outflow transaction', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Record working balance before
         const balanceBefore = await page.getByTestId('account-working-balance').textContent();
@@ -81,13 +73,16 @@ test.describe('Transaction CRUD', () => {
         const table = page.locator('table');
         await expect(table.first()).toContainText('E2E Test Payee', { timeout: 10_000 });
 
-        // Balance should have decreased (outflow)
+        // After the server processes the transaction, reload to verify the balance changed
+        await page.reload();
+        await expect(page.getByTestId('account-name')).toBeVisible({ timeout: 10_000 });
+        await expect(page.locator('[data-testid^="transaction-row-"]').first()).toBeVisible({ timeout: 10_000 });
         const balanceAfter = await page.getByTestId('account-working-balance').textContent();
         expect(balanceAfter).not.toBe(balanceBefore);
     });
 
-    test('create an inflow transaction', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('create an inflow transaction', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Create an inflow transaction
         await createTransaction(page, {
@@ -101,8 +96,8 @@ test.describe('Transaction CRUD', () => {
         await expect(table.first()).toContainText('E2E Inflow Source', { timeout: 10_000 });
     });
 
-    test('edit an existing transaction', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('edit an existing transaction', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Create a fresh transaction to edit (avoids dependency on prior tests)
         await createTransaction(page, {
@@ -119,8 +114,11 @@ test.describe('Transaction CRUD', () => {
         // The transaction form should open
         await expect(page.getByTestId('transaction-form')).toBeVisible({ timeout: 5_000 });
 
-        // Modify the memo
+        // Wait for the form to fully initialize (TransactionModal uses setTimeout in useEffect)
         const memoField = page.getByTestId('transaction-memo');
+        await expect(memoField).toHaveValue('original memo', { timeout: 5_000 });
+
+        // Now it's safe to modify the memo
         await memoField.clear();
         await memoField.fill('E2E edited memo');
 
@@ -128,16 +126,19 @@ test.describe('Transaction CRUD', () => {
         await clickModalButton(page, 'transaction-submit-button');
         await expect(page.getByTestId('transaction-form')).not.toBeVisible({ timeout: 10_000 });
 
-        // Wait for data to refresh
+        // Wait for the mutation to complete
         await page.waitForTimeout(2000);
 
-        // Verify the memo change appears
+        // Reload the page to get fresh data from the server (bypasses React Query cache)
+        await page.reload({ waitUntil: 'domcontentloaded' });
+
+        // Verify the memo change appears after fresh load
         const table = page.locator('table');
-        await expect(table.first()).toContainText('E2E edited memo', { timeout: 10_000 });
+        await expect(table.first()).toContainText('E2E edited memo', { timeout: 15_000 });
     });
 
-    test('delete a transaction', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('delete a transaction', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Create a transaction we can safely delete
         await createTransaction(page, {
@@ -170,8 +171,8 @@ test.describe('Transaction CRUD', () => {
         await expect(table).not.toContainText('E2E Delete Target', { timeout: 10_000 });
     });
 
-    test('toggle cleared status on a transaction', async ({ page }) => {
-        await goToFirstAccount(page);
+    test('toggle cleared status on a transaction', async ({ page, request }) => {
+        await goToFirstAccount(page, request);
 
         // Find the first cleared icon button (in the last column)
         // The cleared icon button has a title attribute

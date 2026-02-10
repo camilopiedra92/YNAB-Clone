@@ -3,7 +3,7 @@
 import React from 'react';
 import { GripVertical, CreditCard } from 'lucide-react';
 import { SortableRow } from './SortableRow';
-import { BudgetItem } from '@/hooks/useBudget';
+import { BudgetItem } from '@/hooks/useBudgetTable';
 
 interface BudgetItemRowProps {
     item: BudgetItem;

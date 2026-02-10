@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoBudgetPage } from './e2e-helpers';
 
 /**
  * Transaction Flow — Basic read scenarios.
@@ -10,9 +11,8 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Transaction Flow', () => {
-    test('navigating to an account shows the transactions table', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('navigating to an account shows the transactions table', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Click the first account in the sidebar
         const firstAccount = page.locator('[data-testid^="sidebar-account-"]').first();
@@ -35,10 +35,8 @@ test.describe('Transaction Flow', () => {
         await expect(table.first()).toContainText('Inflow');
     });
 
-    test('transaction rows show expected data columns', async ({ page }) => {
-        // Navigate to first account
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('transaction rows show expected data columns', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         const firstAccount = page.locator('[data-testid^="sidebar-account-"]').first();
         await expect(firstAccount).toBeVisible({ timeout: 5_000 });
@@ -54,9 +52,8 @@ test.describe('Transaction Flow', () => {
         expect(count).toBeGreaterThan(0);
     });
 
-    test('can navigate between different accounts', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('can navigate between different accounts', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Get all account links
         const accounts = page.locator('[data-testid^="sidebar-account-"]');

@@ -1,9 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { gotoBudgetPage, allAccountsUrl } from './e2e-helpers';
 
 test.describe('Navigation', () => {
-    test('sidebar budget link navigates to budget page', async ({ page }) => {
-        // Start on home page (redirects to /budget typically)
-        await page.goto('/');
+    test('sidebar budget link navigates to budget page', async ({ page, request }) => {
+        // Start on the budget page (ensures sidebar is loaded)
+        const budgetId = await gotoBudgetPage(page, request);
+
+        // Navigate away first — go to all accounts
+        await page.goto(allAccountsUrl(budgetId));
         await page.waitForTimeout(2000);
 
         // Click the Plan link in the sidebar
@@ -16,14 +20,12 @@ test.describe('Navigation', () => {
         await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
     });
 
-    test('sidebar account link navigates to account page', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('sidebar account link navigates to account page', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Click the first account link
         const firstAccount = page.locator('[data-testid^="sidebar-account-"]').first();
         await expect(firstAccount).toBeVisible({ timeout: 5_000 });
-        // const accountName = await firstAccount.textContent();
         await firstAccount.click();
 
         // Should navigate to account page
@@ -35,9 +37,8 @@ test.describe('Navigation', () => {
         await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
     });
 
-    test('all accounts link navigates correctly', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('all accounts link navigates correctly', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Click the All Accounts link
         const allAccountsLink = page.getByTestId('sidebar-nav-all-accounts');

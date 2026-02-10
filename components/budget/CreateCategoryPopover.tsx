@@ -3,15 +3,16 @@ import { Plus } from 'lucide-react';
 import { useCreateCategory } from '@/hooks/useBudgetMutations';
 
 interface CreateCategoryPopoverProps {
+    budgetId: number;
     groupId: number;
     onSuccess: () => void;
 }
 
-export function CreateCategoryPopover({ groupId, onSuccess }: CreateCategoryPopoverProps) {
+export function CreateCategoryPopover({ budgetId, groupId, onSuccess }: CreateCategoryPopoverProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [name, setName] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
-    const createMutation = useCreateCategory();
+    const createMutation = useCreateCategory(budgetId);
 
     // Close on click outside
     useEffect(() => {

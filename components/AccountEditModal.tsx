@@ -13,7 +13,7 @@ export default function AccountEditModal({ account, onClose }: AccountEditModalP
     const [name, setName] = useState(account.name);
     const [note, setNote] = useState(account.note || '');
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-    const updateAccount = useUpdateAccount();
+    const updateAccount = useUpdateAccount(account.budgetId);
     const nameInputRef = useRef<HTMLInputElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
 

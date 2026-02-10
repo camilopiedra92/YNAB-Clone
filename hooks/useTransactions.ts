@@ -3,20 +3,21 @@
 import { useQuery } from '@tanstack/react-query';
 import type { TransactionDTO } from '@/lib/dtos';
 
-async function fetchTransactions(accountId?: number): Promise<TransactionDTO[]> {
+async function fetchTransactions(budgetId: number, accountId?: number): Promise<TransactionDTO[]> {
     const url = accountId
-        ? `/api/transactions?accountId=${accountId}`
-        : '/api/transactions';
+        ? `/api/budgets/${budgetId}/transactions?accountId=${accountId}`
+        : `/api/budgets/${budgetId}/transactions`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Failed to fetch transactions');
     return res.json();
 }
 
-export function useTransactions(accountId?: number) {
+export function useTransactions(budgetId: number | undefined, accountId?: number) {
     return useQuery<TransactionDTO[]>({
-        queryKey: accountId ? ['transactions', accountId] : ['transactions'],
-        queryFn: () => fetchTransactions(accountId),
+        queryKey: accountId ? ['transactions', budgetId, accountId] : ['transactions', budgetId],
+        queryFn: () => fetchTransactions(budgetId!, accountId),
         staleTime: 15 * 1000,
+        enabled: !!budgetId,
     });
 }
 

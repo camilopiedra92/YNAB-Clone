@@ -16,6 +16,7 @@ import * as schema from '../db/schema';
 import { createAccountFunctions } from './accounts';
 import { createTransactionFunctions } from './transactions';
 import { createBudgetFunctions } from './budget';
+import { createBudgetsFunctions } from './budgets';
 import { createCategoryFunctions } from './categories';
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -80,10 +81,13 @@ export function createDbFunctions(database: DrizzleDB) {
     reconcileAccount: accounts.reconcileAccount,
   });
 
+  const budgets = createBudgetsFunctions(database);
+
   return {
     ...accounts,
     ...transactions,
     ...budget,
     ...categories,
+    ...budgets,
   };
 }

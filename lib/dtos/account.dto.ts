@@ -9,6 +9,7 @@
 /** Shape returned by accounts repo select queries or raw SQLite rows */
 interface AccountRow {
   id: number;
+  budgetId: number;
   name: string;
   type: string;
   balance?: number;
@@ -30,6 +31,7 @@ interface ReconciliationInfoRow {
 
 export interface AccountDTO {
   id: number;
+  budgetId: number;
   name: string;
   type: string;
   balance: number;
@@ -51,6 +53,7 @@ export interface ReconciliationInfoDTO {
 export function toAccountDTO(row: AccountRow): AccountDTO {
   return {
     id: row.id,
+    budgetId: row.budgetId,
     name: row.name,
     type: row.type,
     balance: Number(row.balance) || 0,

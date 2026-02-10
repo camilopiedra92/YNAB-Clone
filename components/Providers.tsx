@@ -3,6 +3,7 @@
 import { QueryClient, MutationCache } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { SessionProvider } from 'next-auth/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useBroadcastSync, broadcastInvalidation } from '@/hooks/useBroadcastSync';
@@ -83,26 +84,28 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     );
 
     return (
-        <PersistQueryClientProvider
-            client={queryClient}
-            persistOptions={{
-                persister,
-                buster: APP_CACHE_VERSION,
-                maxAge: 1000 * 60 * 60 * 24, // 24 hours
-            }}
-            onSuccess={() => {
-                // After restoring from IndexedDB, resume any paused mutations
-                // (e.g., mutations queued while offline) then invalidate all
-                // queries so they refetch fresh data from the server.
-                queryClient.resumePausedMutations().then(() => {
-                    queryClient.invalidateQueries();
-                });
-            }}
-        >
-            <BroadcastSyncListener />
-            {children}
-            <ReactQueryDevtools initialIsOpen={false} />
-        </PersistQueryClientProvider>
+        <SessionProvider>
+            <PersistQueryClientProvider
+                client={queryClient}
+                persistOptions={{
+                    persister,
+                    buster: APP_CACHE_VERSION,
+                    maxAge: 1000 * 60 * 60 * 24, // 24 hours
+                }}
+                onSuccess={() => {
+                    // After restoring from IndexedDB, resume any paused mutations
+                    // (e.g., mutations queued while offline) then invalidate all
+                    // queries so they refetch fresh data from the server.
+                    queryClient.resumePausedMutations().then(() => {
+                        queryClient.invalidateQueries();
+                    });
+                }}
+            >
+                <BroadcastSyncListener />
+                {children}
+                <ReactQueryDevtools initialIsOpen={false} />
+            </PersistQueryClientProvider>
+        </SessionProvider>
     );
 }
 

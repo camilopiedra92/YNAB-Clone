@@ -15,6 +15,34 @@
       "when": 1770657962397,
       "tag": "0001_cute_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770675001820,
+      "tag": "0002_romantic_inertia",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770676503743,
+      "tag": "0003_nice_cerise",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770676540988,
+      "tag": "0004_plain_exodus",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770689906520,
+      "tag": "0005_demonic_anita_blake",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ describe('Account DTOs', () => {
   describe('toAccountDTO', () => {
     it('converts snake_case row to camelCase DTO', () => {
       const row = {
-        id: 1,
+        id: 1, budgetId: 1,
         name: 'Checking',
         type: 'checking',
         balance: 100000,
@@ -22,7 +22,7 @@ describe('Account DTOs', () => {
       const dto = toAccountDTO(row);
 
       expect(dto).toEqual({
-        id: 1,
+        id: 1, budgetId: 1,
         name: 'Checking',
         type: 'checking',
         balance: 100000,
@@ -34,12 +34,12 @@ describe('Account DTOs', () => {
     });
 
     it('coerces closed=1 to boolean true', () => {
-      const row = { id: 2, name: 'Old', type: 'savings', balance: 0, clearedBalance: 0, unclearedBalance: 0, note: null, closed: 1 };
+      const row = { id: 2, budgetId: 1, name: 'Old', type: 'savings', balance: 0, clearedBalance: 0, unclearedBalance: 0, note: null, closed: 1 };
       expect(toAccountDTO(row).closed).toBe(true);
     });
 
     it('defaults missing fields', () => {
-      const row = { id: 3, name: 'Minimal', type: 'cash' };
+      const row = { id: 3, budgetId: 1, name: 'Minimal', type: 'cash' };
       const dto = toAccountDTO(row);
       expect(dto.balance).toBe(0);
       expect(dto.clearedBalance).toBe(0);
@@ -83,6 +83,7 @@ describe('Transaction DTOs', () => {
     it('converts snake_case row to camelCase DTO', () => {
       const row = {
         id: 42,
+        budgetId: 1,
         accountId: 1,
         accountName: 'Checking',
         date: '2025-12-15',
@@ -104,6 +105,7 @@ describe('Transaction DTOs', () => {
 
       expect(dto).toEqual({
         id: 42,
+        budgetId: 1,
         accountId: 1,
         accountName: 'Checking',
         date: '2025-12-15',
@@ -125,6 +127,7 @@ describe('Transaction DTOs', () => {
     it('coerces isFuture=1 to boolean true', () => {
       const row = {
         id: 43,
+        budgetId: 1,
         accountId: 1,
         accountName: 'Checking',
         date: '2026-06-01',
@@ -142,6 +145,7 @@ describe('Transaction DTOs', () => {
     it('handles transfer transactions', () => {
       const row = {
         id: 44,
+        budgetId: 1,
         accountId: 1,
         accountName: 'Checking',
         date: '2025-12-20',
@@ -164,7 +168,7 @@ describe('Transaction DTOs', () => {
     });
 
     it('defaults missing fields', () => {
-      const row = { id: 99, accountId: 1, date: '2025-01-01', cleared: 'Uncleared' };
+      const row = { id: 99, budgetId: 1, accountId: 1, date: '2025-01-01', cleared: 'Uncleared' };
       const dto = toTransactionDTO(row);
       expect(dto.accountName).toBe('');
       expect(dto.payee).toBe('');
@@ -181,7 +185,7 @@ describe('Transaction DTOs', () => {
     });
 
     it('defaults cleared to Uncleared when missing', () => {
-      const row = { id: 100, accountId: 1, date: '2025-01-01' }; // no cleared field
+      const row = { id: 100, budgetId: 1, accountId: 1, date: '2025-01-01' }; // no cleared field
       const dto = toTransactionDTO(row);
       expect(dto.cleared).toBe('Uncleared');
     });
@@ -302,7 +306,7 @@ describe('Category DTOs', () => {
   describe('toCategoryDTO', () => {
     it('converts snake_case row to camelCase DTO', () => {
       const row = {
-        id: 10,
+        id: 10, budgetId: 1,
         name: 'Groceries',
         categoryGroupId: 2,
         groupName: 'Everyday Expenses',
@@ -311,7 +315,7 @@ describe('Category DTOs', () => {
       const dto = toCategoryDTO(row);
 
       expect(dto).toEqual({
-        id: 10,
+        id: 10, budgetId: 1,
         name: 'Groceries',
         categoryGroupId: 2,
         groupName: 'Everyday Expenses',
@@ -321,14 +325,14 @@ describe('Category DTOs', () => {
     });
 
     it('defaults group_name to empty string when undefined', () => {
-      const row = { id: 11, name: 'Test', categoryGroupId: 1 };
+      const row = { id: 11, budgetId: 1, name: 'Test', categoryGroupId: 1 };
       const dto = toCategoryDTO(row);
       expect(dto.groupName).toBe('');
     });
 
     it('maps sort_order and linked_account_id when present', () => {
       const row = {
-        id: 12,
+        id: 12, budgetId: 1,
         name: 'Visa Payment',
         categoryGroupId: 3,
         groupName: 'CC',
@@ -344,7 +348,7 @@ describe('Category DTOs', () => {
   describe('toCategoryGroupDTO', () => {
     it('converts snake_case row to camelCase DTO', () => {
       const row = {
-        id: 2,
+        id: 2, budgetId: 1,
         name: 'Everyday Expenses',
         isIncome: 0,
         hidden: 0,
@@ -353,7 +357,7 @@ describe('Category DTOs', () => {
       const dto = toCategoryGroupDTO(row);
 
       expect(dto).toEqual({
-        id: 2,
+        id: 2, budgetId: 1,
         name: 'Everyday Expenses',
         isIncome: false,
         hidden: false,
@@ -362,7 +366,7 @@ describe('Category DTOs', () => {
     });
 
     it('coerces is_income=1 and hidden=1 to boolean true', () => {
-      const row = { id: 1, name: 'Inflow', isIncome: 1, hidden: 1 };
+      const row = { id: 1, budgetId: 1, name: 'Inflow', isIncome: 1, hidden: 1 };
       const dto = toCategoryGroupDTO(row);
       expect(dto.isIncome).toBe(true);
       expect(dto.hidden).toBe(true);

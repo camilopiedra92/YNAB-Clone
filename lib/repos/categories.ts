@@ -4,29 +4,52 @@
  * Part of the Repository Pattern.
  * All queries use Drizzle ORM query builder.
  */
-import { eq, asc, max } from 'drizzle-orm';
+import { eq, asc, max, and, sql } from 'drizzle-orm';
 import { categories, categoryGroups } from '../db/schema';
 import type { DrizzleDB } from './client';
 
+export interface Category {
+  id: number;
+  budgetId: number;
+  categoryGroupId: number;
+  name: string;
+  sortOrder: number;
+  hidden: boolean;
+  linkedAccountId: number | null;
+  groupName?: string;
+}
+
 export function createCategoryFunctions(database: DrizzleDB) {
 
-  async function getCategoryGroups() {
+  async function getCategoryGroups(budgetId: number) {
     return database.select().from(categoryGroups)
+      .where(eq(categoryGroups.budgetId, budgetId))
       .orderBy(asc(categoryGroups.sortOrder), asc(categoryGroups.name));
   }
 
-  async function getCategories(groupId?: number) {
+  async function getCategories(budgetId: number, groupId?: number) : Promise<Category[]> {
     if (groupId) {
-      return database.select().from(categories)
-        .where(eq(categories.categoryGroupId, groupId))
+      return database.select({
+        id: categories.id,
+        budgetId: categoryGroups.budgetId,
+        categoryGroupId: categories.categoryGroupId,
+        name: categories.name,
+        sortOrder: categories.sortOrder,
+        hidden: categories.hidden,
+        linkedAccountId: categories.linkedAccountId,
+      })
+        .from(categories)
+        .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
+        .where(and(eq(categories.categoryGroupId, groupId), eq(categoryGroups.budgetId, budgetId)))
         .orderBy(asc(categories.sortOrder), asc(categories.name));
     }
-    return getCategoriesWithGroups();
+    return getCategoriesWithGroups(budgetId);
   }
 
-  async function getCategoriesWithGroups() {
+  async function getCategoriesWithGroups(budgetId: number) : Promise<Category[]> {
     return database.select({
       id: categories.id,
+      budgetId: categoryGroups.budgetId,
       categoryGroupId: categories.categoryGroupId,
       name: categories.name,
       sortOrder: categories.sortOrder,
@@ -36,6 +59,7 @@ export function createCategoryFunctions(database: DrizzleDB) {
     })
       .from(categories)
       .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
+      .where(eq(categoryGroups.budgetId, budgetId))
       .orderBy(asc(categoryGroups.sortOrder), asc(categories.sortOrder), asc(categories.name));
   }
 
@@ -45,17 +69,17 @@ export function createCategoryFunctions(database: DrizzleDB) {
       .where(eq(categories.id, id));
   }
 
-  async function updateCategoryGroupOrder(groups: { id: number, sort_order: number }[]) {
+  async function updateCategoryGroupOrder(budgetId: number, groups: { id: number, sort_order: number }[]) {
     return database.transaction(async (tx) => {
       for (const group of groups) {
         await tx.update(categoryGroups)
           .set({ sortOrder: group.sort_order })
-          .where(eq(categoryGroups.id, group.id));
+          .where(and(eq(categoryGroups.id, group.id), eq(categoryGroups.budgetId, budgetId)));
       }
     });
   }
 
-  async function updateCategoryOrder(cats: { id: number, sort_order: number, category_group_id?: number }[]) {
+  async function updateCategoryOrder(budgetId: number, cats: { id: number, sort_order: number, category_group_id?: number }[]) {
     return database.transaction(async (tx) => {
       for (const cat of cats) {
         const updates: Partial<typeof categories.$inferInsert> = { sortOrder: cat.sort_order };
@@ -64,18 +88,25 @@ export function createCategoryFunctions(database: DrizzleDB) {
         }
         await tx.update(categories)
           .set(updates)
-          .where(eq(categories.id, cat.id));
+          .where(and(
+            eq(categories.id, cat.id),
+            sql`${categories.categoryGroupId} IN (SELECT ${categoryGroups.id} FROM ${categoryGroups} WHERE ${categoryGroups.budgetId} = ${budgetId})`
+          ));
       }
     });
   }
 
-  async function createCategoryGroup(name: string) {
+  async function createCategoryGroup(name: string, budgetId?: number) {
     const result = await database.select({ maxOrder: max(categoryGroups.sortOrder) })
       .from(categoryGroups);
     const newOrder = (result[0]?.maxOrder ?? 0) + 1;
 
     const rows = await database.insert(categoryGroups)
-      .values({ name, sortOrder: newOrder })
+      .values({ 
+        name, 
+        sortOrder: newOrder,
+        budgetId: budgetId as number,
+      })
       .returning();
     return rows[0];
   }

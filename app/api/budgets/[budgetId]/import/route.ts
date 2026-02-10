@@ -1,0 +1,64 @@
+import { NextResponse } from 'next/server';
+import { requireBudgetAccess } from '@/lib/auth-helpers';
+import { importDataFromCSV } from '@/lib/data-import';
+import db from '@/lib/repos/client';
+import { importLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit';
+
+type RouteContext = { params: Promise<{ budgetId: string }> };
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+export async function POST(
+    request: Request,
+    { params }: RouteContext
+) {
+    try {
+        // Rate limiting — imports are expensive operations
+        const ip = getClientIP(request);
+        const limit = importLimiter.check(ip);
+        if (!limit.success) return rateLimitResponse(limit);
+        const { budgetId: budgetIdStr } = await params;
+        const budgetId = parseInt(budgetIdStr, 10);
+
+        const access = await requireBudgetAccess(budgetId);
+        if (!access.ok) return access.response;
+
+        const formData = await request.formData();
+
+        const registerFile = formData.get('register') as File | null;
+        const planFile = formData.get('plan') as File | null;
+
+        if (!registerFile || !planFile) {
+            return NextResponse.json(
+                { error: 'Both "register" and "plan" CSV files are required' },
+                { status: 400 },
+            );
+        }
+
+        // Validate file sizes
+        if (registerFile.size > MAX_FILE_SIZE || planFile.size > MAX_FILE_SIZE) {
+            return NextResponse.json(
+                { error: `Each file must be under ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+                { status: 400 },
+            );
+        }
+
+        // Read file contents as text
+        const registerCSV = await registerFile.text();
+        const planCSV = await planFile.text();
+
+        // Import data into the budget
+        const stats = await importDataFromCSV(budgetId, registerCSV, planCSV, db);
+
+        return NextResponse.json({
+            success: true,
+            stats,
+        });
+    } catch (error) {
+        console.error('Error importing data:', error);
+        return NextResponse.json(
+            { error: 'Failed to import data. Please check your CSV files.' },
+            { status: 500 },
+        );
+    }
+}

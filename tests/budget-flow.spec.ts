@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { gotoBudgetPage } from './e2e-helpers';
 
 test.describe('Budget Flow', () => {
-    test('budget page loads and shows RTA amount', async ({ page }) => {
-        await page.goto('/budget');
-
-        // Wait for the budget table to load
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('budget page loads and shows RTA amount', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // RTA amount should be visible
         const rta = page.getByTestId('rta-amount');
@@ -14,9 +12,8 @@ test.describe('Budget Flow', () => {
         await expect(rta).not.toHaveText('');
     });
 
-    test('month navigation works', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('month navigation works', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Get the initial month display text
         const monthDisplay = page.getByTestId('month-display');
@@ -35,9 +32,8 @@ test.describe('Budget Flow', () => {
         expect(backMonth).toBe(initialMonth);
     });
 
-    test('budget table displays category rows', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('budget table displays category rows', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Wait for data to load and rows to render
         const firstRow = page.locator('[data-testid^="category-row-"]').first();
@@ -52,9 +48,8 @@ test.describe('Budget Flow', () => {
         await expect(rows.first()).toBeVisible();
     });
 
-    test('RTA amount is visible after page reload', async ({ page }) => {
-        await page.goto('/budget');
-        await expect(page.getByTestId('budget-table')).toBeVisible({ timeout: 15_000 });
+    test('RTA amount is visible after page reload', async ({ page, request }) => {
+        await gotoBudgetPage(page, request);
 
         // Wait for the RTA animation to settle — the value starts at "$ 0,00"
         // while the query loads, then animates to the real value.

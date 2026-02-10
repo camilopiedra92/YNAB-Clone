@@ -4,7 +4,7 @@ import React from 'react';
 import { ChevronDown, GripVertical, CreditCard } from 'lucide-react';
 import { SortableRow } from './SortableRow';
 import { CreateCategoryPopover } from './CreateCategoryPopover';
-import { BudgetItem } from '@/hooks/useBudget';
+import { BudgetItem } from '@/hooks/useBudgetTable';
 
 interface CategoryGroupRowProps {
     group: {
@@ -12,6 +12,7 @@ interface CategoryGroupRowProps {
         name: string;
         items: BudgetItem[];
     };
+    budgetId: number;
     isExpanded: boolean;
     allSelected: boolean;
     onToggleGroup: (name: string) => void;
@@ -22,6 +23,7 @@ interface CategoryGroupRowProps {
 
 export const CategoryGroupRow = React.memo(({
     group,
+    budgetId,
     isExpanded,
     allSelected,
     onToggleGroup,
@@ -74,7 +76,7 @@ export const CategoryGroupRow = React.memo(({
                             )}
                             {!isCreditCardGroup && (
                                 <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <CreateCategoryPopover groupId={group.id} onSuccess={onFetchBudget} />
+                                    <CreateCategoryPopover budgetId={budgetId} groupId={group.id} onSuccess={onFetchBudget} />
                                 </div>
                             )}
                         </div>

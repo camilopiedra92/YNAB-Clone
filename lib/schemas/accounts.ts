@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const CreateAccountSchema = z.object({
-    name: z.string().min(1, 'Account name is required').max(100),
+    budgetId: z.number().int().positive('budgetId is required'),
+    name: z.string().trim().min(1, 'Account name is required').max(100),
     type: z.enum(['checking', 'savings', 'cash', 'credit', 'tracking'] as const, {
         message: 'Account type is required',
     }),
@@ -11,9 +12,11 @@ export const CreateAccountSchema = z.object({
 export type CreateAccountInput = z.infer<typeof CreateAccountSchema>;
 
 export const UpdateAccountSchema = z.object({
-    name: z.string().min(1).max(100).optional(),
-    note: z.string().max(500).nullable().optional(),
+    budgetId: z.number().int().positive('budgetId is required'),
+    name: z.string().trim().min(1).max(100).optional(),
+    note: z.string().trim().max(500).nullable().optional(),
     closed: z.boolean().optional(),
 });
 
 export type UpdateAccountInput = z.infer<typeof UpdateAccountSchema>;
+
