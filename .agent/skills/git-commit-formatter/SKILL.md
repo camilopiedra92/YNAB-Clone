@@ -1,261 +1,79 @@
 ---
 name: git-commit-formatter
-description: Enforce the Conventional Commits specification for all Git commits in this project. Proactively manage staged changes, validate messages, and prevent redundant investigation cycles.
+description: Enforce Conventional Commits specification. Minimize turn count and prevent directory exploration loops.
 ---
 
-# Skill: Git Commit Formatter (Conventional Commits)
+# Skill: Git Commit Formatter (Professional Protocol)
 
-## 🛑 THE DIRECTORY LOCK (READ FIRST)
+## 🎯 THE ONE-TURN PROTOCOL
 
-The project structure is **nested**. Running Git commands in the wrong directory causes "vueltas" (loops) and frustrates the user.
+To avoid "vueltas" (loops) and frustrating the USER, you MUST use the provided scripts. They are the single source of truth for repository state.
 
-- **VALID Git Root**: `/Users/camilopiedra/Documents/YNAB/ynab-app`
-- **INVALID Workspace Root**: `/Users/camilopiedra/Documents/YNAB`
+### 1. Mandatory Pre-flight (The ONLY first step)
 
-If you see `fatal: not a git repository`: **DO NOT INVESTIGATE.** Do not run `ls`, do not run `find`. Simply change your `Cwd` to the Valid Git Root and try again.
-
-## 🛑 THE SHORT-CIRCUIT PROTOCOL (ONE-TURN VICTORY)
-
-To avoid "vueltas" and frustrating the user, you **MUST** follow this protocol before doing ANYTHING else.
-
-### Step 0: Mandatory Pre-flight Check
-
-Whenever a user asks for "commit", "push", or "sync", your **FIRST** command must be precisely this (concatenated for speed):
+Before running ANY `git` command, run the health check. This validates your directory and the worktree state in one turn.
 
 ```bash
-# Force directory and run health check
-cd /Users/camilopiedra/Documents/YNAB/ynab-app && bash .agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
+# Set Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app
+bash .agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
 ```
 
-### Step 1: Obey the Verdict
+### 2. The Verdict (Strict Obedience)
 
-- **If Verdict is `🛑 [STOP]`**: Immediately state: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END YOUR TURN IMMEDIATELY**.
-- **Do NOT** "verify" the stop signal with `git status`, `git log`, or `ls`. The script is the authority.
-- **Do NOT** check parent folders. There is only one repo at `ynab-app`.
-- **Do NOT** run `git status` separately if you already ran the health check.
+- **If Verdict is `🛑 [STOP]`**: Immediately report: _"Repo clean and synced. Nothing to commit or push."_ and **STOP**.
+- **DO NOT** "double-check" with `git status`, `git log`, or `ls`.
+- **DO NOT** look for `.git` in parent folders.
+
+- **If Verdict is `🚀 [PROCEED]`**:
+  1. `git add .` (if there are unstaged changes you intended to include).
+  2. Execute commit with the smart script (see below).
+  3. `git push`.
 
 ---
 
-## 🚨 THE GOLDEN RULE OF LOCATION
+## 🛠️ EXECUTION COMMANDS
 
-The project has a nested structure. If you run Git in the wrong place, you fail.
+Always use absolute paths for scripts or ensure `Cwd` is `/Users/camilopiedra/Documents/YNAB/ynab-app`.
 
-- **Project/Git Root:** `/Users/camilopiedra/Documents/YNAB/ynab-app` (Run commands here)
-- **Workspace Root:** `/Users/camilopiedra/Documents/YNAB` (FORBIDDEN for Git)
+### Smart Commit (Validation + Commit)
 
-## 🚀 Turbo Flow (Standard Path)
-
-1. **Run Health Check**: `bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`
-2. **If STOP**: Inform user and EXIT.
-3. **If PROCEED**:
-   - `git add .` (if needed)
-   - `bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/smart-commit.sh "feat(ui): add button"`
-   - `git push`
+```bash
+# Usage: bash <path_to_script> "header" ["body"] ["footer"]
+bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/smart-commit.sh "feat(ui): add budget summary"
+```
 
 ---
 
-## 🚀 Turbo Flow (Standard Path)
+## 📐 ARCHITECTURAL CONSTRAINTS
 
-Always try this automated sequence first. It reduces manual verification steps.
+### 1. Repository Lockdown
 
-### Step 1: Pre-flight Health Check
+- **Valid Root**: `/Users/camilopiedra/Documents/YNAB/ynab-app`
+- **Invalid Root**: `/Users/camilopiedra/Documents/YNAB` (Workspace root)
+- If a command fails with `not a git repository`, **change Cwd to the Valid Root**. Do not investigate.
 
-Run the health check to detect junk files and see a summary of changes:
+### 2. Message Standards (Conventional Commits)
 
-```bash
-# Path: /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
-bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh
-```
+- **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- **Scope**: Required for most commits. Refer to `resources/scope-map.md`.
+- **Format**: `type(scope): description` (lowercase, imperative, no period).
 
-- **Action:** If junk files are flagged (e.g., `tsx-*`), update `.gitignore` before proceeding.
-- **Action:** Ensure all intended changes are **staged** (`git add`).
+### 3. Anti-Patterns (The "Loop of Death")
 
-### Step 2: Atomic Commit & Validate
+The following behaviors are considered architectural failures in this skill:
 
-Execute the commit with built-in validation. Use absolute paths:
-
-```bash
-# Path: /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/smart-commit.sh
-bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/smart-commit.sh "type(scope): description" "body" "footer"
-```
-
-- This script automatically:
-  1.  Validates the message format.
-  2.  Sets the correct `--author` if git isn't configured.
-  3.  Executes `git commit`.
+- Running `git status` manually after a script already reported status.
+- Checking parent directories for `.git` folders.
+- Running `git log` to see if a push is needed (The health check handles this).
+- Investigating ignored files instead of trusting `.gitignore`.
 
 ---
 
-## 1. Allowed Types
+## 📚 RESOURCES
 
-(Same as before: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert)
+- **Scope Map**: `.agent/skills/git-commit-formatter/resources/scope-map.md`
+- **Good Examples**: `.agent/skills/git-commit-formatter/examples/good-commits.md`
+- **Bad Examples**: `.agent/skills/git-commit-formatter/examples/bad-commits.md`
+- **Validator**: `.agent/skills/git-commit-formatter/scripts/validate-commit-msg.sh`
 
-## 2. Scope Inference (Quick lookup)
-
-(Same as before: engine, repo, api, hooks, ui, test, db, schema, skills, rules, workflows, scripts, docs)
-
----
-
-## 3. Manual Fallback & Rules (If scripts fail)
-
-If you cannot run the automated scripts, follow this manual sequence:
-
-### Step 1: Analyze Diff
-
-```bash
-git diff --cached --stat        # staged files summary
-```
-
-### Step 2: Write Message & Validate
-
-```bash
-# Validate (Absolute Path)
-echo "feat(engine): add function" | bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/validate-commit-msg.sh --stdin
-```
-
-### Step 3: Commit
-
-```bash
-git commit -m "<header>" -m "<body>"
-```
-
-## 4. Splitting Commits
-
-**Split** when:
-
-- Changes span unrelated features (e.g., bug fix + new feature)
-- A refactor enables a feature — commit refactor first, then feature
-- Test additions are separate from the code they test (debatable — colocate if small)
-
-**Don't split** when:
-
-- A feature naturally touches engine + repo + hook + component (one logical change)
-- A fix requires updating tests for the same bug
-
-## 5. Special Cases
-
-### Breaking Changes
-
-```
-feat(api)!: change budget response format to v2
-
-Migrate the budget API response from flat structure to nested
-category groups. All clients must update their parsers.
-
-BREAKING CHANGE: /api/budgets/:id response shape changed.
-Old: { categories: [...] }
-New: { categoryGroups: [{ categories: [...] }] }
-```
-
-Note the `!` after the scope — this is an alternative to the footer for simple breaks.
-
-### Reverting Commits
-
-```
-revert: revert "feat(auth): implement login with google"
-
-This reverts commit abc1234def5678.
-Reason: OAuth provider rate limiting causing login failures.
-```
-
-### Merge Commits
-
-Don't rewrite merge commit messages — leave Git's default format.
-
-### Initial / WIP Commits
-
-- First commit: `chore: initial project setup`
-- WIP is discouraged. If you must: `chore(wip): scaffold transaction import flow` — but squash before merging.
-
-## 6. Validation Script (Absolute Path Recommended)
-
-Use [scripts/validate-commit-msg.sh](scripts/validate-commit-msg.sh) to check messages. **Always use the absolute path** if you are inside a subdirectory like `ynab-app/`:
-
-```bash
-# Validate a message from stdin (Absolute Path)
-echo "feat(engine): add new function" | bash /Users/camilopiedra/Documents/YNAB/.agent/skills/git-commit-formatter/scripts/validate-commit-msg.sh --stdin
-
-# Validate a message passed as argument (Absolute Path)
-bash /Users/camilopiedra/Documents/YNAB/.agent/skills/git-commit-formatter/scripts/validate-commit-msg.sh "feat(engine): add new function"
-
-# Show help
-bash .agent/skills/git-commit-formatter/scripts/validate-commit-msg.sh --help
-```
-
-## 7. Quick Reference
-
-See [examples/good-commits.md](examples/good-commits.md) for 10+ real-world examples tailored to this codebase.
-
-See [examples/bad-commits.md](examples/bad-commits.md) for anti-patterns and what's wrong with each.
-
-## 8. Common Agent Pitfalls (Lessons Learned)
-
-These are specific rules to avoid common errors when using Git in this environment:
-
-### A. Project Root Lockdown
-
-- **Repo Authority**: The ONLY git repository is at `/Users/camilopiedra/Documents/YNAB/ynab-app`.
-- **Never** look for `.git` in parent directories (e.g., `/Users/camilopiedra/Documents/YNAB`).
-- If `git status` fails, assume you are in the wrong directory and go to `Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app` immediately.
-
-### B. Command Efficiency (The "One-Turn" Rule)
-
-1.  **Trust the Script**: The `check-worktree-health.sh` is your single source of truth.
-2.  **No "Double-Checking"**: If the script says `🛑 [STOP]`, do NOT run `git log`, `git status`, or `ls`. Every extra command is a wasted turn.
-
-### C. Why Agents Fail (The Loop of Death)
-
-**Scenario**: User asks for a commit ➔ Agent runs Health Check ➔ Health Check says `🛑 [STOP]`.
-
-**The Failure Mode (Do NOT do this)**:
-
-- "Let me just check `git status` to be sure..."
-- "Wait, is there a `.git` in the parent folder?"
-- "Maybe there are unpushed commits? Let me check `git log`..."
-- "Are there ignored files that should be tracked?"
-
-**The Result**: 5+ wasted turns to confirm a "Nothing to do" state.
-
-**The Fix**: When you see `🛑 [STOP]`, you **MUST** stop and report. Any attempt to "verify" the stop signal is a violation of this skill.
-
-### D. The Workspace Root Trap
-
-**Scenario**: You are in `/Users/camilopiedra/Documents/YNAB` and try to run `git status`.
-
-**The Error**: `fatal: not a git repository`.
-
-**The Failure Mode**:
-
-- Investigating why there is no repository.
-- Running `ls -R` or `find` to find `.git`.
-- Guessing where the code is.
-
-**The Fix**: Read the file system! The code is in `/Users/camilopiedra/Documents/YNAB/ynab-app`. Change your `Cwd` and stop investigating.
-
-## 9. Failure Mode: "Verification Fatigue" (Do NOT do this)
-
-The user is frustrated by "vueltas". The following sequence is a **CRITICAL FAILURE**:
-
-1. User: "Commit and push"
-2. Agent: `git status` (Manually)
-3. Agent: `git log` (Manually)
-4. Agent: `ls -la` (To "be sure")
-5. Agent: `git status --ignored`
-6. Agent: "Nothing to commit"
-
-**The Correct Sequence**:
-
-1. User: "Commit and push"
-2. Agent: `bash .../check-worktree-health.sh`
-3. Agent: (Sees `🛑 [STOP]`) "Nothing to commit. Ended turn."
-
-**TRUST THE HEALTH CHECK SCRIPT. ONE TURN ONLY.**
-
-## Resources
-
-| File                                                             | Purpose                                      |
-| ---------------------------------------------------------------- | -------------------------------------------- |
-| [scripts/validate-commit-msg.sh](scripts/validate-commit-msg.sh) | Commit message validator script              |
-| [examples/good-commits.md](examples/good-commits.md)             | Good commit message examples (YNAB-specific) |
-| [examples/bad-commits.md](examples/bad-commits.md)               | Anti-pattern examples with explanations      |
-| [resources/scope-map.md](resources/scope-map.md)                 | Directory → scope mapping table              |
+**TRUST THE SCRIPTS. ONE TURN. NO LOOPS.**
