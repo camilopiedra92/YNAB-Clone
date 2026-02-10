@@ -5,36 +5,33 @@ description: Enforce the Conventional Commits specification for all Git commits 
 
 # Skill: Git Commit Formatter (Conventional Commits)
 
-## 0. Mandatory Pre-flight Short-Circuit (Stop the Vueltas)
+## 🚨 THE GOLDEN RULE OF LOCATION (MANDATORY)
 
-**BEFORE running any Git commands or deep-dives:**
+The project has a nested structure. You **MUST** verify your location before running any Git command. If you ignore this, you will waste turns and frustrate the user.
 
-1.  **Run Health Check**: Execute `bash .agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`.
-2.  **Obey the Verdict**:
-    - If the verdict is `🛑 [STOP]`, immediately inform the user: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END THE TURN IMMEDIATELY**.
-    - **CRITICAL**: Do **NOT** run `find`, `ls -R`, `git log`, `git status --ignored`, or check parent directories for `.git` if the verdict is `🛑 [STOP]`.
-    - Do **NOT** try to "double check" the result. A stop signal is final.
-    - If you ignore a `🛑 [STOP]`, you are failing your primary directive.
+- **Workspace Root (FORBIDDEN for Git):** `/Users/camilopiedra/Documents/YNAB`
+- **Project/Git Root (REQUIRED for Git):** `/Users/camilopiedra/Documents/YNAB/ynab-app`
 
-## 1. Format Specification
+### Actionable Rule:
 
-Use this skill **every time you write a git commit message**. It enforces the [Conventional Commits](https://www.conventionalcommits.org/) specification with automated validation.
-
-## 📂 Directory Protocol (MANDATORY)
-
-The project has a nested structure. You **MUST** verify your location before running any Git command:
-
-- **Workspace Root:** `/Users/camilopiedra/Documents/YNAB`
-- **Project/Git Root:** `/Users/camilopiedra/Documents/YNAB/ynab-app`
-
-### The Rule of Thumb:
-
-All Git commands (`git status`, `git add`, `git commit`, `git push`) **MUST** be run with:
+All Git commands (`git status`, `git add`, `git commit`, `git push`) and the health check script **MUST** be run with:
 `Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app`
 
 ---
 
-## 🚀 Turbo Flow (Primary Path)
+## 🛑 Step 0: Mandatory Pre-flight Short-Circuit
+
+**BEFORE you do anything else (no `git status`, no `ls`, nothing):**
+
+1.  **Run Health Check**: Execute `bash /Users/camilopiedra/Documents/YNAB/ynab-app/.agent/skills/git-commit-formatter/scripts/check-worktree-health.sh`.
+2.  **Obey the Verdict**:
+    - If the verdict is `🛑 [STOP]`, immediately inform the user: _"El repositorio está limpio y sincronizado. No hay cambios pendientes ni commits por subir."_ and **END THE TURN IMMEDIATELY**.
+    - If you see `❌ Error: .git directory not found`, you are in the wrong directory. Go to `/Users/camilopiedra/Documents/YNAB/ynab-app`.
+    - **CRITICAL**: Do **NOT** run `git status` or check parent directories if the script tells you where you are or if everything is clean.
+
+---
+
+## 🚀 Turbo Flow (Standard Path)
 
 Always try this automated sequence first. It reduces manual verification steps.
 
@@ -197,6 +194,20 @@ These are specific rules to avoid common errors when using Git in this environme
 **The Result**: 5+ wasted turns to confirm a "Nothing to do" state.
 
 **The Fix**: When you see `🛑 [STOP]`, you **MUST** stop and report. Any attempt to "verify" the stop signal is a violation of this skill.
+
+### D. The Workspace Root Trap
+
+**Scenario**: You are in `/Users/camilopiedra/Documents/YNAB` and try to run `git status`.
+
+**The Error**: `fatal: not a git repository`.
+
+**The Failure Mode**:
+
+- Investigating why there is no repository.
+- Running `ls -R` or `find` to find `.git`.
+- Guessing where the code is.
+
+**The Fix**: Read the file system! The code is in `/Users/camilopiedra/Documents/YNAB/ynab-app`. Change your `Cwd` and stop investigating.
 
 ## 9. The "Nothing to Commit" Short-Circuit (Stop the Vueltas)
 
