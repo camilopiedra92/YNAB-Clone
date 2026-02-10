@@ -51,6 +51,7 @@ db/*.db
 node-compile-cache/
 playwright-report/
 test-results/
-\n# DB backup\nbackup_pre_multitenancy.sql
+# DB backup
+backup_pre_multitenancy.sql
 .npm-cache
 .auth/
