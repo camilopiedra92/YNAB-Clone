@@ -14,7 +14,7 @@ To prevent architectural failure (defined as "The Loop of Death"), you MUST use 
 **NEVER** use `git status` or `ls` to find the Git root.
 
 - **The Repo root is ALWAYS**: `/Users/camilopiedra/Documents/YNAB/ynab-app`
-- **The Protocol is ALWAYS**: Run `autopilot.sh` with `Cwd` set to that root.
+- **The Protocol is ALWAYS**: Run `npm run git:sync -- "type(scope): message"` with `Cwd` set to that root.
 
 ### 2. Forbidden Investigative Commands
 
@@ -30,12 +30,12 @@ Running any of these is an **Architectural Failure**:
 
 ```bash
 # MANDATORY: Set Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app
-bash .agent/skills/git-commit-formatter/scripts/autopilot.sh "type(scope): message" ["body"] ["footer"]
+npm run git:sync -- "type(scope): message" ["body"] ["footer"]
 ```
 
 ### 1. The "No Second Opinion" Rule
 
-If `autopilot.sh` returns `📊 STATUS: SYNCED` or `📊 STATUS: SUCCESS`:
+If `npm run git:sync` returns `📊 STATUS: SYNCED` or `📊 STATUS: SUCCESS`:
 
 - You are **FORBIDDEN** from running any secondary commands to "verify".
 - The script is the final authority. Even if you _think_ there should be changes, trust the script.
@@ -51,7 +51,7 @@ If you find yourself thinking: _"Let me just check if it really pushed..."_ -> *
 
 ### 1. The "Success" State
 
-One command MUST lead to the goal. Your turn ends when `autopilot.sh` reports `📊 STATUS: SUCCESS` or `📊 STATUS: SYNCED`.
+One command MUST lead to the goal. Your turn ends when `npm run git:sync` reports `📊 STATUS: SUCCESS` or `📊 STATUS: SYNCED`.
 
 ### 2. Conventional Commitment
 

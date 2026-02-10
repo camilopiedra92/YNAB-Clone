@@ -27,7 +27,7 @@
     "db:debug-rta": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/debug-rta.ts",
 
     "health:check": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/health-check.ts",
-    "sync": "bash scripts/sync.sh"
+    "git:sync": "bash scripts/sync.sh"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
