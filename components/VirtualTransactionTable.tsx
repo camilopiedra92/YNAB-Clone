@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Circle, Lock, Clock, Search, ArrowRightLeft } from 'lucide-react';
 import type { Transaction } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/lib/format';
+import { DEFAULT_LOCALE } from '@/lib/constants';
 
 const ROW_HEIGHT = 33; // px per row — matches py-1 + content
 
@@ -12,7 +13,7 @@ const ROW_HEIGHT = 33; // px per row — matches py-1 + content
 
 const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString('es-CO', {
+    return date.toLocaleDateString(DEFAULT_LOCALE, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

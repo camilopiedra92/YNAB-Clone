@@ -5,19 +5,21 @@
  * (integer × 1000). These functions handle the conversion for UI display.
  */
 import { fromMilliunits, type Milliunit } from './engine/primitives';
+import { DEFAULT_LOCALE, DEFAULT_CURRENCY } from './constants';
 
 /**
  * Format a Milliunit value as a human-readable currency string.
  *
  * Converts from milliunits (÷1000) before applying locale formatting.
+ * Uses the default locale and currency from constants.
  *
  * @example formatCurrency(1500000000) // => "$ 1.500.000" (COP)
  * @example formatCurrency(0)          // => "$ 0"
  */
 export function formatCurrency(amount: number, minimumFractionDigits = 2): string {
-  return new Intl.NumberFormat('es-CO', {
+  return new Intl.NumberFormat(DEFAULT_LOCALE, {
     style: 'currency',
-    currency: 'COP',
+    currency: DEFAULT_CURRENCY,
     minimumFractionDigits,
     maximumFractionDigits: minimumFractionDigits,
   }).format(fromMilliunits(amount as Milliunit));
@@ -32,3 +34,4 @@ export function formatCurrencyOrEmpty(amount: number): string {
   if (amount === 0) return '';
   return formatCurrency(amount);
 }
+

@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, seedBasicBudget, currentMonth, nextMonth, today, mu, ZERO } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 import { budgetMonths, categories } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -79,7 +79,7 @@ describe('Credit Card Payment Budget', () => {
                 eq(budgetMonths.month, month)
             ));
 
-        const ccPaymentRow: any = ccPaymentRows[0]?.budget_months;
+        const ccPaymentRow = ccPaymentRows[0]?.budget_months;
 
         // CC Payment should show the full $150 funded amount as activity
         expect(ccPaymentRow).toBeDefined();
@@ -114,7 +114,7 @@ describe('Credit Card Payment Budget', () => {
                 eq(budgetMonths.month, month)
             ));
 
-        const ccPaymentRow: any = ccPaymentRows[0]?.budget_months;
+        const ccPaymentRow = ccPaymentRows[0]?.budget_months;
 
         // Only the funded portion ($80) should move to CC Payment
         expect(ccPaymentRow.activity).toBe(80);
@@ -127,7 +127,7 @@ describe('Credit Card Payment Budget', () => {
                 eq(budgetMonths.categoryId, categoryIds[0]),
                 eq(budgetMonths.month, month)
             ));
-        const spendingRow: any = spendingRows[0];
+        const spendingRow = spendingRows[0];
         expect(spendingRow.available).toBe(-20); // 80 assigned - 100 spent = -20
     });
 
@@ -164,7 +164,7 @@ describe('Credit Card Payment Budget', () => {
                 eq(budgetMonths.month, month)
             ));
 
-        const ccPaymentRow: any = ccPaymentRows[0]?.budget_months;
+        const ccPaymentRow = ccPaymentRows[0]?.budget_months;
 
         // Net spending = 100 - 30 = 70, fully funded (200 > 70)
         expect(ccPaymentRow.activity).toBe(70);
@@ -257,7 +257,7 @@ describe('Credit Card Payment Budget', () => {
 
         // Verify group was created
         const groups = await fns.getCategoryGroups(budgetId, );
-        const ccGroup = groups.find((g: any) => g.name === 'Credit Card Payments');
+        const ccGroup = groups.find((g) => g.name === 'Credit Card Payments');
         expect(ccGroup).toBeDefined();
     });
 

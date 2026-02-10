@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useBroadcastSync, broadcastInvalidation } from '@/hooks/useBroadcastSync';
 import { persister, APP_CACHE_VERSION } from '@/lib/persistence/persister';
+import { STALE_TIME } from '@/lib/constants';
 
 /**
  * Global MutationCache handles toast feedback and cross-tab sync.
@@ -66,11 +67,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     queries: {
                         // With SSR, we usually want to set some default staleTime
                         // above 0 to avoid refetching immediately on the client
-                        staleTime: 60 * 1000,
+                        staleTime: STALE_TIME.DEFAULT,
                         // Keep cache entries alive for 24h so the persister can save them.
                         // Without this, the default 5-min gcTime garbage-collects queries
                         // before the persister has a chance to serialize them to IndexedDB.
-                        gcTime: 1000 * 60 * 60 * 24, // 24 hours
+                        gcTime: 24 * 60 * 60 * 1000, // 24 hours
                     },
                     mutations: {
                         // Global retry with exponential backoff for all mutations

@@ -11,8 +11,8 @@
 import { eq, and, sql, lt, gt, max, inArray, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, categoryGroups, budgetMonths, transactions } from '../db/schema';
 import { currentDate, yearMonth } from '../db/sql-helpers';
-import type { DrizzleDB } from './client';
-import { queryRows } from './client';
+import type { DrizzleDB } from '../db/client';
+import { queryRows } from '../db/client';
 import {
   computeCarryforward as engineCarryforward,
   calculateRTA,
@@ -23,6 +23,7 @@ import {
   calculateCashOverspending,
   classifyOverspending,
   calculateBudgetAvailable,
+  maxMilliunits,
   ZERO,
   type Milliunit,
 } from '../engine';
@@ -731,7 +732,7 @@ export function createBudgetFunctions(
     `);
 
     for (const cat of overspentCategories) {
-      let cashSpending = 0;
+      let cashSpending: Milliunit = ZERO;
       if (!cat.linkedAccountId) {
         const cashActivityRows = await queryRows<{ total: number }>(database, sql`
           SELECT COALESCE(SUM(${transactions.outflow} - ${transactions.inflow}), 0) as "total"
@@ -742,7 +743,8 @@ export function createBudgetFunctions(
             AND ${accounts.type} != 'credit'
             AND ${accounts.budgetId} = ${budgetId}
         `);
-        cashSpending = Math.max(0, m(cashActivityRows[0]!.total)) as unknown as number;
+        const raw = m(cashActivityRows[0]!.total);
+        cashSpending = maxMilliunits(ZERO, raw);
       }
 
       // ── Compute phase: delegate to engine ──
@@ -750,7 +752,7 @@ export function createBudgetFunctions(
         categoryId: cat.categoryId,
         available: m(cat.available),
         linkedAccountId: cat.linkedAccountId,
-        cashSpending: cashSpending as unknown as Milliunit,
+        cashSpending,
       });
 
       result[cat.categoryId] = type;

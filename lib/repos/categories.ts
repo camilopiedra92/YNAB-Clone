@@ -6,7 +6,7 @@
  */
 import { eq, asc, max, and, sql } from 'drizzle-orm';
 import { categories, categoryGroups } from '../db/schema';
-import type { DrizzleDB } from './client';
+import type { DrizzleDB } from '../db/client';
 
 export interface Category {
   id: number;
@@ -69,22 +69,22 @@ export function createCategoryFunctions(database: DrizzleDB) {
       .where(eq(categories.id, id));
   }
 
-  async function updateCategoryGroupOrder(budgetId: number, groups: { id: number, sort_order: number }[]) {
+  async function updateCategoryGroupOrder(budgetId: number, groups: { id: number; sortOrder: number }[]) {
     return database.transaction(async (tx) => {
       for (const group of groups) {
         await tx.update(categoryGroups)
-          .set({ sortOrder: group.sort_order })
+          .set({ sortOrder: group.sortOrder })
           .where(and(eq(categoryGroups.id, group.id), eq(categoryGroups.budgetId, budgetId)));
       }
     });
   }
 
-  async function updateCategoryOrder(budgetId: number, cats: { id: number, sort_order: number, category_group_id?: number }[]) {
+  async function updateCategoryOrder(budgetId: number, cats: { id: number; sortOrder: number; categoryGroupId?: number }[]) {
     return database.transaction(async (tx) => {
       for (const cat of cats) {
-        const updates: Partial<typeof categories.$inferInsert> = { sortOrder: cat.sort_order };
-        if (cat.category_group_id !== undefined) {
-          updates.categoryGroupId = cat.category_group_id;
+        const updates: Partial<typeof categories.$inferInsert> = { sortOrder: cat.sortOrder };
+        if (cat.categoryGroupId !== undefined) {
+          updates.categoryGroupId = cat.categoryGroupId;
         }
         await tx.update(categories)
           .set(updates)

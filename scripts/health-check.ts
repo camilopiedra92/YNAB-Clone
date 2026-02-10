@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { sql } from 'drizzle-orm';
-import db from '../lib/repos/client';
+import db from '../lib/db/client';
 
 // ANSI colors for output
 const colors = {

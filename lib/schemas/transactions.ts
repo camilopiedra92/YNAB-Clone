@@ -7,13 +7,13 @@ export const CreateTransactionSchema = z.object({
     budgetId: z.number().int().positive('budgetId is required'),
     accountId: z.number().int().positive(),
     date: z.string().regex(DATE_REGEX, 'date must be in YYYY-MM-DD format'),
-    payee: z.string().trim().optional().default(''),
+    payee: z.string().trim().max(200).optional().default(''),
     categoryId: z.number().int().positive().nullable().optional(),
-    memo: z.string().trim().optional().default(''),
+    memo: z.string().trim().max(500).optional().default(''),
     outflow: z.number().min(0).optional().default(0),
     inflow: z.number().min(0).optional().default(0),
     cleared: z.enum(['Cleared', 'Uncleared', 'Reconciled'] as const).optional().default('Uncleared'),
-    flag: z.string().nullable().optional(),
+    flag: z.string().max(50).nullable().optional(),
 });
 
 export type CreateTransactionInput = z.infer<typeof CreateTransactionSchema>;
@@ -27,7 +27,7 @@ export const CreateTransferSchema = z.object({
     date: z.string().regex(DATE_REGEX, 'date must be in YYYY-MM-DD format'),
     outflow: z.number().positive('Transfer amount must be positive').optional(),
     amount: z.number().positive('Transfer amount must be positive').optional(),
-    memo: z.string().trim().optional().default(''),
+    memo: z.string().trim().max(500).optional().default(''),
     cleared: z.enum(['Cleared', 'Uncleared', 'Reconciled'] as const).optional().default('Uncleared'),
 }).refine(
     (data) => (data.outflow && data.outflow > 0) || (data.amount && data.amount > 0),
@@ -41,13 +41,13 @@ export const UpdateTransactionSchema = z.object({
     id: z.number().int().positive('Transaction ID is required'),
     budgetId: z.number().int().positive('budgetId is required'),
     date: z.string().regex(DATE_REGEX).optional(),
-    payee: z.string().trim().optional(),
+    payee: z.string().trim().max(200).optional(),
     categoryId: z.number().int().positive().nullable().optional(),
-    memo: z.string().trim().optional(),
+    memo: z.string().trim().max(500).optional(),
     outflow: z.number().min(0).optional(),
     inflow: z.number().min(0).optional(),
     cleared: z.enum(['Cleared', 'Uncleared', 'Reconciled'] as const).optional(),
-    flag: z.string().nullable().optional(),
+    flag: z.string().max(50).nullable().optional(),
 });
 
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionSchema>;
@@ -57,12 +57,6 @@ export const ToggleClearedSchema = z.object({
     action: z.literal('toggle-cleared'),
     budgetId: z.number().int().positive('budgetId is required'),
     id: z.number().int().positive('Transaction ID is required'),
-});
-
-export const ReconciliationInfoSchema = z.object({
-    action: z.literal('get-reconciliation-info'),
-    budgetId: z.number().int().positive('budgetId is required'),
-    accountId: z.number().int().positive('Account ID is required'),
 });
 
 export const ReconcileSchema = z.object({
@@ -75,7 +69,6 @@ export const ReconcileSchema = z.object({
 // Discriminated union for PATCH body
 export const TransactionPatchSchema = z.discriminatedUnion('action', [
     ToggleClearedSchema,
-    ReconciliationInfoSchema,
     ReconcileSchema,
 ]);
 

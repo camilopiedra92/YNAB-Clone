@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 import { parseCSV, importDataFromCSV } from '../data-import';
 import * as schema from '../db/schema';
 
@@ -117,8 +117,8 @@ describe('importDataFromCSV', () => {
         expect(stats.categoryGroups).toBe(2); // "Inflow" and "Essentials"
 
         const cats = await fns.getCategories(budgetId);
-        const groceries = cats.find((c: any) => c.name === 'Groceries');
-        const utilities = cats.find((c: any) => c.name === 'Utilities');
+        const groceries = cats.find((c) => c.name === 'Groceries');
+        const utilities = cats.find((c) => c.name === 'Utilities');
         expect(groceries).toBeDefined();
         expect(utilities).toBeDefined();
     });
@@ -152,7 +152,7 @@ describe('importDataFromCSV', () => {
         await importDataFromCSV(budgetId, registerWithCC, planMinimal, db);
 
         const accounts = await fns.getAccounts(budgetId);
-        const cc = accounts.find((a: any) => a.name === 'My Visa Credit');
+        const cc = accounts.find((a) => a.name === 'My Visa Credit');
         expect(cc).toBeDefined();
         expect(cc!.type).toBe('credit');
     });

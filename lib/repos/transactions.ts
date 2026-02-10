@@ -13,15 +13,15 @@ import { eq, sql, or, and, type SQL, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, transactions, transfers } from '../db/schema';
 import { currentDate } from '../db/sql-helpers';
 import { milliunit, ZERO } from '../engine/primitives';
-import type { DrizzleDB } from './client';
-import { queryRows } from './client';
+import type { DrizzleDB } from '../db/client';
+import { queryRows } from '../db/client';
 
 export interface TransactionRepoDeps {
   updateAccountBalances: (budgetId: number, accountId: number) => Promise<unknown> | void;
   updateBudgetActivity: (budgetId: number, categoryId: number, month: string) => Promise<unknown> | void;
   isCreditCardAccount: (accountId: number) => Promise<boolean> | boolean;
   updateCreditCardPaymentBudget: (budgetId: number, accountId: number, month: string) => Promise<unknown> | void;
-  reconcileAccount: (budgetId: number, accountId: number) => Promise<unknown> | unknown;
+  reconcileAccount: (budgetId: number, accountId: number) => Promise<{ rowCount: number }>;
 }
 
 /** Row shape returned by getTransactions/getTransaction raw SQL queries */
@@ -451,11 +451,11 @@ export function createTransactionFunctions(
     await deps.updateAccountBalances(budgetId, accountId);
   }
 
-  async function reconcileAccountAtomic(budgetId: number, accountId: number) {
+  async function reconcileAccountAtomic(budgetId: number, accountId: number): Promise<{ reconciledCount: number }> {
     // Sequential execution — no transaction wrapper to avoid PGlite deadlock
     const result = await deps.reconcileAccount(budgetId, accountId);
     await deps.updateAccountBalances(budgetId, accountId);
-    return result;
+    return { reconciledCount: result.rowCount };
   }
 
   return {

@@ -20,7 +20,7 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import db from './repos/client';
+import db from './db/client';
 import { users } from './db/schema';
 import { LoginSchema } from './schemas/auth';
 import { authConfig } from './auth.config';

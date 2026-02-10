@@ -4,6 +4,7 @@ import React from 'react';
 import { GripVertical, CreditCard } from 'lucide-react';
 import { SortableRow } from './SortableRow';
 import { BudgetItem } from '@/hooks/useBudgetTable';
+import { AvailabilityBubble } from './AvailabilityBubble';
 
 interface BudgetItemRowProps {
     item: BudgetItem;
@@ -167,28 +168,14 @@ export const BudgetItemRow = React.memo(({
                         </div>
                     </td>
                     <td className="py-0.5 px-4 text-right border-b border-border/5">
-                        <div className="flex justify-end items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
-                            {isCreditCardPayment && item.available > 0 && (
-                                <span className="text-[9px] font-black uppercase tracking-widest text-primary/50 whitespace-nowrap">
-                                    Payment
-                                </span>
-                            )}
-                            <button data-testid={`category-available-${item.categoryId}`} className={`min-w-[100px] py-1 px-3 rounded-lg text-sm font-bold text-right tabular-nums transition-[background-color,color,box-shadow,transform] duration-200 ${isCreditCardPayment
-                                ? item.available > 0
-                                    ? 'bg-primary/10 text-primary shadow-neu-inset-sm hover:bg-primary hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
-                                    : item.available < 0
-                                        ? 'bg-amber-500/10 text-amber-600 shadow-neu-inset-sm hover:bg-amber-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
-                                        : 'text-muted-foreground/60 shadow-neu-inset-sm grayscale hover:grayscale-0 transition-all'
-                                : item.available > 0
-                                    ? 'bg-emerald-500/10 text-emerald-600 shadow-neu-inset-sm hover:bg-emerald-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
-                                    : item.available < 0
-                                        ? item.overspendingType === 'credit'
-                                            ? 'bg-amber-500/10 text-amber-600 shadow-neu-inset-sm hover:bg-amber-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
-                                            : 'bg-rose-500/10 text-rose-600 shadow-neu-inset-sm hover:bg-rose-500 hover:text-white hover:shadow-neu-sm hover:scale-105 active:scale-95'
-                                        : 'text-muted-foreground/60 shadow-neu-inset-sm grayscale hover:grayscale-0 transition-all'
-                                }`}>
-                                {formatCurrency(item.available)}
-                            </button>
+                        <div className="flex justify-end items-center" onClick={(e) => e.stopPropagation()}>
+                            <AvailabilityBubble
+                                amount={item.available}
+                                isCreditCardPayment={isCreditCardPayment}
+                                overspendingType={item.overspendingType}
+                                formatCurrency={formatCurrency}
+                                data-testid={`category-available-${item.categoryId}`}
+                            />
                         </div>
                     </td>
                 </>

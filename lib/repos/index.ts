@@ -7,11 +7,11 @@
  * Architecture:
  *   API Route → import from '@/lib/repos' → Repository → Engine → Repository (Write)
  */
-import db from './client';
-import { createDbFunctions } from './client';
+import db from '../db/client';
+import { createDbFunctions } from '../db/client';
 
 // Re-export factory for test-helpers and advanced usage
-export { createDbFunctions } from './client';
+export { createDbFunctions } from '../db/client';
 
 // Domain repo factories (for advanced use / testing)
 export { createAccountFunctions } from './accounts';

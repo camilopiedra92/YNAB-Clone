@@ -329,31 +329,6 @@ export function useToggleCleared() {
     });
 }
 
-// ─── Get Reconciliation Info ─────────────────────────────────────────
-export function useGetReconciliationInfo() {
-    return useMutation({
-        mutationKey: ['reconciliation-info'],
-        meta: { errorMessage: 'Error al obtener información de reconciliación' },
-
-        mutationFn: async ({ budgetId, accountId }: { budgetId: number; accountId: number }) => {
-            const res = await fetch(`/api/budgets/${budgetId}/transactions`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get-reconciliation-info', budgetId, accountId }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.error || 'Error al obtener información de reconciliación');
-            }
-
-            return res.json();
-        },
-
-        retry: 1,
-    });
-}
-
 // ─── Reconcile Account ───────────────────────────────────────────────
 export function useReconcileAccount() {
     const invalidateAll = useInvalidateAll();

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import { updateCategoryGroupOrder, updateCategoryOrder } from '@/lib/repos';
 import { validateBody, ReorderSchema } from '@/lib/schemas';
 import { requireBudgetAccess } from '@/lib/auth-helpers';
@@ -21,22 +23,15 @@ export async function POST(
         if (!validation.success) return validation.response;
         const { type, items } = validation.data;
 
-        // Map camelCase input to snake_case for DB layer
-        const dbItems = items.map(item => ({
-            id: item.id,
-            sort_order: item.sortOrder,
-            ...(item.categoryGroupId !== undefined ? { category_group_id: item.categoryGroupId } : {}),
-        }));
-
         if (type === 'group') {
-            await updateCategoryGroupOrder(budgetId, dbItems);
+            await updateCategoryGroupOrder(budgetId, items);
         } else {
-            await updateCategoryOrder(budgetId, dbItems);
+            await updateCategoryOrder(budgetId, items);
         }
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error reordering categories:', error);
-        return NextResponse.json({ error: 'Failed to reorder categories' }, { status: 500 });
+        logger.error('Error reordering categories:', error);
+        return apiError('Failed to reorder categories', 500);
     }
 }

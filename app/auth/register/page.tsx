@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { useRegisterMutation } from '@/hooks/useAuthMutations';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { mutateAsync: register, isPending } = useRegisterMutation();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,22 +30,9 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(true);
-
     try {
       // Register
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Error al crear la cuenta');
-        setLoading(false);
-        return;
-      }
+      await register({ name, email, password });
 
       // Auto-login after registration
       const loginResult = await signIn('credentials', {
@@ -55,15 +43,13 @@ export default function RegisterPage() {
 
       if (loginResult?.error) {
         setError('Cuenta creada. Por favor inicia sesión manualmente.');
-        setLoading(false);
         return;
       }
 
       router.push('/budget');
       router.refresh();
-    } catch {
-      setError('Error al crear la cuenta');
-      setLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
     }
   }
 
@@ -188,12 +174,12 @@ export default function RegisterPage() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={isPending}
             className="w-full py-3 rounded-xl neu-btn-primary text-sm font-bold
               disabled:opacity-50 disabled:cursor-not-allowed
               flex items-center justify-center gap-2"
           >
-            {loading ? (
+            {isPending ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>

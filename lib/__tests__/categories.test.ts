@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, today } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 
 let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
@@ -41,13 +41,13 @@ describe('Category Groups', () => {
 
         // Reverse order
         await fns.updateCategoryGroupOrder(budgetId, [
-            { id: id1, sort_order: 3 },
-            { id: id2, sort_order: 2 },
-            { id: id3, sort_order: 1 },
+            { id: id1, sortOrder: 3 },
+            { id: id2, sortOrder: 2 },
+            { id: id3, sortOrder: 1 },
         ]);
 
         const groups = await fns.getCategoryGroups(budgetId);
-        // Now Third (sort_order 1) should be first
+        // Now Third (sortOrder 1) should be first
         expect(groups[0].name).toBe('Third');
         expect(groups[1].name).toBe('Second');
         expect(groups[2].name).toBe('First');
@@ -124,9 +124,9 @@ describe('Categories (full coverage)', () => {
         const id3 = r3.id;
 
         await fns.updateCategoryOrder(budgetId, [
-            { id: id1, sort_order: 3 },
-            { id: id2, sort_order: 1 },
-            { id: id3, sort_order: 2 },
+            { id: id1, sortOrder: 3 },
+            { id: id2, sortOrder: 1 },
+            { id: id3, sortOrder: 2 },
         ]);
 
         const cats = await fns.getCategories(budgetId, groupId1);
@@ -141,7 +141,7 @@ describe('Categories (full coverage)', () => {
 
         // Move to group 2
         await fns.updateCategoryOrder(budgetId, [
-            { id: catId, sort_order: 1, category_group_id: groupId2 },
+            { id: catId, sortOrder: 1, categoryGroupId: groupId2 },
         ]);
 
         const group1Cats = await fns.getCategories(budgetId, groupId1);
@@ -151,12 +151,12 @@ describe('Categories (full coverage)', () => {
         expect(group2Cats[0].name).toBe('Groceries');
     });
 
-    it('updateCategoryOrder without category_group_id only changes sort_order', async () => {
+    it('updateCategoryOrder without categoryGroupId only changes sortOrder', async () => {
         const r1 = await fns.createCategory({ name: 'Groceries', category_group_id: groupId1 });
         const catId = r1.id;
 
         await fns.updateCategoryOrder(budgetId, [
-            { id: catId, sort_order: 99 },
+            { id: catId, sortOrder: 99 },
         ]);
 
         const cats = await fns.getCategories(budgetId, groupId1);

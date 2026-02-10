@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useImportBudgetMutation, type ImportStats } from '@/hooks/useImportMutations';
 import Modal from './ui/Modal';
 
 interface ImportModalProps {
@@ -13,24 +13,20 @@ interface ImportModalProps {
 
 type ImportState = 'idle' | 'uploading' | 'success' | 'error';
 
-interface ImportStats {
-    accounts: number;
-    transactions: number;
-    transfers: number;
-    budgetEntries: number;
-    categoryGroups: number;
-}
+
 
 export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
     const params = useParams();
     const budgetId = params.budgetId as string;
-    const queryClient = useQueryClient();
+
 
     const [registerFile, setRegisterFile] = useState<File | null>(null);
     const [planFile, setPlanFile] = useState<File | null>(null);
     const [state, setState] = useState<ImportState>('idle');
     const [error, setError] = useState<string>('');
     const [stats, setStats] = useState<ImportStats | null>(null);
+
+    const { mutateAsync: importBudget, isPending: _isUploading } = useImportBudgetMutation();
 
     const handleClose = useCallback(() => {
         if (state === 'uploading') return; // Don't close while uploading
@@ -49,95 +45,17 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         setError('');
 
         try {
-            const formData = new FormData();
-            formData.append('register', registerFile);
-            formData.append('plan', planFile);
-
-            const response = await fetch(`/api/budgets/${budgetId}/import`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Import failed');
-            }
+            const result = await importBudget({ budgetId, registerFile, planFile });
 
             setStats(result.stats);
             setState('success');
-
-            // Invalidate all caches to reflect the imported data
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['budget'] });
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            queryClient.invalidateQueries({ queryKey: ['payees'] });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Import failed');
             setState('error');
         }
     };
 
-    const FileDropZone = ({
-        label,
-        file,
-        onFileChange,
-        testId,
-    }: {
-        label: string;
-        file: File | null;
-        onFileChange: (f: File | null) => void;
-        testId: string;
-    }) => (
-        <div className="space-y-2">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">
-                {label}
-            </label>
-            <label
-                className={`flex flex-col items-center justify-center p-6 rounded-2xl cursor-pointer transition-all duration-300 ${
-                    file
-                        ? 'bg-emerald-500/5 border-emerald-500/20'
-                        : 'hover:bg-primary/5'
-                }`}
-                style={{
-                    boxShadow: file
-                        ? 'inset 3px 3px 8px var(--neu-dark), inset -3px -3px 8px var(--neu-light)'
-                        : '4px 4px 10px var(--neu-dark), -4px -4px 10px var(--neu-light)',
-                }}
-            >
-                <input
-                    type="file"
-                    accept=".csv"
-                    className="hidden"
-                    data-testid={testId}
-                    onChange={(e) => {
-                        const f = e.target.files?.[0] || null;
-                        onFileChange(f);
-                    }}
-                    disabled={state === 'uploading'}
-                />
-                {file ? (
-                    <>
-                        <FileText className="w-8 h-8 text-emerald-500 mb-2" />
-                        <span className="text-sm font-semibold text-emerald-500 truncate max-w-full">
-                            {file.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground mt-1">
-                            {(file.size / 1024).toFixed(1)} KB
-                        </span>
-                    </>
-                ) : (
-                    <>
-                        <Upload className="w-8 h-8 text-muted-foreground/50 mb-2" />
-                        <span className="text-sm text-muted-foreground">
-                            Click para seleccionar CSV
-                        </span>
-                    </>
-                )}
-            </label>
-        </div>
-    );
+
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Importar Datos YNAB" size="md">
@@ -201,12 +119,14 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                                 file={registerFile}
                                 onFileChange={setRegisterFile}
                                 testId="import-register-file"
+                                disabled={state === 'uploading'}
                             />
                             <FileDropZone
                                 label="Plan CSV"
                                 file={planFile}
                                 onFileChange={setPlanFile}
                                 testId="import-plan-file"
+                                disabled={state === 'uploading'}
                             />
                         </div>
 
@@ -242,3 +162,64 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         </Modal>
     );
 }
+
+const FileDropZone = ({
+    label,
+    file,
+    onFileChange,
+    testId,
+    disabled,
+}: {
+    label: string;
+    file: File | null;
+    onFileChange: (f: File | null) => void;
+    testId: string;
+    disabled: boolean;
+}) => (
+    <div className="space-y-2">
+        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">
+            {label}
+        </label>
+        <label
+            className={`flex flex-col items-center justify-center p-6 rounded-2xl cursor-pointer transition-all duration-300 ${file
+                    ? 'bg-emerald-500/5 border-emerald-500/20'
+                    : 'hover:bg-primary/5'
+                }`}
+            style={{
+                boxShadow: file
+                    ? 'inset 3px 3px 8px var(--neu-dark), inset -3px -3px 8px var(--neu-light)'
+                    : '4px 4px 10px var(--neu-dark), -4px -4px 10px var(--neu-light)',
+            }}
+        >
+            <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                data-testid={testId}
+                onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    onFileChange(f);
+                }}
+                disabled={disabled}
+            />
+            {file ? (
+                <>
+                    <FileText className="w-8 h-8 text-emerald-500 mb-2" />
+                    <span className="text-sm font-semibold text-emerald-500 truncate max-w-full">
+                        {file.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">
+                        {(file.size / 1024).toFixed(1)} KB
+                    </span>
+                </>
+            ) : (
+                <>
+                    <Upload className="w-8 h-8 text-muted-foreground/50 mb-2" />
+                    <span className="text-sm text-muted-foreground">
+                        Click para seleccionar CSV
+                    </span>
+                </>
+            )}
+        </label>
+    </div>
+);

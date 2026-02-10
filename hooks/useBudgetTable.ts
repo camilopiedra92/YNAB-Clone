@@ -2,19 +2,13 @@
 
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import type { BudgetItemDTO, InspectorDataDTO } from '@/lib/dtos';
+import type { BudgetItemDTO, InspectorDataDTO, BudgetResponseDTO } from '@/lib/dtos';
+import { STALE_TIME } from '@/lib/constants';
 
 export type { BudgetItemDTO as BudgetItem };
 export type { InspectorDataDTO as InspectorData };
 
-interface BudgetResponse {
-    budget: BudgetItemDTO[];
-    readyToAssign: number;
-    overspendingTypes: Record<number, 'cash' | 'credit' | null>;
-    inspectorData: InspectorDataDTO;
-}
-
-const fetchBudgetTable = async (budgetId: number, month: string): Promise<BudgetResponse> => {
+const fetchBudgetTable = async (budgetId: number, month: string): Promise<BudgetResponseDTO> => {
     const res = await fetch(`/api/budgets/${budgetId}/budget?month=${month}`);
     if (!res.ok) throw new Error('Failed to fetch budget');
     return res.json();
@@ -27,7 +21,7 @@ export function useBudgetTable(budgetId: number | undefined, currentMonth: strin
         queryKey: ['budget', budgetId, currentMonth],
         queryFn: () => fetchBudgetTable(budgetId!, currentMonth),
         placeholderData: keepPreviousData,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: STALE_TIME.BUDGET,
         enabled: !!budgetId,
     });
 
@@ -46,13 +40,13 @@ export function useBudgetTable(budgetId: number | undefined, currentMonth: strin
         queryClient.prefetchQuery({
             queryKey: ['budget', budgetId, nextMonthStr],
             queryFn: () => fetchBudgetTable(budgetId!, nextMonthStr),
-            staleTime: 5 * 60 * 1000,
+            staleTime: STALE_TIME.BUDGET,
         });
 
         queryClient.prefetchQuery({
             queryKey: ['budget', budgetId, prevMonthStr],
             queryFn: () => fetchBudgetTable(budgetId!, prevMonthStr),
-            staleTime: 5 * 60 * 1000,
+            staleTime: STALE_TIME.BUDGET,
         });
     }, [budgetId, currentMonth, queryClient]);
 

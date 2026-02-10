@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { AccountDTO } from '@/lib/dtos';
+import { STALE_TIME } from '@/lib/constants';
 
 async function fetchAccounts(budgetId: number): Promise<AccountDTO[]> {
     const res = await fetch(`/api/budgets/${budgetId}/accounts`);
@@ -13,7 +14,7 @@ export function useAccounts(budgetId?: number) {
     return useQuery<AccountDTO[]>({
         queryKey: ['accounts', budgetId],
         queryFn: () => fetchAccounts(budgetId!),
-        staleTime: 30 * 1000,
+        staleTime: STALE_TIME.ACCOUNTS,
         enabled: !!budgetId,
     });
 }
@@ -31,7 +32,7 @@ export function useAccount(budgetId: number | undefined, id: number) {
             const accounts = queryClient.getQueryData<AccountDTO[]>(['accounts', budgetId]);
             return accounts?.find(a => a.id === id);
         },
-        staleTime: 30 * 1000,
+        staleTime: STALE_TIME.ACCOUNTS,
         enabled: !!budgetId,
     });
 }

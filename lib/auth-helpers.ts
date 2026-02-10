@@ -14,11 +14,12 @@
  * └──────────────────────────────────────────────────────────────┘
  */
 import { NextResponse } from 'next/server';
+import { apiError } from './api-error';
 import { sql } from 'drizzle-orm';
 import { auth } from './auth';
 import { getBudget } from './repos';
-import db from './repos/client';
-import type { DrizzleDB } from './repos/client';
+import db from './db/client';
+import type { DrizzleDB } from './db/client';
 import type { TenantContext } from './tenant-context';
 
 /** Result of requireAuth — either a session or an error response */
@@ -40,7 +41,7 @@ export async function requireAuth(): Promise<AuthResult> {
   if (!session?.user?.id) {
     return {
       ok: false,
-      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+      response: apiError('Unauthorized', 401),
     };
   }
   return { ok: true, userId: session.user.id };
@@ -93,10 +94,7 @@ export async function requireBudgetAccess(budgetId: number): Promise<BudgetAcces
   if (!budgetId || isNaN(budgetId) || budgetId <= 0) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { error: 'budgetId is required and must be a positive integer' },
-        { status: 400 },
-      ),
+      response: apiError('budgetId is required and must be a positive integer', 400),
     };
   }
 
@@ -105,10 +103,7 @@ export async function requireBudgetAccess(budgetId: number): Promise<BudgetAcces
   if (!budget) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { error: 'Budget not found or access denied' },
-        { status: 403 },
-      ),
+      response: apiError('Budget not found or access denied', 403),
     };
   }
 
@@ -138,3 +133,18 @@ export function extractBudgetId(request: Request): number | null {
   return isNaN(num) ? null : num;
 }
 
+/**
+ * Safely parse a string to a positive integer ID.
+ *
+ * Returns null if the input is missing, not a number, zero, or negative.
+ * Use this instead of raw `parseInt()` in routes to avoid NaN propagation.
+ *
+ * @example
+ * const budgetId = parseId(budgetIdStr);
+ * if (!budgetId) return apiError('Invalid ID', 400);
+ */
+export function parseId(value: string | undefined | null): number | null {
+  if (!value) return null;
+  const num = parseInt(value, 10);
+  return isNaN(num) || num <= 0 ? null : num;
+}

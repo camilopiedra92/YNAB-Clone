@@ -9,6 +9,7 @@ import {
     calculateAssignment,
     computeCarryforward,
     toMilliunits,
+    isPastMonth,
     type Milliunit,
 } from '@/lib/engine';
 import type { BudgetResponseDTO } from '@/lib/dtos';
@@ -121,9 +122,7 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
 
             // Optimistic update with exact engine-computed values
             // Past months always show RTA=0 (RTA is cumulative, only applies to current/future)
-            const now = new Date();
-            const calendarMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            const isPastMonth = currentMonth < calendarMonth;
+            const isPast = isPastMonth(currentMonth);
 
             queryClient.setQueryData<BudgetResponseDTO>(['budget', budgetId, currentMonth], (old) => {
                 if (!old) return old;
@@ -134,7 +133,7 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
                             ? { ...item, assigned: numericValue, available: existing ? existing.available + result.delta : result.newAvailable }
                             : item
                     ),
-                    readyToAssign: isPastMonth ? 0 : old.readyToAssign - result.delta,
+                    readyToAssign: isPast ? 0 : old.readyToAssign - result.delta,
                 };
             });
 

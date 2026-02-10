@@ -74,3 +74,11 @@ export {
 
 // Activity
 export { calculateBudgetAvailable } from './activity';
+
+// Clock
+export {
+    getCurrentMonth,
+    isPastMonth,
+    isCurrentMonth,
+    isFutureMonth,
+} from './clock';

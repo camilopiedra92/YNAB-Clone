@@ -13,14 +13,9 @@ import {
 import { useAccount, useAccounts } from '@/hooks/useAccounts';
 import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
-import { useToggleCleared, useGetReconciliationInfo, useReconcileAccount } from '@/hooks/useTransactionMutations';
+import { useToggleCleared, useReconcileAccount } from '@/hooks/useTransactionMutations';
+import { useReconciliationInfo } from '@/hooks/useReconciliationInfo';
 
-interface ReconciliationInfo {
-    clearedBalance: number;
-    reconciledBalance: number;
-    pendingClearedBalance: number;
-    pendingClearedCount: number;
-}
 
 import { formatCurrency } from '@/lib/format';
 
@@ -54,7 +49,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const [isReconcileModalOpen, setIsReconcileModalOpen] = useState(false);
     const [reconcileStep, setReconcileStep] = useState<'input' | 'confirm' | 'mismatch' | 'success'>('input');
     const [bankBalanceInput, setBankBalanceInput] = useState('');
-    const [reconciliationInfo, setReconciliationInfo] = useState<ReconciliationInfo | null>(null);
+
     const [reconcileDifference, setReconcileDifference] = useState(0);
     const [reconciledCount, setReconciledCount] = useState(0);
 
@@ -71,8 +66,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     }, [queryClient, budgetId]);
 
     const toggleClearedMutation = useToggleCleared();
-    const reconciliationInfoMutation = useGetReconciliationInfo();
+    const [reconcileQueryEnabled, setReconcileQueryEnabled] = useState(false);
+    const reconciliationInfoQuery = useReconciliationInfo(budgetId, accountId, reconcileQueryEnabled);
     const reconcileAccountMutation = useReconcileAccount();
+    const reconciliationInfo = reconciliationInfoQuery.data ?? null;
 
     // === Transaction handlers ===
     const handleToggleCleared = useCallback((transactionId: number, clearedStatus: string) => {
@@ -123,15 +120,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
     // === Reconciliation handlers ===
     const handleOpenReconcile = useCallback(async () => {
-        reconciliationInfoMutation.mutate({ budgetId, accountId }, {
-            onSuccess: (info) => {
-                setReconciliationInfo(info);
-                setBankBalanceInput('');
-                setReconcileStep('input');
-                setIsReconcileModalOpen(true);
-            },
-        });
-    }, [budgetId, accountId, reconciliationInfoMutation]);
+        setReconcileQueryEnabled(true);
+        setBankBalanceInput('');
+        setReconcileStep('input');
+        setIsReconcileModalOpen(true);
+    }, []);
+
+
 
     const handleReconcileSubmit = useCallback(async () => {
         if (!reconciliationInfo) return;
@@ -172,9 +167,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
     const handleCloseReconcile = useCallback(() => {
         setIsReconcileModalOpen(false);
+        setReconcileQueryEnabled(false);
         setReconcileStep('input');
         setBankBalanceInput('');
-        setReconciliationInfo(null);
+
     }, []);
 
     // Filter by search query

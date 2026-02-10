@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import { requireBudgetAccess } from '@/lib/auth-helpers';
 import { importDataFromCSV } from '@/lib/data-import';
-import db from '@/lib/repos/client';
+import db from '@/lib/db/client';
 import { importLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
@@ -29,18 +31,12 @@ export async function POST(
         const planFile = formData.get('plan') as File | null;
 
         if (!registerFile || !planFile) {
-            return NextResponse.json(
-                { error: 'Both "register" and "plan" CSV files are required' },
-                { status: 400 },
-            );
+            return apiError('Both "register" and "plan" CSV files are required', 400);
         }
 
         // Validate file sizes
         if (registerFile.size > MAX_FILE_SIZE || planFile.size > MAX_FILE_SIZE) {
-            return NextResponse.json(
-                { error: `Each file must be under ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-                { status: 400 },
-            );
+            return apiError(`Each file must be under ${MAX_FILE_SIZE / 1024 / 1024}MB`, 400);
         }
 
         // Read file contents as text
@@ -55,10 +51,7 @@ export async function POST(
             stats,
         });
     } catch (error) {
-        console.error('Error importing data:', error);
-        return NextResponse.json(
-            { error: 'Failed to import data. Please check your CSV files.' },
-            { status: 500 },
-        );
+        logger.error('Error importing data:', error);
+        return apiError('Failed to import data. Please check your CSV files.', 500);
     }
 }

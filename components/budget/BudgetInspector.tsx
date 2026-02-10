@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Zap, Clock, Edit3 } from 'lucide-react';
 import { InspectorData } from '@/hooks/useBudgetTable';
+import { DEFAULT_LOCALE } from '@/lib/constants';
 
 interface BudgetInspectorProps {
     data: InspectorData | null;
@@ -13,13 +14,13 @@ interface BudgetInspectorProps {
 function getMonthLabel(monthStr: string): string {
     const [year, month] = monthStr.split('-').map(Number);
     const date = new Date(year, month - 1);
-    return date.toLocaleDateString('es-CO', { month: 'long' });
+    return date.toLocaleDateString(DEFAULT_LOCALE, { month: 'long' });
 }
 
 function getMonthWithYear(monthStr: string): string {
     const [year, month] = monthStr.split('-').map(Number);
     const date = new Date(year, month - 1);
-    const label = date.toLocaleDateString('es-CO', { month: 'long' });
+    const label = date.toLocaleDateString(DEFAULT_LOCALE, { month: 'long' });
     return label.charAt(0).toUpperCase() + label.slice(1) + ' ' + year;
 }
 

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import { getAccount, updateAccount } from '@/lib/repos';
 import { validateBody, UpdateAccountSchema } from '@/lib/schemas';
 import { toAccountDTO } from '@/lib/dtos';
@@ -15,7 +17,7 @@ export async function GET(
         const budgetId = parseInt(budgetIdStr, 10);
         const accountId = parseInt(id, 10);
         if (isNaN(accountId)) {
-            return NextResponse.json({ error: 'Invalid account ID' }, { status: 400 });
+            return apiError('Invalid account ID', 400);
         }
 
         const access = await requireBudgetAccess(budgetId);
@@ -23,13 +25,13 @@ export async function GET(
 
         const account = await getAccount(budgetId, accountId);
         if (!account) {
-            return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+            return apiError('Account not found', 404);
         }
 
         return NextResponse.json(toAccountDTO(account));
     } catch (error) {
-        console.error('Error fetching account:', error);
-        return NextResponse.json({ error: 'Failed to fetch account' }, { status: 500 });
+        logger.error('Error fetching account:', error);
+        return apiError('Failed to fetch account', 500);
     }
 }
 
@@ -42,7 +44,7 @@ export async function PATCH(
         const budgetId = parseInt(budgetIdStr, 10);
         const accountId = parseInt(id, 10);
         if (isNaN(accountId)) {
-            return NextResponse.json({ error: 'Invalid account ID' }, { status: 400 });
+            return apiError('Invalid account ID', 400);
         }
 
         const access = await requireBudgetAccess(budgetId);
@@ -57,11 +59,11 @@ export async function PATCH(
 
         const updated = await getAccount(budgetId, accountId);
         if (!updated) {
-            return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+            return apiError('Account not found', 404);
         }
         return NextResponse.json(toAccountDTO(updated));
     } catch (error) {
-        console.error('Error updating account:', error);
-        return NextResponse.json({ error: 'Failed to update account' }, { status: 500 });
+        logger.error('Error updating account:', error);
+        return apiError('Failed to update account', 500);
     }
 }

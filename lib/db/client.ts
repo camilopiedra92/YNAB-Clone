@@ -12,13 +12,13 @@
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from '../db/schema';
-import { createAccountFunctions } from './accounts';
-import { createTransactionFunctions } from './transactions';
-import { createBudgetFunctions } from './budget';
-import { createBudgetsFunctions } from './budgets';
-import { createCategoryFunctions } from './categories';
-import { createUserFunctions } from './users';
+import * as schema from './schema';
+import { createAccountFunctions } from '../repos/accounts';
+import { createTransactionFunctions } from '../repos/transactions';
+import { createBudgetFunctions } from '../repos/budget';
+import { createBudgetsFunctions } from '../repos/budgets';
+import { createCategoryFunctions } from '../repos/categories';
+import { createUserFunctions } from '../repos/users';
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { SQL } from 'drizzle-orm';

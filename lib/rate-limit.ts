@@ -174,9 +174,7 @@ export function createRateLimiter(config: RateLimitConfig, store?: RateLimitStor
     async clear(): Promise<void> {
       await effectiveStore.clear();
     },
-  } as unknown as RateLimiter; // Cast to maintain sync signature compatibility if possible?
-  // Wait, RateLimiter interface in line 63 defines synchronous returns?
-  // I need to update RateLimiter interface to be Promise-based if I want to support Redis.
+  };
 }
 
 
@@ -223,6 +221,7 @@ export function rateLimitResponse(result: RateLimitResult): NextResponse {
   return NextResponse.json(
     {
       error: 'Too many requests. Please try again later.',
+      status: 429,
       retryAfter: Math.ceil((result.resetAt.getTime() - Date.now()) / 1000),
     },
     {

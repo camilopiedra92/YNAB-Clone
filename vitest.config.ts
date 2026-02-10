@@ -23,6 +23,16 @@ export default defineConfig({
                 'lib/db/schema.ts',      // Declarative Drizzle schema — no executable logic
                 'lib/__tests__/**',      // Test infrastructure — not production code
             ],
+            thresholds: {
+                // The Financial Engine is the core brain of the app.
+                // It must have 100% logical branch coverage to be considered "World-Class".
+                'lib/engine/**': {
+                    branches: 100,
+                    functions: 100,
+                    lines: 100,
+                    statements: 100,
+                },
+            },
         },
     },
     resolve: {

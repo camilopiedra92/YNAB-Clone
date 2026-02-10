@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toAccountDTO, toReconciliationInfoDTO } from '../dtos/account.dto';
+import type { ReconciliationInfo } from '../repos/accounts';
 import { toTransactionDTO } from '../dtos/transaction.dto';
 import { toBudgetItemDTO } from '../dtos/budget.dto';
 import { toCategoryDTO, toCategoryGroupDTO } from '../dtos/category.dto';
@@ -69,7 +70,7 @@ describe('Account DTOs', () => {
     });
 
     it('defaults missing fields to 0', () => {
-      const dto = toReconciliationInfoDTO({});
+      const dto = toReconciliationInfoDTO({} as ReconciliationInfo);
       expect(dto.clearedBalance).toBe(0);
       expect(dto.reconciledBalance).toBe(0);
       expect(dto.pendingClearedBalance).toBe(0);

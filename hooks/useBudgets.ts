@@ -30,6 +30,8 @@ export function useBudgetMutations() {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
+    mutationKey: ['budget-create'],
+    meta: { errorMessage: 'Error al crear presupuesto' },
     mutationFn: async (data: CreateBudgetInput) => {
       const res = await fetch('/api/budgets', {
         method: 'POST',
@@ -45,6 +47,8 @@ export function useBudgetMutations() {
   });
 
   const updateMutation = useMutation({
+    mutationKey: ['budget-update'],
+    meta: { errorMessage: 'Error al actualizar presupuesto' },
     mutationFn: async ({ id, data }: { id: number; data: UpdateBudgetInput }) => {
       const res = await fetch(`/api/budgets/${id}`, {
         method: 'PATCH',
@@ -61,6 +65,8 @@ export function useBudgetMutations() {
   });
 
   const deleteMutation = useMutation({
+    mutationKey: ['budget-delete'],
+    meta: { errorMessage: 'Error al eliminar presupuesto' },
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/budgets/${id}`, {
         method: 'DELETE',

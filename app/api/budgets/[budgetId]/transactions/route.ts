@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import {
     getTransactions,
     getTransaction,
@@ -21,7 +23,7 @@ import {
     UpdateTransactionSchema,
     TransactionPatchSchema,
 } from '@/lib/schemas';
-import { toTransactionDTO, toReconciliationInfoDTO } from '@/lib/dtos';
+import { toTransactionDTO } from '@/lib/dtos';
 import { requireBudgetAccess } from '@/lib/auth-helpers';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
@@ -53,8 +55,8 @@ export async function GET(
         const transactions = (await getTransactions(filters)).map(toTransactionDTO);
         return NextResponse.json(transactions);
     } catch (error) {
-        console.error('Error fetching transactions:', error);
-        return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+        logger.error('Error fetching transactions:', error);
+        return apiError('Failed to fetch transactions', 500);
     }
 }
 
@@ -80,10 +82,7 @@ export async function POST(
             // Validate destination is not a credit card account
             const destType = await getAccountType(data.transferAccountId);
             if (destType === 'credit') {
-                return NextResponse.json(
-                    { error: 'No se pueden hacer transferencias directas a cuentas de crédito. Usa la función de pago de tarjeta.' },
-                    { status: 400 }
-                );
+                return apiError('No se pueden hacer transferencias directas a cuentas de crédito. Usa la función de pago de tarjeta.', 400);
             }
 
             const amount = data.outflow || data.amount || 0;
@@ -121,8 +120,8 @@ export async function POST(
         const transaction = await getTransaction(budgetId, result.id);
         return NextResponse.json(toTransactionDTO(transaction), { status: 201 });
     } catch (error) {
-        console.error('Error creating transaction:', error);
-        return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
+        logger.error('Error creating transaction:', error);
+        return apiError('Failed to create transaction', 500);
     }
 }
 
@@ -146,7 +145,7 @@ export async function PUT(
         // Get original transaction to know which account and category to update
         const original = await getTransaction(budgetId, id);
         if (!original) {
-            return NextResponse.json({ error: 'Transaction not found or budget mismatch' }, { status: 404 });
+            return apiError('Transaction not found or budget mismatch', 404);
         }
 
         // Build update payload
@@ -169,8 +168,8 @@ export async function PUT(
         const transaction = await getTransaction(budgetId, id);
         return NextResponse.json(toTransactionDTO(transaction));
     } catch (error) {
-        console.error('Error updating transaction:', error);
-        return NextResponse.json({ error: 'Failed to update transaction' }, { status: 500 });
+        logger.error('Error updating transaction:', error);
+        return apiError('Failed to update transaction', 500);
     }
 }
 
@@ -189,7 +188,7 @@ export async function DELETE(
         const id = searchParams.get('id');
 
         if (!id) {
-            return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 });
+            return apiError('Transaction ID is required', 400);
         }
 
         const transactionId = parseInt(id);
@@ -197,7 +196,7 @@ export async function DELETE(
         const transaction = await getTransaction(budgetId, transactionId);
 
         if (!transaction) {
-            return NextResponse.json({ error: 'Transaction not found or budget mismatch' }, { status: 404 });
+            return apiError('Transaction not found or budget mismatch', 404);
         }
 
         // Check if this transaction is part of a transfer
@@ -212,8 +211,8 @@ export async function DELETE(
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error deleting transaction:', error);
-        return NextResponse.json({ error: 'Failed to delete transaction' }, { status: 500 });
+        logger.error('Error deleting transaction:', error);
+        return apiError('Failed to delete transaction', 500);
     }
 }
 
@@ -237,12 +236,12 @@ export async function PATCH(
         if (data.action === 'toggle-cleared') {
             const transaction = await getTransaction(budgetId, data.id);
             if (!transaction) {
-                return NextResponse.json({ error: 'Transaction not found or budget mismatch' }, { status: 404 });
+                return apiError('Transaction not found or budget mismatch', 404);
             }
 
             // Prevent toggling reconciled transactions
             if (transaction.cleared === 'Reconciled') {
-                return NextResponse.json({ error: 'Reconciled transactions cannot be modified' }, { status: 403 });
+                return apiError('Reconciled transactions cannot be modified', 403);
             }
 
             // Atomic: toggle cleared + update balances
@@ -252,23 +251,16 @@ export async function PATCH(
             return NextResponse.json(toTransactionDTO(updated));
         }
 
-        if (data.action === 'get-reconciliation-info') {
-            const info = await getReconciliationInfo(budgetId, data.accountId);
-            return NextResponse.json(toReconciliationInfoDTO(info));
-        }
-
         if (data.action === 'reconcile') {
             // Get current cleared balance to verify
             const info = await getReconciliationInfo(budgetId, data.accountId);
-            const clearedBalance = info!.clearedBalance;
+            if (!info) {
+                return apiError('Reconciliation info not found for this account', 404);
+            }
+            const clearedBalance = info.clearedBalance;
 
             if (Math.abs(Number(clearedBalance) - data.bankBalance) > 0.01) {
-                return NextResponse.json({
-                    error: 'Balance mismatch',
-                    clearedBalance: clearedBalance,
-                    bankBalance: data.bankBalance,
-                    difference: data.bankBalance - Number(clearedBalance),
-                }, { status: 409 });
+                return apiError('Balance mismatch', 409);
             }
 
             // Atomic: reconcile + update balances
@@ -276,13 +268,13 @@ export async function PATCH(
 
             return NextResponse.json({
                 success: true,
-                reconciledCount: (result as { changes?: number })?.changes,
+                reconciledCount: result.reconciledCount,
             });
         }
 
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return apiError('Invalid action', 400);
     } catch (error) {
-        console.error('Error patching transaction:', error);
-        return NextResponse.json({ error: 'Failed to patch transaction' }, { status: 500 });
+        logger.error('Error patching transaction:', error);
+        return apiError('Failed to patch transaction', 500);
     }
 }

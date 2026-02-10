@@ -8,7 +8,7 @@
  *   npm run db:debug-rta
  */
 import { eq, and, lte, sql } from 'drizzle-orm';
-import db from '../lib/repos/client';
+import db from '../lib/db/client';
 import {
   accounts,
   categoryGroups,

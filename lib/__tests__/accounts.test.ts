@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, today } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 
 let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;
@@ -60,8 +60,8 @@ describe('Update Account - Edge Cases', () => {
         const updateResult = await fns.updateAccount(budgetId, id, {});
         expect(updateResult).toBeUndefined();
 
-        const account: any = await fns.getAccount(budgetId, id);
-        expect(account.name).toBe('Test');
+        const account = await fns.getAccount(budgetId, id);
+        expect(account?.name).toBe('Test');
     });
 
     it('updates only name when other fields are undefined', async () => {
@@ -69,9 +69,9 @@ describe('Update Account - Edge Cases', () => {
         const id = result.id;
 
         await fns.updateAccount(budgetId, id, { name: 'New' });
-        const account: any = await fns.getAccount(budgetId, id);
-        expect(account.name).toBe('New');
-        expect(account.note).toBe(''); // default
+        const account = await fns.getAccount(budgetId, id);
+        expect(account?.name).toBe('New');
+        expect(account?.note).toBe(''); // default
     });
 
     it('updates only note', async () => {
@@ -79,9 +79,9 @@ describe('Update Account - Edge Cases', () => {
         const id = result.id;
 
         await fns.updateAccount(budgetId, id, { note: 'Some note' });
-        const account: any = await fns.getAccount(budgetId, id);
-        expect(account.name).toBe('Test');
-        expect(account.note).toBe('Some note');
+        const account = await fns.getAccount(budgetId, id);
+        expect(account?.name).toBe('Test');
+        expect(account?.note).toBe('Some note');
     });
 
     it('opens a closed account', async () => {
@@ -89,12 +89,12 @@ describe('Update Account - Edge Cases', () => {
         const id = result.id;
 
         await fns.updateAccount(budgetId, id, { closed: true });
-        let account: any = await fns.getAccount(budgetId, id);
-        expect(account.closed).toBe(true);
+        let account = await fns.getAccount(budgetId, id);
+        expect(account?.closed).toBe(true);
 
         await fns.updateAccount(budgetId, id, { closed: false });
         account = await fns.getAccount(budgetId, id);
-        expect(account.closed).toBe(false);
+        expect(account?.closed).toBe(false);
     });
 
     it('updates all fields at once', async () => {
@@ -102,10 +102,10 @@ describe('Update Account - Edge Cases', () => {
         const id = result.id;
 
         await fns.updateAccount(budgetId, id, { name: 'New Name', note: 'New Note', closed: true });
-        const account: any = await fns.getAccount(budgetId, id);
-        expect(account.name).toBe('New Name');
-        expect(account.note).toBe('New Note');
-        expect(account.closed).toBe(true);
+        const account = await fns.getAccount(budgetId, id);
+        expect(account?.name).toBe('New Name');
+        expect(account?.note).toBe('New Note');
+        expect(account?.closed).toBe(true);
     });
 });
 
@@ -116,10 +116,10 @@ describe('Create Account - Defaults', () => {
     it('creates with zero balance when not specified', async () => {
         const result = await fns.createAccount({ name: 'Test', type: 'checking', budgetId });
         const id = result.id;
-        const account: any = await fns.getAccount(budgetId, id);
-        expect(account.balance).toBe(0);
-        expect(account.clearedBalance).toBe(0);
-        expect(account.unclearedBalance).toBe(0);
+        const account = await fns.getAccount(budgetId, id);
+        expect(account?.balance).toBe(0);
+        expect(account?.clearedBalance).toBe(0);
+        expect(account?.unclearedBalance).toBe(0);
     });
 });
 
@@ -162,11 +162,11 @@ describe('Reconciliation', () => {
 
         await fns.reconcileAccount(budgetId, id);
 
-        const reconciled: any = await fns.getTransaction(budgetId, tx1.id);
-        expect(reconciled.cleared).toBe('Reconciled');
+        const reconciled = await fns.getTransaction(budgetId, tx1.id);
+        expect(reconciled?.cleared).toBe('Reconciled');
 
-        const uncleared: any = await fns.getTransaction(budgetId, tx2.id);
-        expect(uncleared.cleared).toBe('Uncleared');
+        const uncleared = await fns.getTransaction(budgetId, tx2.id);
+        expect(uncleared?.cleared).toBe('Uncleared');
     });
 });
 

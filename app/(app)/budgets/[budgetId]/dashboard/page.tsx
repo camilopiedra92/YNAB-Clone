@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { formatCurrency } from '@/lib/format';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
+import { DEFAULT_LOCALE } from '@/lib/constants';
 
 export default function Home() {
   const params = useParams();
@@ -25,7 +26,7 @@ export default function Home() {
   const netWorth = totalCash + totalCredit;
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-CO', {
+    return new Date(dateStr).toLocaleDateString(DEFAULT_LOCALE, {
       month: 'short',
       day: 'numeric',
     });

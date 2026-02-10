@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Tenant Isolation Unit Tests — Phase 4.3.1
  *
@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, seedBasicBudget, seedCompleteMonth, today, currentMonth, mu } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 import * as schema from '../db/schema';
 
 let db: DrizzleDB;
@@ -54,7 +54,7 @@ describe('Tenant Isolation — Account Queries', () => {
         const accountsB = await fns.getAccounts(budgetB);
 
         expect(accountsA).toHaveLength(2);
-        expect(accountsA.every((a: any) => a.budgetId === budgetA)).toBe(true);
+        expect(accountsA.every((a) => a.budgetId === budgetA)).toBe(true);
 
         expect(accountsB).toHaveLength(1);
         expect(accountsB[0].name).toBe('B Checking');
@@ -90,7 +90,7 @@ describe('Tenant Isolation — Category Queries', () => {
         const catsB = await fns.getCategories(budgetB);
 
         expect(catsA).toHaveLength(2);
-        expect(catsA.every((c: any) => c.budgetId === budgetA)).toBe(true);
+        expect(catsA.every((c) => c.budgetId === budgetA)).toBe(true);
 
         expect(catsB).toHaveLength(1);
         expect(catsB[0].name).toBe('Cat B1');
@@ -124,7 +124,7 @@ describe('Tenant Isolation — Transaction Queries', () => {
         const txB = await fns.getTransactions({ budgetId: budgetB });
 
         expect(txA).toHaveLength(2);
-        expect(txA.every((t: any) => t.budgetId === budgetA)).toBe(true);
+        expect(txA.every((t) => t.budgetId === budgetA)).toBe(true);
 
         expect(txB).toHaveLength(1);
         expect(txB[0].payee).toBe('Store B');
@@ -180,18 +180,18 @@ describe('Tenant Isolation — Budget Queries', () => {
 
         // Budget A should have its 3 categories + the 12 fill categories from seedCompleteMonth
         // Budget B should have its 2 categories only
-        const catIdsA = new Set(budgetDataA.map((r: any) => r.categoryId));
-        const catIdsB = new Set(budgetDataB.map((r: any) => r.categoryId));
+        const catIdsA = new Set(budgetDataA.map((r) => r.categoryId));
+        const catIdsB = new Set(budgetDataB.map((r) => r.categoryId));
 
         // No overlap between the two budgets' category IDs
         const overlap = [...catIdsA].filter(id => catIdsB.has(id));
         expect(overlap).toHaveLength(0);
 
         // Verify assignments stayed in their own budget
-        const assignedRowA = budgetDataA.find((r: any) => r.categoryId === catsA[0]);
+        const assignedRowA = budgetDataA.find((r) => r.categoryId === catsA[0]);
         expect(assignedRowA?.assigned).toBe(1000);
 
-        const assignedRowB = budgetDataB.find((r: any) => r.categoryId === catsB[0]);
+        const assignedRowB = budgetDataB.find((r) => r.categoryId === catsB[0]);
         expect(assignedRowB?.assigned).toBe(500);
     });
 

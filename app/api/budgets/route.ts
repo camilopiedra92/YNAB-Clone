@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getBudgets, createBudget } from '@/lib/repos';
 import { validateBody, CreateBudgetSchema } from '@/lib/schemas';
 import { requireAuth } from '@/lib/auth-helpers';
+import { logger } from '@/lib/logger';
+import { apiError } from '@/lib/api-error';
 
 export async function GET() {
   const authResult = await requireAuth();
@@ -11,8 +13,8 @@ export async function GET() {
     const budgets = await getBudgets(authResult.userId);
     return NextResponse.json(budgets);
   } catch (error) {
-    console.error('Error fetching budgets:', error);
-    return NextResponse.json({ error: 'Failed to fetch budgets' }, { status: 500 });
+    logger.error('Error fetching budgets:', error);
+    return apiError('Failed to fetch budgets', 500);
   }
 }
 
@@ -28,7 +30,7 @@ export async function POST(request: Request) {
     const budget = await createBudget(authResult.userId, validation.data);
     return NextResponse.json(budget, { status: 201 });
   } catch (error) {
-    console.error('Error creating budget:', error);
-    return NextResponse.json({ error: 'Failed to create budget' }, { status: 500 });
+    logger.error('Error creating budget:', error);
+    return apiError('Failed to create budget', 500);
   }
 }

@@ -70,6 +70,7 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["app/**/*", "hooks/**/*", "components/**/*"],
+    ignores: ["app/api/**/*"],
     rules: {
       "no-restricted-imports": [
         "error",

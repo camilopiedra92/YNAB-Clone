@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * YNAB CSV Data Importer
  *
@@ -8,7 +8,7 @@
  *   - importData(budgetId, targetDb) — for CLI (reads files from fs/env)
  */
 import { eq, and, like, sql, inArray } from 'drizzle-orm';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 import {
   accounts,
   categoryGroups,
@@ -19,6 +19,7 @@ import {
 } from '../db/schema';
 import { currentDate } from '../db/sql-helpers';
 import { toMilliunits, milliunit, ZERO } from '../engine/primitives';
+import { logger } from '../logger';
 
 // ── CSV Parsing ──────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ interface PlanRow {
 }
 
 /** Parse CSV content string into an array of objects */
-export function parseCSV(content: string): any[] {
+export function parseCSV(content: string): Record<string, string>[] {
   const lines = content.split('\n').filter(line => line.trim());
 
   if (lines.length === 0) return [];
@@ -71,7 +72,7 @@ export function parseCSV(content: string): any[] {
     }
     values.push(current.trim());
 
-    const obj: any = {};
+    const obj: Record<string, string> = {};
     headers.forEach((header, index) => {
       obj[header] = values[index] || '';
     });
@@ -116,18 +117,18 @@ export async function importDataFromCSV(
   planCSVContent: string,
   targetDb: DrizzleDB,
 ): Promise<ImportStats> {
-  console.log('Starting YNAB data import...');
+  logger.info('Starting YNAB data import...');
 
-  const registerData = parseCSV(registerCSVContent) as RegisterRow[];
-  const planData = parseCSV(planCSVContent) as PlanRow[];
+  const registerData = parseCSV(registerCSVContent) as unknown as RegisterRow[];
+  const planData = parseCSV(planCSVContent) as unknown as PlanRow[];
 
-  console.log(`Loaded ${registerData.length} transactions and ${planData.length} budget entries`);
-  console.log('Register headers:', Object.keys(registerData[0] || {}));
+  logger.info(`Loaded ${registerData.length} transactions and ${planData.length} budget entries`);
+  logger.info('Register headers:', { headers: Object.keys(registerData[0] || {}) });
 
   // Clear existing data FOR THIS BUDGET ONLY (FK cascades handle children)
   // accounts CASCADE → transactions CASCADE → transfers
   // categoryGroups CASCADE → categories CASCADE → budgetMonths
-  console.log(`Clearing existing data for budget ${budgetId}...`);
+  logger.info(`Clearing existing data for budget ${budgetId}...`);
   await targetDb.delete(accounts).where(eq(accounts.budgetId, budgetId));
   await targetDb.delete(categoryGroups).where(eq(categoryGroups.budgetId, budgetId));
 
@@ -140,7 +141,7 @@ export async function importDataFromCSV(
     }
   });
 
-  console.log(`Found ${accountNames.size} accounts`);
+  logger.info(`Found ${accountNames.size} accounts`);
 
   const accountMap = new Map<string, number>();
   for (const name of accountNames) {
@@ -175,7 +176,7 @@ export async function importDataFromCSV(
       .returning({ id: accounts.id });
 
     accountMap.set(name, result[0].id);
-    console.log(`Created account: ${name} (${type})`);
+    logger.info(`Created account: ${name} (${type})`);
   }
 
   // ── Create Category Groups & Categories ────────────────────────
@@ -243,7 +244,7 @@ export async function importDataFromCSV(
           const acc = accRows[0];
           if (acc && acc.type === 'credit') {
             linkedAccountId = accId;
-            console.log(`Linking category "${categoryName}" to credit account ID ${accId}`);
+            logger.info(`Linking category "${categoryName}" to credit account ID ${accId}`);
             break;
           }
         }
@@ -262,12 +263,12 @@ export async function importDataFromCSV(
       categoryMap.set(`${groupName}:${categoryName}`, catResult[0].id);
     }
 
-    console.log(`Created category group: ${groupName} with ${cats.size} categories`);
+    logger.info(`Created category group: ${groupName} with ${cats.size} categories`);
   }
 
   // ── Import Transactions ────────────────────────────────────────
 
-  console.log('Importing transactions...');
+  logger.info('Importing transactions...');
   let transactionCount = 0;
   let skippedCount = 0;
 
@@ -321,19 +322,19 @@ export async function importDataFromCSV(
       }
 
       if (transactionCount % 500 === 0) {
-        console.log(`Imported ${transactionCount} transactions...`);
+        logger.info(`Imported ${transactionCount} transactions...`);
       }
     } catch (error) {
-      console.error(`Error importing transaction ${index}:`, error);
+      logger.error(`Error importing transaction ${index}`, error);
       skippedCount++;
     }
   }
 
-  console.log(`Imported ${transactionCount} transactions (skipped ${skippedCount})`);
+  logger.info(`Imported ${transactionCount} transactions (skipped ${skippedCount})`);
 
   // ── Process Transfers ──────────────────────────────────────────
 
-  console.log('Processing transfers...');
+  logger.info('Processing transfers...');
   let transferCount = 0;
 
   const potentialTransfers = await targetDb.select({
@@ -361,7 +362,7 @@ export async function importDataFromCSV(
     const amount = t1.outflow > 0 ? t1.outflow : t1.inflow;
     const isOutflow = t1.outflow > 0;
 
-    const match = potentialTransfers.find(t2 =>
+    const match = potentialTransfers.find((t2: (typeof potentialTransfers)[0]) =>
       t2.id !== t1.id &&
       !processedTransferIds.has(t2.id) &&
       t2.date === t1.date &&
@@ -386,11 +387,11 @@ export async function importDataFromCSV(
       transferCount++;
     }
   }
-  console.log(`Linked ${transferCount} transfers`);
+  logger.info(`Linked ${transferCount} transfers`);
 
   // ── Import Budget Data ─────────────────────────────────────────
 
-  console.log('Importing budget data...');
+  logger.info('Importing budget data...');
   let budgetCount = 0;
 
   const monthNameToNum: Record<string, string> = {
@@ -439,15 +440,15 @@ export async function importDataFromCSV(
 
       budgetCount++;
     } catch (error) {
-      console.error('Error importing budget entry:', error, row);
+      logger.error('Error importing budget entry', error, { row });
     }
   }
 
-  console.log(`Imported ${budgetCount} budget entries`);
+  logger.info(`Imported ${budgetCount} budget entries`);
 
   // ── Update Account Balances ────────────────────────────────────
 
-  console.log('Updating account balances...');
+  logger.info('Updating account balances...');
   for (const [accountName, accountId] of accountMap) {
     const result = await targetDb.select({
       balance: sql<number>`SUM(${transactions.inflow} - ${transactions.outflow})`,
@@ -478,7 +479,7 @@ export async function importDataFromCSV(
     .from(categories)
     .innerJoin(categoryGroups, eq(categories.categoryGroupId, categoryGroups.id))
     .where(eq(categoryGroups.name, 'Hidden Categories')))
-    .map(r => r.name);
+    .map((r: { name: string }) => r.name);
 
   if (hiddenCCNames.length > 0) {
     await targetDb.update(accounts)
@@ -489,8 +490,8 @@ export async function importDataFromCSV(
       ));
   }
 
-  console.log('Marked closed credit card accounts based on hidden categories');
-  console.log('Data import completed successfully!');
+  logger.info('Marked closed credit card accounts based on hidden categories');
+  logger.info('Data import completed successfully!');
 
   return {
     accounts: accountMap.size,
@@ -513,28 +514,35 @@ export async function importData(budgetId: number, targetDb?: DrizzleDB): Promis
   const path = await import('path');
   const env = (await import('../env')).default;
   if (!targetDb) {
-    const clientModule = await import('../repos/client');
+    const clientModule = await import('../db/client');
     targetDb = clientModule.default;
   }
 
   const envRegisterPath = env.YNAB_REGISTER_CSV;
   const envPlanPath = env.YNAB_PLAN_CSV;
 
-  const projectRoot = process.cwd();
-  const defaultBaseDir = path.resolve(projectRoot, '..', 'YNAB Export - Compartido COP as of 2026-02-07 16-53');
+  if (!envRegisterPath) {
+    throw new Error(
+      'YNAB_REGISTER_CSV environment variable is required. ' +
+      'Set it to the absolute path of your YNAB Register CSV export.'
+    );
+  }
 
-  const registerPath = envRegisterPath || path.join(defaultBaseDir, 'Compartido COP as of 2026-02-07 16-53 - Register.csv');
-  const planPath = envPlanPath || path.join(defaultBaseDir, 'Compartido COP as of 2026-02-07 16-53 - Plan.csv');
+  if (!envPlanPath) {
+    throw new Error(
+      'YNAB_PLAN_CSV environment variable is required. ' +
+      'Set it to the absolute path of your YNAB Plan CSV export.'
+    );
+  }
+
+  const registerPath = envRegisterPath;
+  const planPath = envPlanPath;
 
   if (!fs.existsSync(registerPath)) {
-    console.error('Register CSV not found at:', registerPath);
-    console.error('Please set YNAB_REGISTER_CSV environment variable.');
     throw new Error(`Register CSV not found at: ${registerPath}`);
   }
 
   if (!fs.existsSync(planPath)) {
-    console.error('Plan CSV not found at:', planPath);
-    console.error('Please set YNAB_PLAN_CSV environment variable.');
     throw new Error(`Plan CSV not found at: ${planPath}`);
   }
 

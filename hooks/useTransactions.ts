@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { TransactionDTO } from '@/lib/dtos';
+import { STALE_TIME } from '@/lib/constants';
 
 async function fetchTransactions(budgetId: number, accountId?: number): Promise<TransactionDTO[]> {
     const url = accountId
@@ -16,7 +17,7 @@ export function useTransactions(budgetId: number | undefined, accountId?: number
     return useQuery<TransactionDTO[]>({
         queryKey: accountId ? ['transactions', budgetId, accountId] : ['transactions', budgetId],
         queryFn: () => fetchTransactions(budgetId!, accountId),
-        staleTime: 15 * 1000,
+        staleTime: STALE_TIME.TRANSACTIONS,
         enabled: !!budgetId,
     });
 }

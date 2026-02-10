@@ -4,7 +4,7 @@
  * Usage: npm run db:migrate-cc
  */
 import { eq, and, sql, max, isNotNull } from 'drizzle-orm';
-import db from '../lib/repos/client';
+import db from '../lib/db/client';
 import * as schema from '../lib/db/schema';
 import { yearMonth } from '../lib/db/sql-helpers';
 import { milliunit, ZERO } from '../lib/engine/primitives';

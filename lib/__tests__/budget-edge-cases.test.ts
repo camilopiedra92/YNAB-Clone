@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Budget edge case tests — targets specific uncovered branches in budget.ts.
  *
@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, seedBasicBudget, seedCompleteMonth, today, currentMonth, prevMonth, nextMonth, mu, ZERO } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 import { budgetMonths } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -509,8 +509,8 @@ describe('deleteTransfer — balance updates', () => {
         });
 
         // Verify balances after transfer
-        let acc1: any = await fns.getAccount(budgetId, accountId);
-        let acc2: any = await fns.getAccount(budgetId, acc2Id);
+        let acc1 = await fns.getAccount(budgetId, accountId);
+        let acc2 = await fns.getAccount(budgetId, acc2Id);
         expect(acc1.balance).toBe(700);
         expect(acc2.balance).toBe(300);
 

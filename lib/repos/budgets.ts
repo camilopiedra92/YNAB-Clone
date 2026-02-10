@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
 import { budgets, budgetShares } from '../db/schema';
-import type { DrizzleDB } from './client';
+import type { DrizzleDB } from '../db/client';
 
 export type BudgetMetadata = {
   id: number;

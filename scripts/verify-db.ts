@@ -2,7 +2,7 @@
  * Debug: Verify transfers and specific payee data in the database.
  * Usage: npm run db:verify
  */
-import db from '../lib/repos/client';
+import db from '../lib/db/client';
 import { sql } from 'drizzle-orm';
 
 async function main() {

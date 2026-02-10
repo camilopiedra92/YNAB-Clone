@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { CategoryDTO } from '@/lib/dtos';
+import { STALE_TIME } from '@/lib/constants';
 
 async function fetchCategories(budgetId: number): Promise<CategoryDTO[]> {
     const res = await fetch(`/api/budgets/${budgetId}/categories`);
@@ -13,7 +14,7 @@ export function useCategories(budgetId: number | undefined) {
     return useQuery<CategoryDTO[]>({
         queryKey: ['categories', budgetId],
         queryFn: () => fetchCategories(budgetId!),
-        staleTime: 5 * 60 * 1000, // categories rarely change
+        staleTime: STALE_TIME.CATEGORIES,
         enabled: !!budgetId,
     });
 }

@@ -9,7 +9,7 @@
  */
 import { eq } from 'drizzle-orm';
 import { importData } from '../lib/data-import';
-import db from '../lib/repos/client';
+import db from '../lib/db/client';
 import * as schema from '../lib/db/schema';
 import bcrypt from 'bcryptjs';
 

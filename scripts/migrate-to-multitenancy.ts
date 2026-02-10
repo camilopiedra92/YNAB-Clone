@@ -3,7 +3,7 @@
  * Backfills user + budget for pre-multitenancy data.
  * Usage: npm run db:migrate-tenants
  */
-import db from '../lib/repos/client';
+import db from '../lib/db/client';
 import * as schema from '../lib/db/schema';
 import { isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';

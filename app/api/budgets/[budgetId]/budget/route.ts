@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import { getBudgetForMonth, getReadyToAssign, getReadyToAssignBreakdown, getOverspendingTypes, getBudgetInspectorData, refreshAllBudgetActivity } from '@/lib/repos';
 import { validateBody, BudgetAssignmentSchema } from '@/lib/schemas';
 import { toBudgetItemDTO } from '@/lib/dtos';
@@ -46,8 +48,8 @@ export async function GET(
 
         return NextResponse.json(await buildBudgetResponse(budgetId, month));
     } catch (error) {
-        console.error('Error fetching budget:', error);
-        return NextResponse.json({ error: 'Failed to fetch budget' }, { status: 500 });
+        logger.error('Error fetching budget:', error);
+        return apiError('Failed to fetch budget', 500);
     }
 }
 
@@ -72,7 +74,7 @@ export async function POST(
 
         return NextResponse.json({ success: true, ...(await buildBudgetResponse(budgetId, month)) });
     } catch (error) {
-        console.error('Error updating budget:', error);
-        return NextResponse.json({ error: 'Failed to update budget' }, { status: 500 });
+        logger.error('Error updating budget:', error);
+        return apiError('Failed to update budget', 500);
     }
 }

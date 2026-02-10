@@ -493,13 +493,13 @@ describe('TransactionPatchSchema (discriminated union)', () => {
         expect(result.success).toBe(true);
     });
 
-    it('parses get-reconciliation-info action', () => {
+    it('rejects removed get-reconciliation-info action (now a GET endpoint)', () => {
         const result = TransactionPatchSchema.safeParse({
             action: 'get-reconciliation-info',
             budgetId: 1,
             accountId: 10,
         });
-        expect(result.success).toBe(true);
+        expect(result.success).toBe(false);
     });
 
     it('parses reconcile action', () => {

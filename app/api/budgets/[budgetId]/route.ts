@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
 import { getBudget, updateBudget, deleteBudget } from '@/lib/repos';
 import { validateBody, UpdateBudgetSchema } from '@/lib/schemas';
-import { requireAuth } from '@/lib/auth-helpers';
+import { requireAuth, parseId } from '@/lib/auth-helpers';
+import { apiError } from '@/lib/api-error';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
 
@@ -14,14 +16,17 @@ export async function GET(
 
   try {
     const { budgetId: budgetIdStr } = await params;
-    const budget = await getBudget(parseInt(budgetIdStr), authResult.userId);
+    const budgetId = parseId(budgetIdStr);
+    if (!budgetId) return apiError('Invalid budget ID', 400);
+
+    const budget = await getBudget(budgetId, authResult.userId);
     if (!budget) {
-      return NextResponse.json({ error: 'Budget not found' }, { status: 404 });
+      return apiError('Budget not found', 404);
     }
     return NextResponse.json(budget);
   } catch (error) {
-    console.error('Error fetching budget:', error);
-    return NextResponse.json({ error: 'Failed to fetch budget' }, { status: 500 });
+    logger.error('Error fetching budget', error);
+    return apiError('Failed to fetch budget', 500);
   }
 }
 
@@ -34,18 +39,21 @@ export async function PATCH(
 
   try {
     const { budgetId: budgetIdStr } = await params;
+    const budgetId = parseId(budgetIdStr);
+    if (!budgetId) return apiError('Invalid budget ID', 400);
+
     const body = await request.json();
     const validation = validateBody(UpdateBudgetSchema, body);
     if (!validation.success) return validation.response;
 
-    const result = await updateBudget(parseInt(budgetIdStr), authResult.userId, validation.data);
+    const result = await updateBudget(budgetId, authResult.userId, validation.data);
     if (!result) {
-      return NextResponse.json({ error: 'Budget not found or unauthorized' }, { status: 404 });
+      return apiError('Budget not found or unauthorized', 404);
     }
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error updating budget:', error);
-    return NextResponse.json({ error: 'Failed to update budget' }, { status: 500 });
+    logger.error('Error updating budget', error);
+    return apiError('Failed to update budget', 500);
   }
 }
 
@@ -58,13 +66,17 @@ export async function DELETE(
 
   try {
     const { budgetId: budgetIdStr } = await params;
-    const result = await deleteBudget(parseInt(budgetIdStr), authResult.userId);
+    const budgetId = parseId(budgetIdStr);
+    if (!budgetId) return apiError('Invalid budget ID', 400);
+
+    const result = await deleteBudget(budgetId, authResult.userId);
     if (!result) {
-      return NextResponse.json({ error: 'Budget not found or unauthorized' }, { status: 404 });
+      return apiError('Budget not found or unauthorized', 404);
     }
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting budget:', error);
-    return NextResponse.json({ error: 'Failed to delete budget' }, { status: 500 });
+    logger.error('Error deleting budget', error);
+    return apiError('Failed to delete budget', 500);
   }
 }
+

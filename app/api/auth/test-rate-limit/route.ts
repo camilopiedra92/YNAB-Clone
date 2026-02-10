@@ -8,6 +8,7 @@
  * Only available when NEXT_TEST_BUILD=1.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { apiError } from '@/lib/api-error';
 import { authLimiter, importLimiter, testLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit';
 
 /** Force dynamic rendering — prevents Next.js from caching GET responses */
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST() {
   if (!process.env.NEXT_TEST_BUILD) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return apiError('Not found', 404);
   }
 
   authLimiter.clear();
@@ -28,7 +29,7 @@ export async function POST() {
 /** GET — rate-limited endpoint for testing 429 behavior */
 export async function GET(request: NextRequest) {
   if (!process.env.NEXT_TEST_BUILD) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return apiError('Not found', 404);
   }
 
   const ip = getClientIP(request);

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import { getAccounts, createAccount, ensureCreditCardPaymentCategory } from '@/lib/repos';
 import { validateBody, CreateAccountSchema } from '@/lib/schemas';
 import { toAccountDTO } from '@/lib/dtos';
@@ -20,8 +22,8 @@ export async function GET(
         const accounts = (await getAccounts(budgetId)).map(toAccountDTO);
         return NextResponse.json(accounts);
     } catch (error) {
-        console.error('Error fetching accounts:', error);
-        return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
+        logger.error('Error fetching accounts:', error);
+        return apiError('Failed to fetch accounts', 500);
     }
 }
 
@@ -55,7 +57,7 @@ export async function POST(
             note: null, closed: false,
         }), { status: 201 });
     } catch (error) {
-        console.error('Error creating account:', error);
-        return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
+        logger.error('Error creating account:', error);
+        return apiError('Failed to create account', 500);
     }
 }

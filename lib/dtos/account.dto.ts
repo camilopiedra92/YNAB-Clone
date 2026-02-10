@@ -3,6 +3,7 @@
  *
  * Decouples the DB row shape from the API response shape.
  */
+import type { ReconciliationInfo } from '../repos/accounts';
 
 // ─── Input Row Types ─────────────────────────────────────────────────
 
@@ -19,13 +20,7 @@ interface AccountRow {
   closed?: boolean | number;
 }
 
-/** Shape returned by getReconciliationInfo raw SQL query */
-interface ReconciliationInfoRow {
-  clearedBalance?: number;
-  reconciledBalance?: number;
-  pendingClearedBalance?: number;
-  pendingClearedCount?: number;
-}
+
 
 // ─── DTOs ────────────────────────────────────────────────────────────
 
@@ -64,7 +59,7 @@ export function toAccountDTO(row: AccountRow): AccountDTO {
   };
 }
 
-export function toReconciliationInfoDTO(row: ReconciliationInfoRow): ReconciliationInfoDTO {
+export function toReconciliationInfoDTO(row: ReconciliationInfo): ReconciliationInfoDTO {
   return {
     clearedBalance: Number(row.clearedBalance) || 0,
     reconciledBalance: Number(row.reconciledBalance) || 0,

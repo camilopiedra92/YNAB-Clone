@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
+import { apiError } from '@/lib/api-error';
 import { getPayees } from '@/lib/repos';
 import { requireBudgetAccess } from '@/lib/auth-helpers';
 
@@ -18,7 +20,7 @@ export async function GET(
         const payees = await getPayees(budgetId);
         return NextResponse.json(payees);
     } catch (error) {
-        console.error('Error fetching payees:', error);
-        return NextResponse.json({ error: 'Failed to fetch payees' }, { status: 500 });
+        logger.error('Error fetching payees:', error);
+        return apiError('Failed to fetch payees', 500);
     }
 }

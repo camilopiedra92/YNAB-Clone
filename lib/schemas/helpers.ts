@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ZodSchema, ZodError } from 'zod';
+import { apiError } from '@/lib/api-error';
 
 /**
  * Validate a request body against a Zod schema.
@@ -16,10 +17,7 @@ export function validateBody<T>(
     }
     return {
         success: false,
-        response: NextResponse.json(
-            { error: 'Validation failed', details: formatZodError(result.error) },
-            { status: 400 }
-        ),
+        response: apiError('Validation failed', 400, formatZodError(result.error)),
     };
 }
 

@@ -69,7 +69,7 @@ export default function BudgetPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
-    const { data: budgetData = [], isLoading: loading, isFetching: isNavigating, readyToAssign, inspectorData } = useBudgetTable(budgetId, currentMonth);
+    const { data: budgetData = [], isLoading: loading, readyToAssign, inspectorData } = useBudgetTable(budgetId, currentMonth);
     const animatedRTA = useAnimatedNumber(readyToAssign, 400);
     const queryClient = useQueryClient();
 
@@ -676,12 +676,7 @@ export default function BudgetPage() {
                         ref={tableContainerRef}
                         className="flex-1 min-w-0 h-full overflow-auto custom-scrollbar"
                     >
-                        {/* Subtle top loading bar for month navigation */}
-                        {isNavigating && (
-                            <div className="sticky top-0 z-30 w-full h-0.5 bg-primary/10 overflow-hidden">
-                                <div className="h-full bg-primary/40 animate-[loading-bar_1s_ease-in-out_infinite]" style={{ width: '40%' }} />
-                            </div>
-                        )}
+
                         <DndContext
                             sensors={sensors}
                             collisionDetection={closestCenter}

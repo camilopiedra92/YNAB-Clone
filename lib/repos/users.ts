@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema';
-import { type DrizzleDB } from './client';
+import { type DrizzleDB } from '../db/client';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface UserRepoDeps {

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, today, currentMonth, nextMonth, mu } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../repos/client';
+import type { DrizzleDB } from '../db/client';
 
 let db: DrizzleDB;
 let fns: ReturnType<typeof createDbFunctions>;

@@ -9,8 +9,15 @@ import { eq, sql, ne, and, isNotNull } from 'drizzle-orm';
 import { accounts, transactions } from '../db/schema';
 import { currentDate } from '../db/sql-helpers';
 import { milliunit, ZERO } from '../engine/primitives';
-import type { DrizzleDB } from './client';
-import { queryRows } from './client';
+import type { DrizzleDB } from '../db/client';
+import { queryRows } from '../db/client';
+
+export interface ReconciliationInfo {
+  clearedBalance: number;
+  reconciledBalance: number;
+  pendingClearedBalance: number;
+  pendingClearedCount: number;
+}
 
 export function createAccountFunctions(database: DrizzleDB) {
 
@@ -91,23 +98,19 @@ export function createAccountFunctions(database: DrizzleDB) {
         AND ${transactions.date} <= ${currentDate()}
     `);
     const result = rows[0];
+    if (!result) throw new Error(`Balance query returned no rows for account ${accountId}`);
 
     return database.update(accounts)
       .set({
-        balance: milliunit(Number(result!.balance)),
-        clearedBalance: milliunit(Number(result!.clearedBalance)),
-        unclearedBalance: milliunit(Number(result!.unclearedBalance)),
+        balance: milliunit(Number(result.balance)),
+        clearedBalance: milliunit(Number(result.clearedBalance)),
+        unclearedBalance: milliunit(Number(result.unclearedBalance)),
       })
       .where(eq(accounts.id, accountId));
   }
 
-  async function getReconciliationInfo(budgetId: number, accountId: number) {
-    const rows = await queryRows<{
-      clearedBalance: number;
-      reconciledBalance: number;
-      pendingClearedBalance: number;
-      pendingClearedCount: number;
-    }>(database, sql`
+  async function getReconciliationInfo(budgetId: number, accountId: number): Promise<ReconciliationInfo> {
+    const rows = await queryRows<ReconciliationInfo>(database, sql`
       SELECT 
         COALESCE(SUM(CASE WHEN ${transactions.cleared} IN ('Cleared', 'Reconciled') THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "clearedBalance",
         COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Reconciled' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "reconciledBalance",
@@ -118,11 +121,12 @@ export function createAccountFunctions(database: DrizzleDB) {
         AND ${transactions.accountId} IN (SELECT ${accounts.id} FROM ${accounts} WHERE ${accounts.budgetId} = ${budgetId})
         AND ${transactions.date} <= ${currentDate()}
     `);
+    // Aggregate query with COALESCE always returns exactly 1 row
     return rows[0];
   }
 
-  async function reconcileAccount(budgetId: number, accountId: number) {
-    return database.update(transactions)
+  async function reconcileAccount(budgetId: number, accountId: number): Promise<{ rowCount: number }> {
+    const result = await database.update(transactions)
       .set({ cleared: 'Reconciled' })
       .from(accounts)
       .where(and(
@@ -132,6 +136,7 @@ export function createAccountFunctions(database: DrizzleDB) {
         sql`${transactions.date} <= ${currentDate()}`,
         eq(transactions.accountId, accounts.id) // Join condition
       ));
+    return { rowCount: result.length ?? 0 };
   }
 
   async function getPayees(budgetId: number) {
