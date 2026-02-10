@@ -347,7 +347,10 @@ export async function importDataFromCSV(
   })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
-    .where(like(transactions.payee, 'Transfer : %'));
+    .where(and(
+      like(transactions.payee, 'Transfer : %'),
+      eq(accounts.budgetId, budgetId),
+    ));
 
   const processedTransferIds = new Set<number>();
 
@@ -363,15 +366,20 @@ export async function importDataFromCSV(
       !processedTransferIds.has(t2.id) &&
       t2.date === t1.date &&
       ((isOutflow && t2.inflow === amount) || (!isOutflow && t2.outflow === amount)) &&
-      t2.accountName === targetAccountName
+      t2.accountName === targetAccountName &&
+      t2.payee === `Transfer : ${t1.accountName}` // bidirectional payee validation
     );
 
     if (match) {
+      // Unscoped onConflictDoNothing() is intentional — catches conflicts on
+      // EITHER unique index (transfers_from_tx_unique OR transfers_to_tx_unique),
+      // preventing both same-column AND cross-column duplicate transfer links.
       await targetDb.insert(transfers)
         .values({
           fromTransactionId: t1.id,
           toTransactionId: match.id,
-        });
+        })
+        .onConflictDoNothing();
 
       processedTransferIds.add(t1.id);
       processedTransferIds.add(match.id);

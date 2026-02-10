@@ -43,6 +43,13 @@
       "when": 1770689906520,
       "tag": "0005_demonic_anita_blake",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770743446038,
+      "tag": "0006_jazzy_groot",
+      "breakpoints": true
     }
   ]
 }

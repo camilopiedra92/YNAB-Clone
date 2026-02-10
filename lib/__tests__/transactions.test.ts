@@ -109,6 +109,30 @@ describe('Transaction Filters', () => {
         expect(txs[0].transferAccountId).toBe(acc2Id);
         expect(txs[0].transferAccountName).toBe('Savings');
     });
+
+    it('getTransactions returns no duplicate rows for transfers (all accounts view)', async () => {
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
+        const acc2Id = acc2Result.id;
+
+        const transfer = await fns.createTransfer(budgetId, {
+            fromAccountId: accountId,
+            toAccountId: acc2Id,
+            amount: 100,
+            date: today(),
+        });
+
+        // Query ALL transactions (no accountId filter) — both sides of the transfer
+        const txs = await fns.getTransactions({ budgetId });
+        const ids = txs.map(t => t.id);
+        const uniqueIds = new Set(ids);
+
+        // Each transaction ID must appear exactly once
+        expect(ids.length).toBe(uniqueIds.size);
+        // Should be exactly 2 transactions (from + to)
+        expect(txs).toHaveLength(2);
+        // Both should have transfer metadata
+        expect(txs.every(t => t.transferId != null)).toBe(true);
+    });
 });
 
 // =====================================================================
@@ -298,6 +322,47 @@ describe('Transfer Helpers', () => {
         const acc2 = (await fns.getAccount(budgetId, acc2Id))!;
         expect(acc1.balance).toBe(700); // 1000 - 300
         expect(acc2.balance).toBe(300);
+    });
+
+    it('each transaction participates in at most one transfer (cross-column uniqueness)', async () => {
+        // Create 3 accounts
+        const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
+        const acc3Result = await fns.createAccount({ name: 'Cash', type: 'cash', budgetId });
+
+        // Create 2 independent transfers
+        const transfer1 = await fns.createTransfer(budgetId, {
+            fromAccountId: accountId,
+            toAccountId: acc2Result.id,
+            amount: 100,
+            date: today(),
+        });
+        const transfer2 = await fns.createTransfer(budgetId, {
+            fromAccountId: acc2Result.id,
+            toAccountId: acc3Result.id,
+            amount: 50,
+            date: today(),
+        });
+
+        // Verify each transaction has exactly one transfer link
+        const t1From = await fns.getTransferByTransactionId(budgetId, transfer1.fromTransactionId);
+        const t1To = await fns.getTransferByTransactionId(budgetId, transfer1.toTransactionId);
+        const t2From = await fns.getTransferByTransactionId(budgetId, transfer2.fromTransactionId);
+        const t2To = await fns.getTransferByTransactionId(budgetId, transfer2.toTransactionId);
+
+        // Each should return exactly one transfer (not be mixed across transfers)
+        expect(t1From!.id).toBe(transfer1.transferId);
+        expect(t1To!.id).toBe(transfer1.transferId);
+        expect(t2From!.id).toBe(transfer2.transferId);
+        expect(t2To!.id).toBe(transfer2.transferId);
+
+        // All 4 transaction IDs must be distinct (no cross-column reuse)
+        const allIds = new Set([
+            transfer1.fromTransactionId,
+            transfer1.toTransactionId,
+            transfer2.fromTransactionId,
+            transfer2.toTransactionId,
+        ]);
+        expect(allIds.size).toBe(4);
     });
 });
 

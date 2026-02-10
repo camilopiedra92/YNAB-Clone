@@ -1,8 +1,13 @@
 /**
- * Auth.js v5 Configuration — Central auth config.
+ * Auth.js v5 Configuration — Full Node.js auth config.
  *
- * Uses Credentials Provider (email + password) with JWT sessions.
- * No OAuth providers — matching YNAB's email/password auth model.
+ * Extends the edge-compatible `auth.config.ts` with the Credentials
+ * provider that requires Node.js-only dependencies (bcrypt, drizzle).
+ *
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │  auth.config.ts  →  Edge runtime (proxy.ts)                 │
+ * │  auth.ts          →  Node runtime (API routes, server)      │
+ * └──────────────────────────────────────────────────────────────┘
  *
  * Security features:
  * - Account lockout after MAX_LOGIN_ATTEMPTS failed attempts
@@ -18,6 +23,7 @@ import { eq } from 'drizzle-orm';
 import db from './repos/client';
 import { users } from './db/schema';
 import { LoginSchema } from './schemas/auth';
+import { authConfig } from './auth.config';
 
 /** Maximum failed login attempts before lockout */
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -25,12 +31,7 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: 'jwt' },
-
-  pages: {
-    signIn: '/auth/login',
-  },
+  ...authConfig,
 
   providers: [
     Credentials({
@@ -100,20 +101,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token?.id) {
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-  },
 });
-

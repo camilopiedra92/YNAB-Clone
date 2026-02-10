@@ -188,7 +188,10 @@ export const transfers = pgTable('transfers', {
     .references(() => transactions.id, { onDelete: 'cascade' }),
   toTransactionId: integer('to_transaction_id').notNull()
     .references(() => transactions.id, { onDelete: 'cascade' }),
-});
+}, (table) => [
+  uniqueIndex('transfers_from_tx_unique').on(table.fromTransactionId),
+  uniqueIndex('transfers_to_tx_unique').on(table.toTransactionId),
+]);
 
 // ═══════════════════════════════════════════════════════════════════════
 // Relations (for Drizzle relational queries)

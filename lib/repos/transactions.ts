@@ -96,30 +96,25 @@ export function createTransactionFunctions(
         t.flag as "flag",
         a.name as "accountName",
         c.name as "categoryName",
-        tr.id as "transferId",
+        COALESCE(tr_from.id, tr_to.id) as "transferId",
         CASE WHEN t.date > ${currentDate()} THEN 1 ELSE 0 END as "isFuture",
         CASE 
-          WHEN tr.id IS NOT NULL THEN
-            CASE 
-              WHEN tr.from_transaction_id = t.id THEN t_to.account_id
-              ELSE t_from.account_id
-            END
+          WHEN tr_from.id IS NOT NULL THEN t_peer_to.account_id
+          WHEN tr_to.id IS NOT NULL THEN t_peer_from.account_id
         END as "transferAccountId",
         CASE 
-          WHEN tr.id IS NOT NULL THEN
-            CASE 
-              WHEN tr.from_transaction_id = t.id THEN a_to.name
-              ELSE a_from.name
-            END
+          WHEN tr_from.id IS NOT NULL THEN a_peer_to.name
+          WHEN tr_to.id IS NOT NULL THEN a_peer_from.name
         END as "transferAccountName"
       FROM ${transactions} t
       JOIN ${accounts} a ON t.account_id = a.id
       LEFT JOIN ${categories} c ON t.category_id = c.id
-      LEFT JOIN ${transfers} tr ON t.id = tr.from_transaction_id OR t.id = tr.to_transaction_id
-      LEFT JOIN ${transactions} t_from ON tr.from_transaction_id = t_from.id
-      LEFT JOIN ${transactions} t_to ON tr.to_transaction_id = t_to.id
-      LEFT JOIN ${accounts} a_from ON t_from.account_id = a_from.id
-      LEFT JOIN ${accounts} a_to ON t_to.account_id = a_to.id
+      LEFT JOIN ${transfers} tr_from ON tr_from.from_transaction_id = t.id
+      LEFT JOIN ${transfers} tr_to ON tr_to.to_transaction_id = t.id
+      LEFT JOIN ${transactions} t_peer_to ON tr_from.to_transaction_id = t_peer_to.id
+      LEFT JOIN ${transactions} t_peer_from ON tr_to.from_transaction_id = t_peer_from.id
+      LEFT JOIN ${accounts} a_peer_to ON t_peer_to.account_id = a_peer_to.id
+      LEFT JOIN ${accounts} a_peer_from ON t_peer_from.account_id = a_peer_from.id
       WHERE 1=1 ${whereExtra}
       ORDER BY t.date DESC, t.id DESC
       ${limitClause}

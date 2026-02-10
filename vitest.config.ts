@@ -8,7 +8,7 @@ export default defineConfig({
         // Increase timeout for DB-heavy tests
         testTimeout: 10000,
         // Exclude Playwright E2E tests (they run via `npx playwright test`)
-        exclude: ['node_modules', 'tests/**'],
+        exclude: ['node_modules', '.agent/**', 'tests/**'],
         coverage: {
             include: ['lib/**'],
             exclude: [

@@ -369,7 +369,7 @@ export default function VirtualTransactionTable({
                         if (row.type === 'future') {
                             return (
                                 <FutureTransactionRow
-                                    key={row.transaction.id}
+                                    key={`future-${row.transaction.id}`}
                                     t={row.transaction}
                                     showAccount={showAccount}
                                     onEdit={onEditTransaction}
@@ -381,7 +381,7 @@ export default function VirtualTransactionTable({
                         if (row.type === 'current') {
                             return (
                                 <TransactionRow
-                                    key={row.transaction.id}
+                                    key={`current-${row.transaction.id}`}
                                     t={row.transaction}
                                     isSelected={selectedRows.has(row.transaction.id)}
                                     showAccount={showAccount}

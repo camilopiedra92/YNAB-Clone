@@ -31,7 +31,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/budget');
+      router.push('/budgets');
       router.refresh();
     } catch {
       setError('Error al iniciar sesión');

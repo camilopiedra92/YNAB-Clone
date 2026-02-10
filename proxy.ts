@@ -1,28 +1,41 @@
 /**
- * Next.js 16 Proxy — Route Protection
+ * Next.js 16 Proxy — Edge JWT-validated route protection.
  *
- * Lightweight session-cookie check that redirects unauthenticated users
- * to /auth/login. No DB calls — full session validation happens in API routes.
+ * Uses the edge-compatible auth config (`auth.config.ts`) to create
+ * a lightweight NextAuth instance that validates JWT signatures and
+ * expiry — without importing bcrypt/drizzle.
+ *
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │  proxy.ts imports auth.config.ts (Edge-safe)                │
+ * │  API routes import auth.ts (full Node.js config)            │
+ * └──────────────────────────────────────────────────────────────┘
  *
  * In Next.js 16, middleware.ts was renamed to proxy.ts.
  * The exported function is called `proxy` (not `middleware`).
  */
-import { auth } from '@/lib/auth';
+import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { authConfig } from '@/lib/auth.config';
 
-export async function proxy(request: NextRequest) {
-  const session = await auth();
+const { auth } = NextAuth(authConfig);
 
-  if (!session) {
-    // Use the request URL's origin so it works on any port (dev :3000, test :3001, prod)
-    const loginUrl = new URL('/auth/login', request.url);
+/**
+ * Proxy handler — wraps `auth()` to get the verified session.
+ * If the JWT is missing, expired, or invalid → redirect to login.
+ */
+export const proxy = auth((req) => {
+  if (!req.auth) {
+    const loginUrl = new URL('/auth/login', req.nextUrl.origin);
     return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
-}
+});
 
+/**
+ * Matcher config — only run proxy on routes that need auth protection.
+ * Excludes: auth pages, API routes, Next.js internals, and static assets.
+ */
 export const config = {
-  matcher: ['/((?!auth|api/auth|_next|favicon).*)'],
+  matcher: ['/((?!auth|api|_next|favicon\\.ico|icons|.*\\.png$|.*\\.svg$).*)'],
 };
