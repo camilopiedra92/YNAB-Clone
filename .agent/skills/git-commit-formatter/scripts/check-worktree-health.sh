@@ -10,6 +10,14 @@ JUNK_PATTERNS=("tsx-" ".DS_Store" "node_modules" "npm-debug.log" ".tmp/" "backup
 
 echo "🔍 Checking Worktree Health..."
 
+# 0. Repo Root Check
+if [ ! -d .git ]; then
+  echo "❌ Error: .git directory not found in current directory."
+  echo "You are likely in the workspace root instead of the project root."
+  echo "💡 Suggested Action: Run this command with 'Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app'"
+  exit 1
+fi
+
 # 1. Detect Untracked Junk
 UNTRACKED=$(git ls-files --others --exclude-standard)
 JUNK_FOUND=()

@@ -7,6 +7,20 @@ description: Formats and validates git commit messages according to the Conventi
 
 Use this skill **every time you write a git commit message**. It enforces the [Conventional Commits](https://www.conventionalcommits.org/) specification with automated validation.
 
+## 📂 Directory Protocol (MANDATORY)
+
+The project has a nested structure. You **MUST** verify your location before running any Git command:
+
+- **Workspace Root:** `/Users/camilopiedra/Documents/YNAB`
+- **Project/Git Root:** `/Users/camilopiedra/Documents/YNAB/ynab-app`
+
+### The Rule of Thumb:
+
+All Git commands (`git status`, `git add`, `git commit`, `git push`) **MUST** be run with:
+`Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app`
+
+---
+
 ## 🚀 Turbo Flow (Primary Path)
 
 Always try this automated sequence first. It reduces manual verification steps.
@@ -149,9 +163,17 @@ These are specific rules to avoid common errors when using Git in this environme
 
 If you see `fatal: not a git repository`:
 
-1.  **Do NOT** just run `git init`.
-2.  **Check your directory**: Use `ls -la` to find where the `.git` folder actually lives.
-3.  **Adjust Cwd**: Ensure you are running Git commands in the directory containing `.git` (e.g., `ynab-app/`).
+1.  **Stop and Reflect**: You are likely at the workspace root instead of the project root.
+2.  **Immediate Fix**: Switch to `Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app`.
+3.  **Proactive Check**: Before running any Git command, check if `.git` exists in the current directory.
+
+### B. Command Efficiency (The "One-Turn" Rule)
+
+To avoid "giving many turns" (looping unnecessarily):
+
+1.  **Batch Actions**: If you have multiple files to stage, use `git add .` or list them all in one command.
+2.  **Combine Check & Commit**: If the status is already known from previous tool outputs, skip redundant `git status` calls and move straight to commit.
+3.  **Smart Status**: Use `git status -s` for a concise overview that is easier to parse in one glance.
 
 ### B. Gitignore Awareness (The "Stuck" Rule)
 
