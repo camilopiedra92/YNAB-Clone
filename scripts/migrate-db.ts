@@ -23,10 +23,15 @@ async function main() {
 
   try {
     await migrate(db, { migrationsFolder });
-    console.log('Migrations applied successfully.');
+    console.log('✅ Migrations applied successfully.');
   } catch (err) {
-    console.error('Migration failed:', err);
-    process.exit(1);
+    console.error('⚠️ Migration failed:', err);
+    if (process.env.NODE_ENV === 'production') {
+      console.error('App will start with existing schema. Investigate migration failure.');
+      // Don't exit — app may still work with the previous schema version
+    } else {
+      process.exit(1);
+    }
   } finally {
     await client.end();
   }
