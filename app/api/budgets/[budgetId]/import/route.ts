@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { logger } from "@/lib/logger";
 import { apiError } from '@/lib/api-error';
-import { requireBudgetAccess } from '@/lib/auth-helpers';
+import { withBudgetAccess } from '@/lib/with-budget-access';
 import { importDataFromCSV } from '@/lib/data-import';
-import db from '@/lib/db/client';
 import { importLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
@@ -22,33 +21,34 @@ export async function POST(
         const { budgetId: budgetIdStr } = await params;
         const budgetId = parseInt(budgetIdStr, 10);
 
-        const access = await requireBudgetAccess(budgetId);
-        if (!access.ok) return access.response;
+        return withBudgetAccess(budgetId, async (_tenant, _repos) => {
+            const formData = await request.formData();
 
-        const formData = await request.formData();
+            const registerFile = formData.get('register') as File | null;
+            const planFile = formData.get('plan') as File | null;
 
-        const registerFile = formData.get('register') as File | null;
-        const planFile = formData.get('plan') as File | null;
+            if (!registerFile || !planFile) {
+                return apiError('Both "register" and "plan" CSV files are required', 400);
+            }
 
-        if (!registerFile || !planFile) {
-            return apiError('Both "register" and "plan" CSV files are required', 400);
-        }
+            // Validate file sizes
+            if (registerFile.size > MAX_FILE_SIZE || planFile.size > MAX_FILE_SIZE) {
+                return apiError(`Each file must be under ${MAX_FILE_SIZE / 1024 / 1024}MB`, 400);
+            }
 
-        // Validate file sizes
-        if (registerFile.size > MAX_FILE_SIZE || planFile.size > MAX_FILE_SIZE) {
-            return apiError(`Each file must be under ${MAX_FILE_SIZE / 1024 / 1024}MB`, 400);
-        }
+            // Read file contents as text
+            const registerCSV = await registerFile.text();
+            const planCSV = await planFile.text();
 
-        // Read file contents as text
-        const registerCSV = await registerFile.text();
-        const planCSV = await planFile.text();
+            // Import data into the budget
+            // Note: importDataFromCSV uses its own db connection - may need transaction support later
+            const { default: db } = await import('@/lib/db/client');
+            const stats = await importDataFromCSV(budgetId, registerCSV, planCSV, db);
 
-        // Import data into the budget
-        const stats = await importDataFromCSV(budgetId, registerCSV, planCSV, db);
-
-        return NextResponse.json({
-            success: true,
-            stats,
+            return NextResponse.json({
+                success: true,
+                stats,
+            });
         });
     } catch (error) {
         logger.error('Error importing data:', error);

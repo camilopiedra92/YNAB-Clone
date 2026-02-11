@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from "@/lib/logger";
 import { apiError } from '@/lib/api-error';
-import { getReconciliationInfo } from '@/lib/repos';
 import { toReconciliationInfoDTO } from '@/lib/dtos';
-import { requireBudgetAccess } from '@/lib/auth-helpers';
+import { withBudgetAccess } from '@/lib/with-budget-access';
 
 type RouteContext = { params: Promise<{ budgetId: string; id: string }> };
 
@@ -19,11 +18,10 @@ export async function GET(
             return apiError('Invalid account ID', 400);
         }
 
-        const access = await requireBudgetAccess(budgetId);
-        if (!access.ok) return access.response;
-
-        const info = await getReconciliationInfo(budgetId, accountId);
-        return NextResponse.json(toReconciliationInfoDTO(info));
+        return withBudgetAccess(budgetId, async (_tenant, repos) => {
+            const info = await repos.getReconciliationInfo(budgetId, accountId);
+            return NextResponse.json(toReconciliationInfoDTO(info));
+        });
     } catch (error) {
         logger.error('Error fetching reconciliation info:', error);
         return apiError('Failed to fetch reconciliation info', 500);
