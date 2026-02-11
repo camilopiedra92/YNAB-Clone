@@ -37,15 +37,6 @@ test.describe('Data Import', () => {
         fs.writeFileSync(path.join(FIXTURES_DIR, 'plan.csv'), PLAN_FIXTURE);
     });
 
-    test.afterAll(async () => {
-        // Clean up fixture files
-        try {
-            fs.rmSync(FIXTURES_DIR, { recursive: true, force: true });
-        } catch {
-            // Ignore cleanup errors
-        }
-    });
-
     test('opens import modal from sidebar budget dropdown', async ({ page, request }) => {
         await gotoBudgetPage(page, request);
 
