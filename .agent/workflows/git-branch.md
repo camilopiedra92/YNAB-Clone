@@ -39,7 +39,9 @@ git stash pop 2>/dev/null || true
 
 ## After Work Is Complete
 
-When the feature is done and tests pass, push and create a PR to `staging`:
+When the feature is done and tests pass, push and create a PR to `staging`.
+
+> **Note:** Git hooks run automatically — `pre-commit` (lint + typecheck, ~5s) on commit and `pre-push` (unit tests, ~5–10s) on push. Bypass with `--no-verify` in emergencies.
 
 ```bash
 # Push the branch
