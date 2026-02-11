@@ -99,7 +99,7 @@ test.describe('Data Import', () => {
         await expect(page.getByText('Transacciones')).toBeVisible();
 
         // Close the modal
-        await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
+        await page.getByRole('button', { name: 'Cerrar' }).last().click();
 
         // Wait for cache refresh
         await page.waitForTimeout(2000);
