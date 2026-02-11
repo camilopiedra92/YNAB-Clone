@@ -115,6 +115,8 @@ jobs:
           echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ynab_dev" >> .env
           echo "AUTH_SECRET=ci-e2e-secret-at-least-32-characters-long" >> .env
           echo "AUTH_TRUST_HOST=true" >> .env
+          echo "YNAB_REGISTER_CSV=${{ github.workspace }}/tests/fixtures/register.csv" >> .env
+          echo "YNAB_PLAN_CSV=${{ github.workspace }}/tests/fixtures/plan.csv" >> .env
 
       - name: Cache Playwright Browsers
         id: playwright-cache
