@@ -45,11 +45,14 @@ staging ────────────────────────
 
 ## 5. CI Pipeline per Stage
 
-| Stage          | Trigger | Checks                                      | Duration |
-| -------------- | ------- | ------------------------------------------- | -------- |
-| Feature branch | Push    | quality-gate + unit-tests                   | ~3 min   |
-| PR → staging   | PR      | quality-gate + unit-tests + ci-passed       | ~3 min   |
-| PR → main      | PR      | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
+| Stage                | Trigger | Checks                                      | Duration |
+| -------------------- | ------- | ------------------------------------------- | -------- |
+| Feature branch       | Push    | quality-gate + unit-tests                   | ~3 min   |
+| PR → staging         | PR      | quality-gate + unit-tests + ci-passed       | ~3 min   |
+| Staging (post-merge) | Push    | quality-gate + unit-tests + E2E             | ~10 min  |
+| PR → main            | PR      | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
+
+> **Note:** `ci-passed` only runs on `pull_request` events. Push events run quality-gate, unit-tests, and E2E (on staging) but do NOT produce `ci-passed` — this prevents stale push checks from satisfying ruleset requirements.
 
 ### Concurrency Deduplication
 
