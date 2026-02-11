@@ -21,7 +21,7 @@ export async function POST(
         const { budgetId: budgetIdStr } = await params;
         const budgetId = parseInt(budgetIdStr, 10);
 
-        return withBudgetAccess(budgetId, async (_tenant, _repos) => {
+        return withBudgetAccess(budgetId, async (_tenant, _repos, tx) => {
             const formData = await request.formData();
 
             const registerFile = formData.get('register') as File | null;
@@ -40,10 +40,8 @@ export async function POST(
             const registerCSV = await registerFile.text();
             const planCSV = await planFile.text();
 
-            // Import data into the budget
-            // Note: importDataFromCSV uses its own db connection - may need transaction support later
-            const { default: db } = await import('@/lib/db/client');
-            const stats = await importDataFromCSV(budgetId, registerCSV, planCSV, db);
+            // Import using the transaction — shares RLS context with withBudgetAccess
+            const stats = await importDataFromCSV(budgetId, registerCSV, planCSV, tx);
 
             return NextResponse.json({
                 success: true,

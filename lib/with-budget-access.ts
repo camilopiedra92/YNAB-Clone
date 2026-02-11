@@ -23,6 +23,7 @@ import { auth } from './auth';
 import db from './db/client';
 import { createDbFunctions } from './db/client';
 import { budgets, budgetShares } from './db/schema';
+import type { DrizzleDB } from './db/helpers';
 import type { TenantContext } from './tenant-context';
 
 /** The repos object type returned by createDbFunctions */
@@ -40,10 +41,13 @@ export type TransactionRepos = ReturnType<typeof createDbFunctions>;
  *
  * All queries inside the handler use the SAME connection (the transaction),
  * so RLS policies that depend on `current_setting('app.user_id')` work correctly.
+ *
+ * The handler also receives `tx` (the raw transaction) for passing to functions
+ * like `importDataFromCSV` that accept a DrizzleDB directly.
  */
 export async function withBudgetAccess(
   budgetId: number,
-  handler: (tenant: TenantContext, repos: TransactionRepos) => Promise<NextResponse>,
+  handler: (tenant: TenantContext, repos: TransactionRepos, tx: DrizzleDB) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   // Step 1: Authenticate
   const session = await auth();
@@ -93,8 +97,9 @@ export async function withBudgetAccess(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const repos = createDbFunctions(tx as any);
 
-      // Step 6: Run the handler
-      return handler(tenant, repos);
+      // Step 6: Run the handler — also pass raw tx for direct DB access
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return handler(tenant, repos, tx as any);
     });
   } catch (error) {
     // If the transaction throws (not a NextResponse), return 500
