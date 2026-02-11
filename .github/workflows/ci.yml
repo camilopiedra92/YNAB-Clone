@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches:
-      - staging
       - "feat/**"
       - "fix/**"
       - "refactor/**"
@@ -81,15 +80,14 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  # ─── Job 3: E2E Tests (staging + main only) ────────────
-  # Runs on: push to staging, PR to main
+  # ─── Job 3: E2E Tests (PR to main only) ─────────────────
+  # Runs on: PR to main (staging → main promotion)
   # Skipped on: push to feature branches, PR to staging
   e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/staging') ||
-      (github.event_name == 'pull_request' && github.base_ref == 'main')
+      github.event_name == 'pull_request' && github.base_ref == 'main'
     services:
       postgres:
         image: postgres:16

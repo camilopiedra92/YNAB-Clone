@@ -45,13 +45,11 @@ staging ────────────────────────
 
 ## 5. CI Pipeline per Stage
 
-| Stage                | Trigger | Checks                          | Duration |
-| -------------------- | ------- | ------------------------------- | -------- |
-| Feature branch       | Push    | quality-gate + unit-tests       | ~3 min   |
-| PR → staging         | PR      | quality-gate + unit-tests       | ~3 min   |
-| Staging (post-merge) | Push    | quality-gate + unit-tests + E2E | ~10 min  |
-| PR → main            | PR      | quality-gate + unit-tests + E2E | ~10 min  |
-| Main (post-merge)    | Push    | Deploy only                     | ~2 min   |
+| Stage          | Trigger | Checks                                      | Duration |
+| -------------- | ------- | ------------------------------------------- | -------- |
+| Feature branch | Push    | quality-gate + unit-tests                   | ~3 min   |
+| PR → staging   | PR      | quality-gate + unit-tests + ci-passed       | ~3 min   |
+| PR → main      | PR      | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
 
 ### Concurrency Deduplication
 
