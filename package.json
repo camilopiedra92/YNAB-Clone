@@ -24,7 +24,9 @@
     "db:debug-rta": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/debug-rta.ts",
     "health:check": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/health-check.ts",
     "git:sync": "bash scripts/sync.sh",
-    "git:prune": "bash scripts/prune-branches.sh"
+    "git:prune": "bash scripts/prune-branches.sh",
+    "git:install-hooks": "bash scripts/install-hooks.sh",
+    "prepare": "bash scripts/install-hooks.sh"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.4.0",
