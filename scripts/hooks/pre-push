@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
 # Git pre-push hook
-# Blocks direct pushes to protected branches (main).
-# Layer 1 of defense-in-depth (Layer 2 = GitHub Rulesets).
+# 1. Blocks direct pushes to protected branches (main).
+#    Layer 1 of defense-in-depth (Layer 2 = GitHub Rulesets).
+# 2. Runs unit tests before allowing the push.
+#
+# Bypass: git push --no-verify  OR  SKIP_HOOKS=1 git push
 #
 # This hook runs BEFORE any push, regardless of how the commit was made
 # (npm run git:sync, raw git commit, IDE commit, etc.)
 
 set -euo pipefail
 
+# ─── Skip mechanisms ──────────────────────────────────────
+if [ "${SKIP_HOOKS:-}" = "1" ]; then
+    echo "⏭️  pre-push: Skipped (SKIP_HOOKS=1)"
+    exit 0
+fi
+
+if [ "${CI:-}" = "true" ]; then
+    exit 0
+fi
+
 PROTECTED_BRANCH="main"
 
+# ─── 1. Branch protection ────────────────────────────────
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Extract the remote branch name from refs/heads/...
     remote_branch="${remote_ref#refs/heads/}"
@@ -31,4 +45,17 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
 done
 
-exit 0
+# ─── 2. Unit tests ───────────────────────────────────────
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+echo "🧪 pre-push: Running unit tests..."
+TEST_OUTPUT=$("$REPO_ROOT/scripts/with-local-tmp.sh" node --env-file="$REPO_ROOT/.env" "$REPO_ROOT/node_modules/vitest/vitest.mjs" run 2>&1) || {
+    echo "$TEST_OUTPUT" | tail -30
+    echo ""
+    echo "❌ Unit tests failed. Fix them before pushing."
+    echo "   Bypass: git push --no-verify"
+    exit 1
+}
+echo "✅ Unit tests passed"
+
+echo "🎉 pre-push: All checks passed"

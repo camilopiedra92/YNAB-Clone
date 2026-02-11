@@ -87,6 +87,8 @@ If the description has commas or "and" connecting 3+ items, it's too long. Pick 
 
 One command MUST lead to the goal. Your turn ends when `npm run git:sync` reports `📊 STATUS: SUCCESS` or `📊 STATUS: SYNCED`.
 
+**Git hooks run during sync:** `pre-commit` (lint + typecheck, ~5s) fires on `git commit`, and `pre-push` (unit tests, ~5-10s) fires on `git push`. Total sync time is ~15-25s. If hooks fail, sync exits with an error — this is expected behavior, not a bug. Report the failure to the user.
+
 ### 2. Conventional Commitment
 
 Refer to `resources/scope-map.md` for the mandatory `type(scope)` format.

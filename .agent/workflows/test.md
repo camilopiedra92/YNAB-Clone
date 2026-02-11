@@ -7,6 +7,8 @@ description: Run the full QA test suite (Audit, Lint, Build, Unit, E2E).
 Run this workflow to strictly verify the application before any deployment or major merge.
 This is the **single source of truth** for quality assurance — it covers every layer from environment health to end-to-end browser testing.
 
+> **Layer 0 (automatic):** Git hooks run lint + typecheck on every commit and unit tests on every push. This workflow covers the full suite for manual/CI verification.
+
 // turbo-all
 
 ## Layer 1 — Environment & Database

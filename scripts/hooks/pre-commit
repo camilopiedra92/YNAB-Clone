@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Git pre-commit hook
+# Runs lint (staged files only) + typecheck before every commit.
+# Bypass: git commit --no-verify  OR  SKIP_HOOKS=1 git commit
+#
+# Installed automatically by `npm run git:install-hooks` (or `npm install` via prepare).
+
+set -euo pipefail
+
+# ─── Skip mechanisms ──────────────────────────────────────
+if [ "${SKIP_HOOKS:-}" = "1" ]; then
+    echo "⏭️  pre-commit: Skipped (SKIP_HOOKS=1)"
+    exit 0
+fi
+
+if [ "${CI:-}" = "true" ]; then
+    exit 0
+fi
+
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# ─── 1. Lint staged files ────────────────────────────────
+# Get staged .ts/.tsx/.js/.mjs files (exclude deleted files)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d -- '*.ts' '*.tsx' '*.js' '*.mjs' || true)
+
+if [ -n "$STAGED_FILES" ]; then
+    echo "🔍 pre-commit: Linting staged files..."
+    # shellcheck disable=SC2086
+    if ! npx eslint --no-warn-ignored $STAGED_FILES; then
+        echo ""
+        echo "❌ Lint errors found. Fix them before committing."
+        echo "   Bypass: git commit --no-verify"
+        exit 1
+    fi
+    echo "✅ Lint passed"
+else
+    echo "⏭️  pre-commit: No lintable files staged"
+fi
+
+# ─── 2. Typecheck (full project — TS needs type graph) ───
+echo "🔍 pre-commit: Running typecheck..."
+TSC_OUTPUT=$(npx tsc --noEmit 2>&1) || {
+    echo "$TSC_OUTPUT" | tail -30
+    echo ""
+    echo "❌ TypeScript errors found. Fix them before committing."
+    echo "   Bypass: git commit --no-verify"
+    exit 1
+}
+echo "✅ Typecheck passed"
+
+echo "🎉 pre-commit: All checks passed"

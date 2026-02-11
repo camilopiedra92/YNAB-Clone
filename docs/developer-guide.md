@@ -114,6 +114,29 @@ The project includes specialized workflows for common tasks:
 - `/scripts`: Utility scripts for data migration and debugging.
 - `/docs`: Project documentation.
 
+## Git Hooks (Local Quality Gates)
+
+Git hooks run automatically to catch issues before they reach CI:
+
+| Hook         | Trigger            | What it runs                                   | ~Time  |
+| ------------ | ------------------ | ---------------------------------------------- | ------ |
+| `pre-commit` | Every `git commit` | ESLint (staged files) + TypeScript typecheck   | ~5–8s  |
+| `pre-push`   | Every `git push`   | Branch protection (blocks `main`) + Unit tests | ~5–10s |
+
+Hooks are installed automatically on `npm install` (via the `prepare` script). To manually reinstall:
+
+```bash
+npm run git:install-hooks
+```
+
+**Bypass** (emergencies only):
+
+```bash
+git commit --no-verify    # skip pre-commit
+git push --no-verify      # skip pre-push
+SKIP_HOOKS=1 git commit   # alternative via env var
+```
+
 ## Testing & Debugging
 
 - **Debugging RTA**: Use `scripts/debug-rta.ts` to inspect the calculations for "Ready to Assign".
