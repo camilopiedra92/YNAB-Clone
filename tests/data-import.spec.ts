@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { gotoBudgetPage } from './e2e-helpers';
+import { TEST_BASE_URL } from './test-constants';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -117,7 +118,7 @@ test.describe('Data Import', () => {
     });
 
     test('import via API returns proper stats', async ({ request }) => {
-        const BASE_URL = 'http://localhost:3001';
+        const BASE_URL = TEST_BASE_URL;
 
         // Get the test budget ID
         const budgetsRes = await request.get(`${BASE_URL}/api/budgets`);
@@ -153,7 +154,7 @@ test.describe('Data Import', () => {
     });
 
     test('import API rejects request without files', async ({ request }) => {
-        const BASE_URL = 'http://localhost:3001';
+        const BASE_URL = TEST_BASE_URL;
 
         const budgetsRes = await request.get(`${BASE_URL}/api/budgets`);
         const budgets = await budgetsRes.json();

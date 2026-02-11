@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_BASE_URL } from './test-constants';
 
 /**
  * Budget Selection E2E Tests — Phase 4.4.4
@@ -12,7 +13,7 @@ import { test, expect } from '@playwright/test';
  * Uses shared auth storageState (pre-logged-in as test@test.com).
  */
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = TEST_BASE_URL;
 
 test.describe('Budget Selection', () => {
     test('budget list page shows existing budgets', async ({ page }) => {

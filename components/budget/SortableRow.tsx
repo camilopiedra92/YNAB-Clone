@@ -1,17 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
+import type { DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-interface SortableRowProps {
+interface SortableRowProps extends Omit<React.HTMLAttributes<HTMLTableRowElement>, 'children' | 'id'> {
     id: string;
-    children: (listeners: any, attributes: any) => React.ReactNode;
-    className?: string;
+    children: (listeners: DraggableSyntheticListeners, attributes: DraggableAttributes) => React.ReactNode;
     type: 'group' | 'item';
     disabled?: boolean;
-    [key: string]: any;
 }
 
 export function SortableRow({ id, children, className, type, disabled, ...rest }: SortableRowProps) {

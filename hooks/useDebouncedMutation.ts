@@ -27,6 +27,8 @@ export function useDebouncedMutation<TData, TError, TVariables, TContext>(
                 timerRef.current = null;
             }, delay);
         },
+        // Intentionally depending on `mutation.mutate` (stable) instead of the full `mutation`
+        // object, which changes identity every render and would defeat the debounce.
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [mutation.mutate, delay],
     );
@@ -39,6 +41,8 @@ export function useDebouncedMutation<TData, TError, TVariables, TContext>(
             }
             mutation.mutate(variables);
         },
+        // Intentionally depending on `mutation.mutate` (stable) instead of the full `mutation`
+        // object, which changes identity every render and would recreate the callback.
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [mutation.mutate],
     );

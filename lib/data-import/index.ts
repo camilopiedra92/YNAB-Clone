@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /**
  * YNAB CSV Data Importer
  *
@@ -449,7 +449,7 @@ export async function importDataFromCSV(
   // ── Update Account Balances ────────────────────────────────────
 
   logger.info('Updating account balances...');
-  for (const [accountName, accountId] of accountMap) {
+  for (const [_accountName, accountId] of accountMap) {
     const result = await targetDb.select({
       balance: sql<number>`SUM(${transactions.inflow} - ${transactions.outflow})`,
       clearedBalance: sql<number>`SUM(CASE WHEN ${transactions.cleared} IN ('Cleared', 'Reconciled') THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END)`,
@@ -509,9 +509,8 @@ export async function importDataFromCSV(
  * Used by scripts/import-ynab-data.ts and tests/global-setup.ts.
  */
 export async function importData(budgetId: number, targetDb?: DrizzleDB): Promise<ImportStats> {
-  // Lazy-load fs, path, env, and db only when this function is called (Node.js only)
+  // Lazy-load fs, env, and db only when this function is called (Node.js only)
   const fs = await import('fs');
-  const path = await import('path');
   const env = (await import('../env')).default;
   if (!targetDb) {
     const clientModule = await import('../db/client');

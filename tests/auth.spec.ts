@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { TEST_USER } from './test-constants';
+import { TEST_USER, TEST_BASE_URL } from './test-constants';
 
 /**
  * Auth E2E Tests — Phase 4.4.3
@@ -14,7 +14,7 @@ import { TEST_USER } from './test-constants';
  * These tests manage their OWN auth state (no shared storageState).
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const BASE_URL = TEST_BASE_URL;
 
 // Clear cookies so each test starts unauthenticated
 test.use({ storageState: { cookies: [], origins: [] } });
