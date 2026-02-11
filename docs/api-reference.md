@@ -1,118 +1,38 @@
-# API Reference & Technical Contract
+# API Reference
 
-This document provides a formal specification of the internal API endpoints used by the YNAB Clone. These routes facilitate the communication between the React frontend and the SQLite business engine.
+> **Interactive Documentation:** Start the dev server (`npm run dev`) and visit [`/api-docs`](http://localhost:3000/api-docs) for the full Swagger UI explorer.
+>
+> **Raw Spec:** [`GET /api/docs`](http://localhost:3000/api/docs) returns the OpenAPI 3.1 JSON document.
 
 ## 📡 General Standards
 
-- **Content-Type**: `application/json`
-- **Method Standards**:
-  - `GET`: Idempotent data retrieval.
-  - `POST`: Create a new resource.
-  - `PUT`/`PATCH`: Update existing records.
-  - `DELETE`: Remove records.
-- **Monetary Values**: All amounts are **Milliunits** (integers = value × 1000). e.g., $10.50 = 10500.
-- **Error Propagation**: Errors are returned as JSON objects with a `message` field and appropriate HTTP status codes (400, 404, 500).
+- **Content-Type**: `application/json` (except file uploads: `multipart/form-data`)
+- **Authentication**: Session-based via NextAuth.js (cookie-managed by browser)
+- **Monetary Values**: All amounts are **milliunits** (value × 1000). Example: $10.50 = `10500`
+- **Error Format**: `{ "error": "message", "details": { "field": ["error1", "error2"] } }`
 
----
+## Endpoint Groups
 
-## 🏦 Accounts API
+| Tag                 | Base Path                                 | Description                                |
+| ------------------- | ----------------------------------------- | ------------------------------------------ |
+| **Auth**            | `/api/auth/register`                      | User registration                          |
+| **User**            | `/api/user/profile`, `/api/user/password` | Profile & password management              |
+| **Budgets**         | `/api/budgets`                            | Budget CRUD (owner operations)             |
+| **Accounts**        | `/api/budgets/:budgetId/accounts`         | Financial accounts + reconciliation        |
+| **Budget Planning** | `/api/budgets/:budgetId/budget`           | Category assignments & RTA calculation     |
+| **Transactions**    | `/api/budgets/:budgetId/transactions`     | CRUD, transfers, toggle-cleared, reconcile |
+| **Categories**      | `/api/budgets/:budgetId/categories`       | Categories, groups, reordering             |
+| **Payees**          | `/api/budgets/:budgetId/payees`           | Payee autocomplete                         |
+| **Sharing**         | `/api/budgets/:budgetId/shares`           | Multi-user budget sharing                  |
+| **Data Import**     | `/api/budgets/:budgetId/import`           | YNAB CSV import (rate limited)             |
 
-### `GET /api/accounts`
+## Auto-Generation
 
-Retrieves a list of all accounts including their current working balances.
+The OpenAPI spec is auto-generated from existing Zod validation schemas using [`@asteasolutions/zod-to-openapi`](https://github.com/asteasolutions/zod-to-openapi).
 
-- **Response**: `Array<Account>`
+- **Registry**: [`lib/openapi/registry.ts`](../lib/openapi/registry.ts) — all routes & schemas
+- **Generator**: [`lib/openapi/generator.ts`](../lib/openapi/generator.ts) — produces the OpenAPI 3.1 document
+- **Swagger UI**: [`app/(app)/api-docs/page.tsx`](<../app/(app)/api-docs/page.tsx>) — interactive explorer
 
-### `POST /api/accounts`
-
-Creates a new financial account.
-
-- **Body**: `{ name: string, type: string, balance: number }`
-- **Logic**: Automatically initializes a starting balance transaction.
-
-### `PATCH /api/accounts/[id]`
-
-Updates account metadata (name, note, closed status).
-
-- **Body**: `{ name?: string, note?: string, closed?: boolean }`
-
----
-
-## 📈 Budget & Planning API
-
-### `GET /api/budget?month=YYYY-MM`
-
-Returns the complete budget state for the specified month.
-
-- **Response**: `{ categories: Array<BudgetItem>, rta: number }`
-- **Internal Logic**: Calculates the global RTA and aggregates category activity in real-time.
-
-### `POST /api/budget`
-
-Updates the amount assigned to a specific category.
-
-- **Body**: `{ categoryId: number, month: string, assigned: number }`
-- **Side Effects**: Triggers cumulative `available` propagation to all future months.
-
----
-
-## 💸 Transactions API
-
-### `GET /api/transactions`
-
-Query transactions with multi-dimensional filters.
-
-- **Query Params**:
-  - `accountId`: Filter by specific account.
-  - `categoryId`: Filter by budget category.
-  - `startDate/endDate`: Time-range filtering.
-  - `limit`: Pagination limit.
-
-### `POST /api/transactions`
-
-Registers a new financial movement.
-
-- **Body**: `{ accountId, date, payee, categoryId, outflow, inflow, memo, cleared, flag }`
-- **Side Effects**:
-  1. Updates `accounts.balance`.
-  2. Updates `budget_months.activity`.
-  3. Triggers `updateCreditCardPaymentBudget` if on a CC account.
-
----
-
-## 🏗 Categories & Groups API
-
-### `GET /api/categories`
-
-Returns the complete category hierarchy.
-
-### `POST /api/category-groups/reorder`
-
-Updates the sort order of category groups.
-
-- **Body**: `Array<{ id: number, sortOrder: number }>`
-
-### `POST /api/categories/reorder`
-
-Allows moving categories between groups or reordering within a group.
-
-- **Body**: `Array<{ id: number, sortOrder: number, categoryGroupId?: number }>`
-
----
-
-## 🧮 Summary & Metadata API
-
-### `GET /api/budget/inspector?month=YYYY-MM`
-
-Technical endpoint powering the right-side inspector panel.
-
-- **Returns**:
-  - `summary`: { assigned, activity, available }
-  - `autoAssign`: { underfunded, avgSpent, etc. }
-  - `futureAssigned`: Total money assigned in subsequent months.
-
----
-
-## 🛡 Fault Tolerance & Feedback
-
-The API layer incorporates **Sonner** feedback on the client side. Every failed request will trigger a toast notification, while successful mutations with optimistic side-effects will be "silently synchronized" to maintain UI fluidity.
+> [!NOTE]
+> API docs are **dev-only**. The `/api/docs` endpoint returns 404 in production.

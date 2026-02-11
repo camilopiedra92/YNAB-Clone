@@ -101,15 +101,15 @@ axe-core E2E tests run on every CI push. All WCAG 2.1 AA violations resolved (6/
 - [x] Add `aria-live` regions for RTA banner changes and toast notifications
 - [x] Keyboard navigation audit: modal trapping, tab order, skip links
 
-### Q2. API Documentation
+### Q2. API Documentation ✅
 
-**Priority:** 🟢 Low | **Effort:** M (1–3h)
+**Priority:** 🟢 Low | **Effort:** M (1–3h) | **Completed:** 2026-02-11
 
-13+ API routes exist with Zod schemas but no discoverable documentation.
+19 API routes documented with auto-generated OpenAPI 3.1 spec.
 
-- [ ] Auto-generate OpenAPI spec from Zod schemas (e.g., `zod-to-openapi`)
-- [ ] Swagger UI at `/api/docs` (dev only)
-- [ ] Update `docs/api-reference.md` to be auto-generated or link to Swagger
+- [x] Auto-generate OpenAPI spec from Zod schemas (`@asteasolutions/zod-to-openapi` v8)
+- [x] Swagger UI at `/api-docs` (dev only), raw spec at `/api/docs`
+- [x] Updated `docs/api-reference.md` to link to Swagger UI
 
 ---
 
