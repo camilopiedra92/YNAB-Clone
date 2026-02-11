@@ -40,7 +40,8 @@ staging ────────────────────────
 
 - Use `npm run git:sync` — Conventional Commits enforced
 - Multiple commits are fine; they'll be squashed on merge
-- `sync.sh` blocks direct pushes to `main` and warns on `staging`
+- `sync.sh` blocks direct pushes to `main` (error + exit)
+- Direct pushes to `staging` are allowed (bypass actor) for trivial changes
 
 ## 5. CI Pipeline per Stage
 
