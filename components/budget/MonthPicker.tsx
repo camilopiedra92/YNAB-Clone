@@ -60,11 +60,14 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
         <div className="relative" ref={containerRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
+                aria-haspopup="dialog"
+                aria-label={`Seleccionar mes: ${displayMonth} ${displayYear}`}
                 className="flex items-center gap-2 text-lg font-black text-foreground group tracking-tight hover:opacity-80 transition-opacity"
             >
                 {displayMonth}
                 <span className="text-primary opacity-50 font-medium ml-1">{displayYear}</span>
-                <ChevronDown className="w-4 h-4 text-primary group-hover:translate-y-0.5 transition-transform" />
+                <ChevronDown className="w-4 h-4 text-primary group-hover:translate-y-0.5 transition-transform" aria-hidden="true" />
             </button>
 
             {isOpen && (
@@ -76,16 +79,18 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
                     <div className="flex items-center justify-between mb-6">
                         <button
                             onClick={() => setViewDate(subYears(viewDate, 1))}
+                            aria-label="Año anterior"
                             className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm"
                         >
-                            <ChevronLeft className="w-4 h-4" />
+                            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                         </button>
                         <span className="text-sm font-black text-foreground uppercase tracking-widest">{currentViewYear}</span>
                         <button
                             onClick={() => setViewDate(addYears(viewDate, 1))}
+                            aria-label="Año siguiente"
                             className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm"
                         >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-4 h-4" aria-hidden="true" />
                         </button>
                     </div>
 

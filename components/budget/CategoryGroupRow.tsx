@@ -52,8 +52,8 @@ export const CategoryGroupRow = React.memo(({
                                 {isCreditCardGroup ? (
                                     <div className="w-8" />
                                 ) : (
-                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-muted/60 transition-colors opacity-0 group-hover:opacity-100">
-                                        <GripVertical className="w-4 h-4 text-muted-foreground/40" />
+                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-muted/60 transition-colors opacity-0 group-hover:opacity-100" aria-label="Reordenar grupo">
+                                        <GripVertical className="w-4 h-4 text-muted-foreground/40" aria-hidden="true" />
                                     </div>
                                 )}
                                 <input
@@ -61,14 +61,15 @@ export const CategoryGroupRow = React.memo(({
                                     className="w-4 h-4 rounded-md border-border accent-primary cursor-pointer transition-all hover:scale-110"
                                     checked={allSelected}
                                     onChange={() => onToggleSelection(group.items)}
+                                    aria-label={`Seleccionar todas en ${group.name}`}
                                 />
                             </div>
                         </div>
                     </td>
-                    <td className="py-0.5 px-2" onClick={() => onToggleGroup(group.name)}>
-                        <div className="flex items-center gap-3">
+                    <td className="py-0.5 px-2 cursor-pointer" onClick={() => onToggleGroup(group.name)} aria-expanded={isExpanded} aria-label={`${isExpanded ? 'Contraer' : 'Expandir'} ${group.name}`}>
+                            <div className="flex items-center gap-3">
                             <div className={`p-1 rounded-lg transition-all duration-300 ${isExpanded ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}>
-                                <ChevronDown className={`w-4 h-4 transition-transform duration-500 ${!isExpanded ? '-rotate-90' : ''}`} />
+                                <ChevronDown className={`w-4 h-4 transition-transform duration-500 ${!isExpanded ? '-rotate-90' : ''}`} aria-hidden="true" />
                             </div>
                             <span className="text-sm font-black text-foreground uppercase tracking-wider">{group.name}</span>
                             {isCreditCardGroup && (

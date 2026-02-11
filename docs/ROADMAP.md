@@ -92,14 +92,14 @@ No benchmarks or performance budgets beyond the 2MB bundle check.
 
 ### Q1. Accessibility Audit
 
-**Priority:** 🟡 Medium | **Effort:** M (1–3h)
+**Priority:** 🟡 Medium | **Effort:** M (1–3h) ✅ **DONE**
 
-Basic ARIA labels and `data-testid` exist, but no formal WCAG compliance check.
+axe-core E2E tests run on every CI push. All WCAG 2.1 AA violations resolved (6/6 tests pass).
 
-- [ ] Run axe-core audit on all pages
-- [ ] Fix all WCAG AA violations (contrast, focus indicators, screen reader labels)
-- [ ] Add `aria-live` regions for RTA banner changes and toast notifications
-- [ ] Keyboard navigation audit: modal trapping, tab order, skip links
+- [x] Run axe-core audit on all pages — `tests/accessibility.spec.ts`
+- [x] Fix all WCAG AA violations (contrast, focus indicators, screen reader labels)
+- [x] Add `aria-live` regions for RTA banner changes and toast notifications
+- [x] Keyboard navigation audit: modal trapping, tab order, skip links
 
 ### Q2. API Documentation
 

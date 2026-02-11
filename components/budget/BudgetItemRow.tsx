@@ -66,8 +66,8 @@ export const BudgetItemRow = React.memo(({
                                 {isCreditCardGroup ? (
                                     <div className="w-8" />
                                 ) : (
-                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100">
-                                        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/30" />
+                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100" aria-label="Reordenar">
+                                        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/30" aria-hidden="true" />
                                     </div>
                                 )}
                                 <input
@@ -75,6 +75,7 @@ export const BudgetItemRow = React.memo(({
                                     className="w-4 h-4 rounded border-border accent-primary cursor-pointer transition-all hover:scale-110"
                                     checked={isSelected}
                                     onChange={() => onToggleSelection(item.categoryId!)}
+                                    aria-label={`Seleccionar ${item.categoryName}`}
                                 />
                             </div>
                         </div>
