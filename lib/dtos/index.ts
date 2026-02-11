@@ -15,3 +15,6 @@ export type { BudgetItemDTO, BudgetResponseDTO, InspectorDataDTO } from './budge
 
 export { toCategoryDTO, toCategoryGroupDTO } from './category.dto';
 export type { CategoryDTO, CategoryGroupDTO } from './category.dto';
+
+export { toShareDTO, toShareInfoDTO } from './share.dto';
+export type { ShareDTO, ShareInfoDTO } from './share.dto';

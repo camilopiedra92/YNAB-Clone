@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from "@/lib/logger";
 import { getBudget, updateBudget, deleteBudget } from '@/lib/repos';
 import { validateBody, UpdateBudgetSchema } from '@/lib/schemas';
-import { requireAuth, parseId } from '@/lib/auth-helpers';
+import { requireBudgetAccess, parseId } from '@/lib/auth-helpers';
 import { apiError } from '@/lib/api-error';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
@@ -11,15 +11,15 @@ export async function GET(
   _request: Request,
   { params }: RouteContext
 ) {
-  const authResult = await requireAuth();
-  if (!authResult.ok) return authResult.response;
-
   try {
     const { budgetId: budgetIdStr } = await params;
     const budgetId = parseId(budgetIdStr);
     if (!budgetId) return apiError('Invalid budget ID', 400);
 
-    const budget = await getBudget(budgetId, authResult.userId);
+    const access = await requireBudgetAccess(budgetId);
+    if (!access.ok) return access.response;
+
+    const budget = await getBudget(budgetId, access.tenant.userId);
     if (!budget) {
       return apiError('Budget not found', 404);
     }
@@ -34,19 +34,25 @@ export async function PATCH(
   request: Request,
   { params }: RouteContext
 ) {
-  const authResult = await requireAuth();
-  if (!authResult.ok) return authResult.response;
-
   try {
     const { budgetId: budgetIdStr } = await params;
     const budgetId = parseId(budgetIdStr);
     if (!budgetId) return apiError('Invalid budget ID', 400);
 
+    const access = await requireBudgetAccess(budgetId);
+    if (!access.ok) return access.response;
+
+    // Only owner can update budget settings (name, currency)
+    const budget = await getBudget(budgetId, access.tenant.userId);
+    if (!budget || budget.role !== 'owner') {
+      return apiError('Budget not found or unauthorized', 403);
+    }
+
     const body = await request.json();
     const validation = validateBody(UpdateBudgetSchema, body);
     if (!validation.success) return validation.response;
 
-    const result = await updateBudget(budgetId, authResult.userId, validation.data);
+    const result = await updateBudget(budgetId, access.tenant.userId, validation.data);
     if (!result) {
       return apiError('Budget not found or unauthorized', 404);
     }
@@ -61,15 +67,21 @@ export async function DELETE(
   _request: Request,
   { params }: RouteContext
 ) {
-  const authResult = await requireAuth();
-  if (!authResult.ok) return authResult.response;
-
   try {
     const { budgetId: budgetIdStr } = await params;
     const budgetId = parseId(budgetIdStr);
     if (!budgetId) return apiError('Invalid budget ID', 400);
 
-    const result = await deleteBudget(budgetId, authResult.userId);
+    const access = await requireBudgetAccess(budgetId);
+    if (!access.ok) return access.response;
+
+    // Only owner can delete a budget
+    const budget = await getBudget(budgetId, access.tenant.userId);
+    if (!budget || budget.role !== 'owner') {
+      return apiError('Budget not found or unauthorized', 403);
+    }
+
+    const result = await deleteBudget(budgetId, access.tenant.userId);
     if (!result) {
       return apiError('Budget not found or unauthorized', 404);
     }
@@ -79,4 +91,3 @@ export async function DELETE(
     return apiError('Failed to delete budget', 500);
   }
 }
-

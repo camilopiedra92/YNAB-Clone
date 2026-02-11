@@ -285,6 +285,9 @@ export default function VirtualTransactionTable({
         allRows.push({ type: 'empty' });
     }
 
+    // @tanstack/react-virtual's useVirtualizer is a valid custom hook;
+    // the react-hooks linter flags it as incompatible because the library
+    // isn't in the linter's known-hooks allowlist — safe to suppress.
     // eslint-disable-next-line react-hooks/incompatible-library
     const virtualizer = useVirtualizer({
         count: allRows.length,

@@ -4,6 +4,7 @@ import { apiError } from '@/lib/api-error';
 import { getBudget, updateShareRole, removeShare } from '@/lib/repos';
 import { validateBody, UpdateShareRoleSchema } from '@/lib/schemas';
 import { requireBudgetAccess, parseId } from '@/lib/auth-helpers';
+import { toShareDTO } from '@/lib/dtos';
 
 type RouteContext = { params: Promise<{ budgetId: string; shareId: string }> };
 
@@ -38,7 +39,7 @@ export async function PATCH(
     if (!result) {
       return apiError('Share not found', 404);
     }
-    return NextResponse.json(result);
+    return NextResponse.json(toShareDTO(result));
   } catch (error) {
     logger.error('Error updating share role:', error);
     return apiError('Failed to update share role', 500);

@@ -1,3 +1,9 @@
+/**
+ * Intentional: This standalone debug script parses arbitrary CSV exports with
+ * dynamic, unknown column names. Rows are accessed via bracket notation
+ * (e.g. row['Category Group']), making `any` the pragmatic choice — typing
+ * every possible YNAB CSV column provides no safety benefit for a dev-only tool.
+ */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from 'fs';
 import env from '../lib/env';

@@ -4,6 +4,7 @@ import { apiError } from '@/lib/api-error';
 import { getShares, addShare, getBudget, getUserByEmail } from '@/lib/repos';
 import { validateBody, AddShareSchema } from '@/lib/schemas';
 import { requireBudgetAccess, parseId } from '@/lib/auth-helpers';
+import { toShareInfoDTO, toShareDTO } from '@/lib/dtos';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
 
@@ -24,7 +25,7 @@ export async function GET(
 
   try {
     const shares = await getShares(budgetId);
-    return NextResponse.json(shares);
+    return NextResponse.json(shares.map(toShareInfoDTO));
   } catch (error) {
     logger.error('Error fetching shares:', error);
     return apiError('Failed to fetch shares', 500);
@@ -71,7 +72,7 @@ export async function POST(
     }
 
     const share = await addShare(budgetId, targetUser.id, role);
-    return NextResponse.json(share, { status: 201 });
+    return NextResponse.json(toShareDTO(share), { status: 201 });
   } catch (error: unknown) {
     // Handle unique constraint violation (duplicate share)
     if (error instanceof Error && error.message?.includes('budget_shares_budget_user')) {
