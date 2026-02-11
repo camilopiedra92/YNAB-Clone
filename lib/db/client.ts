@@ -9,6 +9,10 @@
  *
  * `createDbFunctions(database)` composes all domain repos into a single
  * object with the exact same API shape as the original monolithic `lib/db.ts`.
+ *
+ * `DrizzleDB` and `queryRows` live in `./helpers.ts` (leaf module) so that
+ * repos can import them without creating a circular dependency back to this
+ * file. Re-exported here for backward compatibility.
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -20,37 +24,9 @@ import { createBudgetsFunctions } from '../repos/budgets';
 import { createCategoryFunctions } from '../repos/categories';
 import { createUserFunctions } from '../repos/users';
 
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type { SQL } from 'drizzle-orm';
-
-/**
- * App-wide database type alias.
- *
- * Consumers import `DrizzleDB` — they never reference `PostgresJsDatabase`
- * directly. This alias is the single point to change if the driver changes.
- */
-export type DrizzleDB = PostgresJsDatabase<typeof schema>;
-
-/**
- * Normalize `database.execute(sql)` result across drivers.
- *
- * - **postgres-js**: returns `T[]` (array-like RowList)
- * - **PGlite**: returns `{ rows: T[] }`
- *
- * This helper extracts the rows array regardless of driver format.
- */
-export async function queryRows<T extends object>(
-  db: DrizzleDB,
-  query: SQL,
-): Promise<T[]> {
-  const result = await db.execute(query);
-  // PGlite returns { rows: T[] }, postgres-js returns T[] (array-like)
-  if (Array.isArray(result)) return result as unknown as T[];
-  if (result && typeof result === 'object' && 'rows' in result) {
-    return (result as unknown as { rows: T[] }).rows;
-  }
-  return result as unknown as T[];
-}
+// Re-export from leaf module for backward compatibility
+export { type DrizzleDB, queryRows } from './helpers';
+import type { DrizzleDB } from './helpers';
 
 // ── Production singleton ──
 

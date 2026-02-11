@@ -19,7 +19,7 @@ import { sql } from 'drizzle-orm';
 import { auth } from './auth';
 import { getBudget } from './repos';
 import db from './db/client';
-import type { DrizzleDB } from './db/client';
+import type { DrizzleDB } from './db/helpers';
 import type { TenantContext } from './tenant-context';
 
 /** Result of requireAuth — either a session or an error response */

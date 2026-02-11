@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema';
-import { type DrizzleDB } from '../db/client';
+import { type DrizzleDB } from '../db/helpers';
 
 /** Placeholder for future cross-repo dependency injection (matches TransactionRepoDeps / BudgetRepoDeps pattern). */
 export type UserRepoDeps = Record<string, never>;

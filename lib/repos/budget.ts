@@ -11,8 +11,8 @@
 import { eq, and, sql, lt, gt, max, inArray, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, categoryGroups, budgetMonths, transactions } from '../db/schema';
 import { currentDate, yearMonth } from '../db/sql-helpers';
-import type { DrizzleDB } from '../db/client';
-import { queryRows } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
+import { queryRows } from '../db/helpers';
 import {
   computeCarryforward as engineCarryforward,
   calculateRTA,

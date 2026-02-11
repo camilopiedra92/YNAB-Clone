@@ -8,7 +8,7 @@
  *   - importData(budgetId, targetDb) — for CLI (reads files from fs/env)
  */
 import { eq, and, like, sql, inArray } from 'drizzle-orm';
-import type { DrizzleDB } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
 import {
   accounts,
   categoryGroups,

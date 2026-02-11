@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
 import { parseCSV, importDataFromCSV } from '../data-import';
 import * as schema from '../db/schema';
 

@@ -25,6 +25,13 @@ if [ -z "$(git status --porcelain)" ]; then
     exit 0
 fi
 
+# Branching strategy reminder
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" = "main" ]; then
+    echo "⚠️  WARNING: Committing directly to main."
+    echo "   Consider using a feature branch: git checkout -b feat/your-feature"
+fi
+
 # Argument Check
 HEADER="${1:-}"
 if [ -z "$HEADER" ]; then

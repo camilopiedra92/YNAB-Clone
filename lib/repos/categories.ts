@@ -6,7 +6,7 @@
  */
 import { eq, asc, max, and, sql } from 'drizzle-orm';
 import { categories, categoryGroups } from '../db/schema';
-import type { DrizzleDB } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
 
 export interface Category {
   id: number;

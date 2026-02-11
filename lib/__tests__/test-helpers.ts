@@ -11,7 +11,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
 import { budgetMonths } from '../db/schema';
 import { milliunit, ZERO, type Milliunit } from '../engine/primitives';
 
