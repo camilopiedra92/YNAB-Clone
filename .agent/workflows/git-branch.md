@@ -70,8 +70,10 @@ gh pr create --base main --head staging --title "chore: promote to production"
 # Monitor checks:
 gh pr checks
 
-# Merge (⚠️ NEVER use --delete-branch here — it would delete staging!)
+# Merge commit (⚠️ NEVER use --squash or --delete-branch here!)
 gh pr merge --merge
 ```
+
+> **Merge strategy:** Always use `--merge` (merge commit) for staging → main. Using `--squash` causes staging to permanently show as "ahead" of main.
 
 The `ci-passed` required check gates all PRs. It depends on `quality-gate`, `unit-tests`, and `e2e-tests` (E2E only runs on PRs to main).

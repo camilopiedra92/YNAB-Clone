@@ -29,9 +29,10 @@ staging ────────────────────────
 | Commit work        | `npm run git:sync -- "feat(scope): description"`                      |
 | Open PR to staging | `gh pr create --base staging --title "feat: description"`             |
 | Check PR status    | `gh pr checks`                                                        |
+| Merge feature PR   | `gh pr merge --squash --delete-branch`                                |
 | After merge        | `git checkout staging && git pull && git branch -d feat/my-feature`   |
 | Promote to prod    | `gh pr create --base main --head staging --title "chore: promote"`    |
-| Merge PR           | `gh pr merge --merge`                                                 |
+| Merge promotion PR | `gh pr merge --merge`                                                 |
 
 ---
 
@@ -105,13 +106,13 @@ The `ci-passed` required check must pass before merge.
 
 ### 4. Merge to Staging
 
-After CI passes, merge the PR (squash merge recommended).
+After CI passes, **squash merge** the PR. This compresses all feature commits into one clean commit on staging.
 
 ```bash
-# Merge from CLI:
-gh pr merge --merge --delete-branch
+# Merge from CLI (squash = clean history):
+gh pr merge --squash --delete-branch
 
-# Or merge from GitHub web
+# Or from GitHub web: select "Squash and merge" in the dropdown
 ```
 
 ### 5. Promote to Production
@@ -122,9 +123,12 @@ When staging is stable and ready for production:
 # Create PR: staging → main
 gh pr create --base main --head staging --title "chore: promote to production"
 
-# Wait for all checks to pass, then merge:
+# Wait for all checks to pass, then merge commit (NOT squash!):
 gh pr merge --merge
 ```
+
+> [!CAUTION]
+> **Always use `--merge` (merge commit) for staging → main.** Using `--squash` creates a new commit with a different SHA, causing staging to permanently show as "ahead" of main. Merge commits preserve the history linkage between both branches.
 
 > **⚠️ CRITICAL: NEVER use `--delete-branch` when merging staging → main.** This would delete the `staging` branch.
 
@@ -136,6 +140,18 @@ Delete the feature branch locally (and remotely if pushed):
 git branch -d feat/my-feature
 git push origin --delete feat/my-feature  # if it was pushed
 ```
+
+---
+
+## Merge Strategy Convention
+
+| PR Type            | Merge Method         | Why                                                                       |
+| ------------------ | -------------------- | ------------------------------------------------------------------------- |
+| `feat/* → staging` | **Squash and merge** | Compresses dev commits into one clean entry. Feature branch gets deleted. |
+| `staging → main`   | **Merge commit**     | Preserves history linkage. Both branches stay in sync without force-push. |
+
+> [!WARNING]
+> Using squash for `staging → main` will cause Git to see staging as permanently "ahead" of main (phantom commits). This requires a `git reset --hard` to fix — avoid it by always using merge commit for promotions.
 
 ---
 
@@ -243,5 +259,5 @@ Yes, but try to keep it to 1-2 active branches to avoid merge complexity.
 ```bash
 gh pr create --base main --head staging --title "chore: promote to production"
 # Wait for CI, then:
-gh pr merge --merge   # ⚠️ NO --delete-branch!
+gh pr merge --merge   # ⚠️ NO --squash, NO --delete-branch!
 ```

@@ -116,6 +116,13 @@ gh pr checks <PR_NUMBER>
 gh pr merge --merge
 ```
 
+### Merge Strategy Convention
+
+| PR Type            | Merge Method               | Why                                                    |
+| ------------------ | -------------------------- | ------------------------------------------------------ |
+| `feat/* → staging` | `--squash --delete-branch` | Compresses dev commits. Branch gets deleted.           |
+| `staging → main`   | `--merge` (merge commit)   | Preserves history linkage. Both branches stay in sync. |
+
 ### ⚠️ Merge Safety (CRITICAL — Staging Protection)
 
 **`staging` must NEVER be deleted.** Three layers protect it:
@@ -125,10 +132,10 @@ gh pr merge --merge
 3. **Agent enforcement:** All merge commands below explicitly prohibit `--delete-branch` for staging
 
 ```bash
-# Feature → staging: --delete-branch is OK (cleans up the feature branch)
-gh pr merge --merge --delete-branch
+# Feature → staging: squash + delete branch (clean history)
+gh pr merge --squash --delete-branch
 
-# Staging → main: ⚠️ NEVER use --delete-branch (would delete staging!)
+# Staging → main: merge commit (⚠️ NEVER use --squash or --delete-branch)
 gh pr merge --merge
 ```
 
