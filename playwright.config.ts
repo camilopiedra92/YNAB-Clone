@@ -16,7 +16,9 @@ export default defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: 1,
-    reporter: 'html',
+    reporter: process.env.CI
+        ? [['github'], ['html', { open: 'never' }]]
+        : [['list'], ['html', { open: 'on-failure' }]],
     globalSetup: './tests/global-setup.ts',
     use: {
         baseURL: TEST_BASE_URL,
@@ -44,5 +46,7 @@ export default defineConfig({
         url: TEST_BASE_URL,
         reuseExistingServer: true,
         timeout: 300_000,
+        stdout: 'ignore',
+        stderr: 'pipe',
     },
 });
