@@ -46,7 +46,7 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push('/budget');
+      router.push('/budgets');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
