@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { budgets, budgetShares, users } from '../db/schema';
 import type { DrizzleDB } from '../db/helpers';
 
@@ -99,13 +99,24 @@ export function createBudgetsFunctions(database: DrizzleDB) {
     currencySymbol?: string;
     currencyDecimals?: number;
   }) {
-    const [result] = await database.insert(budgets).values({
-      userId,
-      name: data.name,
-      currencyCode: data.currencyCode ?? 'COP',
-      currencySymbol: data.currencySymbol ?? '$',
-      currencyDecimals: data.currencyDecimals ?? 0,
-    }).returning();
+    // Use a transaction to ensure set_config and INSERT run on the same connection.
+    // RLS policy budgets_user_isolation requires app.user_id to be set for INSERT.
+    const result = await database.transaction(async (tx) => {
+      // Set RLS context within this transaction's connection
+      await tx.execute(
+        sql`SELECT set_config('app.user_id', ${userId}, true)`
+      );
+
+      const [row] = await tx.insert(budgets).values({
+        userId,
+        name: data.name,
+        currencyCode: data.currencyCode ?? 'COP',
+        currencySymbol: data.currencySymbol ?? '$',
+        currencyDecimals: data.currencyDecimals ?? 0,
+      }).returning();
+
+      return row;
+    });
     
     return result;
   }
