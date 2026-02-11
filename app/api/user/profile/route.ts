@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { apiError } from '@/lib/api-error';
 import { requireAuth } from '@/lib/auth-helpers';
-import { getUserById, updateUser, getUserByEmail } from '@/lib/repos';
+import { getUserById, updateUser } from '@/lib/repos';
 import { validateBody } from '@/lib/schemas/helpers';
 import { UpdateProfileSchema } from '@/lib/schemas/auth';
 

@@ -26,6 +26,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Create .env for build scripts
+        run: |
+          echo "DATABASE_URL=postgresql://localhost:5432/dummy" >> .env
+          echo "AUTH_SECRET=ci-dummy-secret-at-least-32-characters-long" >> .env
+          echo "AUTH_TRUST_HOST=true" >> .env
+
       - name: Security Audit (L2)
         run: npm audit --audit-level=high
 
@@ -36,13 +42,7 @@ jobs:
         run: npm run typecheck
 
       - name: Production Build (L5)
-        run: npm run build
-        env:
-          NEXT_TEST_BUILD: "1"
-          NODE_ENV: production
-          DATABASE_URL: postgresql://localhost:5432/dummy
-          AUTH_SECRET: ci-dummy-secret-at-least-32-characters-long
-          AUTH_TRUST_HOST: "true"
+        run: NEXT_TEST_BUILD=1 NODE_ENV=production npm run build
 
   # ─── Job 2: Unit Tests + Coverage (L6) ─────────────────
   unit-tests:
@@ -59,12 +59,14 @@ jobs:
 
       - run: npm ci
 
+      - name: Create .env for test scripts
+        run: |
+          echo "DATABASE_URL=postgresql://localhost:5432/dummy" >> .env
+          echo "AUTH_SECRET=ci-dummy-secret-at-least-32-characters-long" >> .env
+          echo "AUTH_TRUST_HOST=true" >> .env
+
       - name: Run Unit Tests with Coverage (L6)
         run: npm run test:coverage
-        env:
-          DATABASE_URL: postgresql://localhost:5432/dummy
-          AUTH_SECRET: ci-dummy-secret-at-least-32-characters-long
-          AUTH_TRUST_HOST: "true"
 
       - name: Upload Coverage Report
         if: always()
@@ -107,6 +109,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Create .env for test scripts
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ynab_dev" >> .env
+          echo "AUTH_SECRET=ci-e2e-secret-at-least-32-characters-long" >> .env
+          echo "AUTH_TRUST_HOST=true" >> .env
 
       - name: Cache Playwright Browsers
         id: playwright-cache
@@ -175,6 +183,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Create .env for build scripts
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ynab_dev" >> .env
+          echo "AUTH_SECRET=ci-lhci-secret-at-least-32-characters-long" >> .env
+          echo "AUTH_TRUST_HOST=true" >> .env
 
       - name: Build Production Bundle
         run: npm run build
