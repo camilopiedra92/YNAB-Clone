@@ -1,0 +1,36 @@
+# Automatically restore the staging branch if GitHub's "delete branch on merge"
+# removes it after a staging → main PR merge.
+#
+# Why: We keep delete_branch_on_merge=true so feature branches are cleaned up
+# automatically, but staging is a permanent integration branch that must always exist.
+
+name: Restore staging branch
+
+on:
+  delete:
+
+jobs:
+  restore-staging:
+    if: github.event.ref == 'staging' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Recreate staging from main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const main = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'heads/main',
+            });
+
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/heads/staging',
+              sha: main.data.object.sha,
+            });
+
+            console.log(`✅ staging branch restored at ${main.data.object.sha}`);
