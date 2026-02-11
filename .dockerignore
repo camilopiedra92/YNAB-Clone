@@ -1,0 +1,45 @@
+# ── Dependencies (reinstalled fresh in Docker) ──────────────
+node_modules
+.npm-cache
+
+# ── Build artifacts ──────────────────────────────────────────
+.next
+.next-test
+out
+build
+coverage
+playwright-report
+test-results
+node-compile-cache
+tsx-*
+
+# ── Version control ─────────────────────────────────────────
+.git
+.gitignore
+
+# ── Dev tools & IDE ──────────────────────────────────────────
+.vscode
+.pglite
+.tmp
+.auth
+.agent
+.gemini
+
+# ── Environment files (secrets injected by Coolify) ─────────
+.env
+.env.*
+
+# ── Documentation (not needed in runtime image) ─────────────
+docs/
+*.md
+!README.md
+
+# ── Tests (not needed in production) ────────────────────────
+tests/
+vitest.config.ts
+playwright.config.ts
+
+# ── OS artifacts ─────────────────────────────────────────────
+.DS_Store
+*.pem
+Thumbs.db
