@@ -1,21 +1,21 @@
-name: CI
+name: Post-Merge Validation
 
-# ─── GATEKEEPER WORKFLOW ──────────────────────────────────
-# Purpose: Validate code BEFORE merge. Produces ci-passed (the only required check).
-# Trigger: pull_request to staging or main.
-# Feature branches get CI ONLY through PRs (not on push).
-# See also: ci-post-merge.yml for post-merge staging validation.
+# ─── POST-MERGE WORKFLOW ──────────────────────────────────
+# Purpose: Validate the merged result on staging (catch merge conflicts, env issues).
+# Trigger: push to staging only (after PR merge or direct push).
+# Does NOT produce ci-passed — rulesets never depend on this workflow.
+# See also: ci.yml for the PR gatekeeper (the required check).
 
 on:
-  pull_request:
-    branches: [staging, main]
+  push:
+    branches: [staging]
 
 concurrency:
-  group: pr-${{ github.head_ref }}
+  group: post-merge-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  # ─── Job 1: Security + Static Analysis + Build ─────────
+  # ─── Quality Gate (same checks as CI) ───────────────────
   quality-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -47,7 +47,7 @@ jobs:
       - name: Production Build
         run: NEXT_TEST_BUILD=1 NODE_ENV=production npm run build
 
-  # ─── Job 2: Unit Tests + Coverage ──────────────────────
+  # ─── Unit Tests ─────────────────────────────────────────
   unit-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -67,24 +67,13 @@ jobs:
           echo "AUTH_SECRET=ci-dummy-secret-at-least-32-characters-long" >> .env
           echo "AUTH_TRUST_HOST=true" >> .env
 
-      - name: Run Unit Tests with Coverage
-        run: npm run test:coverage
+      - name: Run Unit Tests
+        run: npm run test
 
-      - name: Upload Coverage Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-
-  # ─── Job 3: E2E Tests (PR to main only) ────────────────
-  # PRs to staging: skipped (quality-gate + unit-tests is enough)
-  # PRs to main: full E2E (staging → main promotion must be fully validated)
+  # ─── E2E Tests (always runs on staging) ─────────────────
   e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.base_ref == 'main'
     services:
       postgres:
         image: postgres:16
@@ -148,14 +137,6 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: Upload Test Results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: test-results/
-          retention-days: 7
-
       - name: Diagnose DB on failure
         if: failure()
         run: |
@@ -164,34 +145,3 @@ jobs:
           echo ""
           echo "=== Checking users in ynab_test ==="
           psql "postgresql://postgres:postgres@localhost:5432/ynab_test" -c "SELECT id, email, substring(password, 1, 20) as pw_prefix FROM users;" 2>/dev/null || echo "Cannot query ynab_test.users"
-
-  # ─── Summary Gate (single required check for rulesets) ──
-  # This is the ONLY required check in GitHub rulesets.
-  # It only exists in this workflow (pull_request) — never on push.
-  ci-passed:
-    if: always()
-    needs: [quality-gate, unit-tests, e2e-tests]
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Check upstream job results
-        run: |
-          echo "quality-gate: ${{ needs.quality-gate.result }}"
-          echo "unit-tests:   ${{ needs.unit-tests.result }}"
-          echo "e2e-tests:    ${{ needs.e2e-tests.result }}"
-
-          # quality-gate and unit-tests MUST succeed (always required)
-          if [[ "${{ needs.quality-gate.result }}" != "success" ]] || \
-             [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
-            echo "❌ Required checks did not succeed"
-            exit 1
-          fi
-
-          # e2e-tests may be skipped (conditional job) but must not fail
-          if [[ "${{ needs.e2e-tests.result }}" == "failure" ]] || \
-             [[ "${{ needs.e2e-tests.result }}" == "cancelled" ]]; then
-            echo "❌ E2E tests failed or were cancelled"
-            exit 1
-          fi
-
-          echo "✅ All checks passed"

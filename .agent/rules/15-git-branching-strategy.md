@@ -43,34 +43,44 @@ staging ────────────────────────
 - `sync.sh` blocks direct pushes to `main` (error + exit)
 - Direct pushes to `staging` are allowed (bypass actor) for trivial changes
 
-## 5. CI Pipeline per Stage
+## 5. CI Pipeline — Two-Workflow Architecture
 
-| Stage                | Trigger | Checks                                      | Duration |
-| -------------------- | ------- | ------------------------------------------- | -------- |
-| Feature branch       | Push    | quality-gate + unit-tests                   | ~3 min   |
-| PR → staging         | PR      | quality-gate + unit-tests + ci-passed       | ~3 min   |
-| Staging (post-merge) | Push    | quality-gate + unit-tests + E2E             | ~10 min  |
-| PR → main            | PR      | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
+CI is split into **two independent workflow files** to eliminate push/PR concurrency conflicts:
 
-> **Note:** `ci-passed` only runs on `pull_request` events. Push events run quality-gate, unit-tests, and E2E (on staging) but do NOT produce `ci-passed` — this prevents stale push checks from satisfying ruleset requirements.
+### `ci.yml` — Gatekeeper (pull_request only)
 
-### Concurrency Deduplication
+| Stage        | Checks                                      | Duration |
+| ------------ | ------------------------------------------- | -------- |
+| PR → staging | quality-gate + unit-tests + ci-passed       | ~3 min   |
+| PR → main    | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
 
-Push and PR events use **separate** concurrency groups to prevent push cancellation from blocking PR merges:
+- **Trigger:** `pull_request` to staging or main
+- **Concurrency:** `pr-{branch}` (PR updates cancel prior PR run)
+- **Produces `ci-passed`** — the ONLY required check in GitHub rulesets
+- Feature branches get CI **only through PRs** (no push CI)
 
-- Push events: `push-{branch}` (push2 cancels push1 on the same branch)
-- PR events: `pr-{branch}` (PR update cancels prior PR run)
-- Push and PR **never cancel each other** — both run independently
+### `ci-post-merge.yml` — Post-Merge Validation (push only)
 
-**Why separate?** When concurrency cancels a workflow run, ALL jobs (including `ci-passed`) are marked "cancelled" — the `if` condition is never evaluated. A cancelled `ci-passed (push)` would block PR merges even though `ci-passed (pull_request)` passed. Separate groups prevent this entirely.
+| Stage                | Checks                          | Duration |
+| -------------------- | ------------------------------- | -------- |
+| Staging (post-merge) | quality-gate + unit-tests + E2E | ~10 min  |
+
+- **Trigger:** `push` to staging only
+- **Concurrency:** `post-merge-staging` (new push cancels prior run)
+- **Does NOT produce `ci-passed`** — rulesets never depend on this workflow
+- Validates the merged result (catches merge conflicts, env issues)
+
+### Why Two Workflows?
+
+When push and PR share a single workflow, concurrency cancellation marks ALL jobs as "cancelled" — including `ci-passed`. A cancelled `ci-passed (push)` blocks PR merges even though `ci-passed (pull_request)` passed. Separate workflow files have **completely independent** concurrency groups — zero interference.
 
 ### `ci-passed` Summary Gate
 
-A `ci-passed` job depends on all 3 CI jobs and provides a **single stable check name** for rulesets. It runs **only on `pull_request` events** — this prevents push-triggered checks from satisfying ruleset requirements before PR CI finishes.
+Lives in `ci.yml` only. Depends on quality-gate, unit-tests, and e2e-tests. Provides a single stable required check for rulesets.
 
 - `quality-gate` and `unit-tests` MUST succeed (`!= "success"` → fail)
-- `e2e-tests` may be skipped (conditional job) but must not fail or cancel
-- **Rulesets must require ONLY:** `ci-passed` (the job ID, not `CI / ci-passed`)
+- `e2e-tests` may be skipped (PRs to staging) but must not fail or cancel
+- **Rulesets must require ONLY:** `ci-passed`
 
 ## 6. GitHub Rulesets Configuration
 
