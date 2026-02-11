@@ -75,4 +75,8 @@ if ! git push; then
 fi
 
 echo "🚀🚀🚀 REMOTE SYNCED!"
+
+# Lightweight auto-prune: remove stale remote tracking refs
+git fetch --prune --quiet 2>/dev/null || true
+
 echo "📊 STATUS: SUCCESS"
