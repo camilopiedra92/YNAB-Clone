@@ -53,6 +53,16 @@ staging ────────────────────────
 | PR → main            | PR      | quality-gate + unit-tests + E2E | ~10 min  |
 | Main (post-merge)    | Push    | Deploy only                     | ~2 min   |
 
+### Concurrency Deduplication
+
+The CI workflow uses `concurrency.group: ci-${{ github.event.pull_request.number || github.ref }}` with `cancel-in-progress: true`. If a push CI is running and a PR is created for the same branch, the push run is **auto-cancelled** — no duplicate CI runs.
+
+### `ci-passed` Summary Gate
+
+A `ci-passed` job depends on all 3 CI jobs and provides a **single stable check name** for rulesets. GitHub appends `(push)`/`(pull_request)` to individual job names, breaking ruleset matching. The `ci-passed` gate solves this.
+
+**Rulesets must require ONLY:** `ci-passed` (the job ID, not `CI / ci-passed`).
+
 ## 6. When to Skip (Direct-to-Staging)
 
 - Single-file documentation updates
