@@ -24,6 +24,14 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
     const overlayRef = useRef<HTMLDivElement>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
 
+    // Sync form state when profile data loads (async)
+    useEffect(() => {
+        if (profile) {
+            setName(profile.name ?? '');
+            setEmail(profile.email ?? '');
+        }
+    }, [profile]);
+
     // Focus name input on mount
     useEffect(() => {
         if (!isLoading) {

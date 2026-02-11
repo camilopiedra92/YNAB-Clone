@@ -28,13 +28,13 @@ test.describe('User Profile', () => {
         // Should show "Información Personal" section
         await expect(page.getByText('Información Personal')).toBeVisible();
 
-        // Should show "Cambiar Contraseña" section
-        await expect(page.getByText('Cambiar Contraseña')).toBeVisible();
+        // Should show "Cambiar Contraseña" section (use .first() — text appears in both heading and button)
+        await expect(page.getByText('Cambiar Contraseña').first()).toBeVisible();
 
-        // Name input should be pre-filled
+        // Name input should be pre-filled (wait for async profile data to load)
         const nameInput = page.locator('input[placeholder="Tu nombre..."]');
         await expect(nameInput).toBeVisible();
-        await expect(nameInput).not.toHaveValue('');
+        await expect(nameInput).not.toHaveValue('', { timeout: 10_000 });
 
         // Email input should be pre-filled
         const emailInput = page.locator('input[placeholder="tu@email.com"]');
@@ -66,8 +66,9 @@ test.describe('User Profile', () => {
         await page.getByTestId('sidebar-settings').click();
         await expect(page.getByText('Mi Perfil')).toBeVisible({ timeout: 5_000 });
 
-        // Get current name
+        // Wait for profile data to load, then get current name
         const nameInput = page.locator('input[placeholder="Tu nombre..."]');
+        await expect(nameInput).not.toHaveValue('', { timeout: 10_000 });
         const originalName = await nameInput.inputValue();
 
         // Change name to something unique
@@ -109,9 +110,8 @@ test.describe('User Profile', () => {
         // Click change password
         await page.getByRole('button', { name: /Cambiar Contraseña/i }).click();
 
-        // Should show error (either inline or via toast)
-        const errorVisible = await page.getByText(/incorrecta|Error/).isVisible({ timeout: 5_000 });
-        expect(errorVisible).toBeTruthy();
+        // Should show error (either inline or via toast — use .first() to avoid strict mode)
+        await expect(page.getByText(/incorrecta|Error/).first()).toBeVisible({ timeout: 5_000 });
     });
 
     test('password mismatch shows client-side validation error', async ({ page, request }) => {
