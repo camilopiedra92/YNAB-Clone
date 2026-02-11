@@ -32,8 +32,8 @@ staging ────────────────────────
 1. **Create branch** from latest `staging` (`/git-branch` workflow)
 2. **Develop** — commit freely on the feature branch
 3. **PR to staging** — open PR, CI runs automatically (`ci-passed` gate must pass)
-4. **Merge to staging** — full CI runs including E2E tests
-5. **PR to main** — promote staging to production, all checks must pass
+4. **Merge to staging** — merge the PR after `ci-passed` succeeds
+5. **PR to main** — promote staging to production (E2E runs here)
 6. **Delete** — remove the feature branch after merge
 
 ## 4. Commit Rules on Feature Branches

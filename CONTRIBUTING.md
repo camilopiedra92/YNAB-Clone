@@ -153,7 +153,7 @@ CI runs **only on `pull_request` events** — no push CI. All code goes through 
 - **`ci-passed` gate:** A summary job that depends on all CI jobs. This is the **only** required check in rulesets. It provides one stable check name regardless of GitHub's internal naming.
 - **Concurrency:** `pr-{branch}` — PR updates for the same branch cancel prior CI runs. No wasted minutes.
 - **E2E conditional:** E2E tests only run on PRs to `main` (staging → main promotion). PRs to `staging` skip E2E.
-- **Job chain:** `unit-tests` depends on `quality-gate` — if lint/typecheck/build fails, unit tests don't run.
+- **Job chain:** `unit-tests` and `e2e-tests` both depend on `quality-gate` — if lint/typecheck/build fails, nothing else runs.
 
 ---
 

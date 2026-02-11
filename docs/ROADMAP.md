@@ -10,15 +10,16 @@ The codebase is architecturally sound: 542 unit tests, 50 E2E tests, 98.79% cove
 
 ## 🏗️ Infrastructure & DX
 
-### I1. CI/CD Pipeline
+### I1. CI/CD Pipeline ✅
 
-**Priority:** 🔴 High | **Effort:** M (1–3h)
+**Priority:** 🔴 High | **Effort:** M (1–3h) | **Completed:** 2026-02-11
 
-Currently all quality checks run locally. A GitHub Actions pipeline would catch regressions automatically.
+PR-only GitHub Actions pipeline with `ci-passed` summary gate. Quality-gate runs first (lint, typecheck, build), then unit-tests and e2e-tests in parallel. E2E only runs on PRs to main.
 
-- [x] GitHub Actions workflow: `audit → lint → typecheck → build → test:coverage → test:e2e`
-- [x] Branch protection: require CI pass before merge
-- [x] Coverage badge in README
+- [x] GitHub Actions workflow: `quality-gate → unit-tests + e2e-tests → ci-passed`
+- [x] Branch protection: require `ci-passed` before merge (rulesets)
+- [x] Node version pinned via `.node-version` file
+- [x] Coverage thresholds enforced (100% engine, ~96% global)
 - [ ] Lighthouse CI for performance budgets (deferred — requires auth bypass)
 
 ### I2. Split `budget.ts` (967 lines)
@@ -94,7 +95,7 @@ No benchmarks or performance budgets beyond the 2MB bundle check.
 
 **Priority:** 🟡 Medium | **Effort:** M (1–3h) ✅ **DONE**
 
-axe-core E2E tests run on every CI push. All WCAG 2.1 AA violations resolved (6/6 tests pass).
+axe-core E2E tests run on every PR to main. All WCAG 2.1 AA violations resolved (6/6 tests pass).
 
 - [x] Run axe-core audit on all pages — `tests/accessibility.spec.ts`
 - [x] Fix all WCAG AA violations (contrast, focus indicators, screen reader labels)
@@ -203,10 +204,10 @@ Budget sharing works via direct link. No email notifications or password reset.
 
 ## Suggested Execution Order
 
-| Phase           | Items                                               | Rationale                                    |
-| --------------- | --------------------------------------------------- | -------------------------------------------- |
-| **Next**        | I1 (CI/CD), I3 (CHANGELOG)                          | Foundation — catch regressions automatically |
-| **Soon**        | F3 (Search), Q1 (A11y), O2 (Sentry)                 | Usability + production readiness             |
-| **Mid-term**    | F1 (Goals), F2 (Reports), I2 (Split budget.ts)      | Core product features                        |
-| **Later**       | F4 (Currency), O1 (Logging), Q2 (API docs)          | Polish                                       |
-| **When needed** | S1 (Billing), S2 (GDPR), S3 (Audit log), F5 (Email) | Triggered by going public/paid               |
+| Phase           | Items                                               | Rationale                                |
+| --------------- | --------------------------------------------------- | ---------------------------------------- |
+| **Next**        | I2 (Split budget.ts), I3 (CHANGELOG)                | Reduce maintenance pain + track releases |
+| **Soon**        | F3 (Search), Q1 (A11y), O2 (Sentry)                 | Usability + production readiness         |
+| **Mid-term**    | F1 (Goals), F2 (Reports), I2 (Split budget.ts)      | Core product features                    |
+| **Later**       | F4 (Currency), O1 (Logging), Q2 (API docs)          | Polish                                   |
+| **When needed** | S1 (Billing), S2 (GDPR), S3 (Audit log), F5 (Email) | Triggered by going public/paid           |
