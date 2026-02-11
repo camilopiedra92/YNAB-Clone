@@ -43,11 +43,9 @@ staging ────────────────────────
 - `sync.sh` blocks direct pushes to `main` (error + exit)
 - Direct pushes to `staging` are allowed (bypass actor) for trivial changes
 
-## 5. CI Pipeline — Two-Workflow Architecture
+## 5. CI Pipeline — PR-Only (`ci.yml`)
 
-CI is split into **two independent workflow files** to eliminate push/PR concurrency conflicts:
-
-### `ci.yml` — Gatekeeper (pull_request only)
+CI runs **only on `pull_request` events** — no push CI. This is the industry standard: all code goes through PRs (rulesets enforce it), so push CI is redundant.
 
 | Stage        | Checks                                      | Duration |
 | ------------ | ------------------------------------------- | -------- |
@@ -55,30 +53,14 @@ CI is split into **two independent workflow files** to eliminate push/PR concurr
 | PR → main    | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
 
 - **Trigger:** `pull_request` to staging or main
-- **Concurrency:** `pr-{branch}` (PR updates cancel prior PR run)
-- **Produces `ci-passed`** — the ONLY required check in GitHub rulesets
-- Feature branches get CI **only through PRs** (no push CI)
-
-### `ci-post-merge.yml` — Post-Merge Validation (push only)
-
-| Stage                | Checks                          | Duration |
-| -------------------- | ------------------------------- | -------- |
-| Staging (post-merge) | quality-gate + unit-tests + E2E | ~10 min  |
-
-- **Trigger:** `push` to staging only
-- **Concurrency:** `post-merge-staging` (new push cancels prior run)
-- **Does NOT produce `ci-passed`** — rulesets never depend on this workflow
-- Validates the merged result (catches merge conflicts, env issues)
-
-### Why Two Workflows?
-
-When push and PR share a single workflow, concurrency cancellation marks ALL jobs as "cancelled" — including `ci-passed`. A cancelled `ci-passed (push)` blocks PR merges even though `ci-passed (pull_request)` passed. Separate workflow files have **completely independent** concurrency groups — zero interference.
+- **Concurrency:** `pr-{branch}` — PR updates cancel prior PR run
+- **No push CI** — feature branches get CI only through PRs; direct pushes to staging (trivial changes) rely on local validation (`npm test`)
 
 ### `ci-passed` Summary Gate
 
-Lives in `ci.yml` only. Depends on quality-gate, unit-tests, and e2e-tests. Provides a single stable required check for rulesets.
+Depends on quality-gate, unit-tests, and e2e-tests. Provides a single stable required check for rulesets.
 
-- `quality-gate` and `unit-tests` MUST succeed (`!= "success"` → fail)
+- `quality-gate` and `unit-tests` MUST succeed
 - `e2e-tests` may be skipped (PRs to staging) but must not fail or cancel
 - **Rulesets must require ONLY:** `ci-passed`
 
