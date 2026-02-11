@@ -86,6 +86,9 @@ Run this before finishing any UI-related task:
 npm run test:e2e
 ```
 
+> [!CAUTION]
+> **NEVER run `npx vitest run` or `npx vitest` directly.** Always use `npm test`, `npm run test:watch`, or `npm run test:coverage`. Direct invocation bypasses `scripts/with-local-tmp.sh`, causing `EPERM: operation not permitted` errors in the sandboxed environment. See rule `10-dev-environment-tmpdir.md` for details.
+
 **Note:** E2E tests run against an **isolated `ynab_test`** database on **port 3001**. The process is automatic and uses a **production build** (`next build && next start`) to avoid conflicts with your development server. All scripts use `./scripts/with-local-tmp.sh` to bypass macOS/Linux system directory restrictions.
 
 ## 6. What to Do If Tests Fail

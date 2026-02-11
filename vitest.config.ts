@@ -1,5 +1,16 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import fs from 'fs';
+
+// Ensure temp directory is writable in sandboxed environments.
+// This mirrors scripts/with-local-tmp.sh for when vitest is invoked directly
+// (e.g. `npx vitest run`). Setting process.env.TMPDIR here affects the main
+// process; forked workers inherit this via process.env at fork time.
+const localTmp = path.resolve(__dirname, '.tmp');
+fs.mkdirSync(localTmp, { recursive: true });
+if (!process.env.TMPDIR || !process.env.TMPDIR.includes('.tmp')) {
+    process.env.TMPDIR = localTmp;
+}
 
 export default defineConfig({
     test: {
@@ -13,7 +24,6 @@ export default defineConfig({
             include: ['lib/**'],
             exclude: [
                 'lib/**/index.ts',       // Barrel re-exports — no executable logic
-                'lib/repos/client.ts',   // Production I/O singleton — not unit-testable
                 'lib/engine/types.ts',   // Type-only file — no runtime code
                 'lib/persistence/**',    // IndexedDB persistence — tested via E2E
                 'lib/auth.ts',           // NextAuth Node config — tested via E2E

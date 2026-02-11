@@ -4,6 +4,8 @@ import type { ReconciliationInfo } from '../repos/accounts';
 import { toTransactionDTO } from '../dtos/transaction.dto';
 import { toBudgetItemDTO } from '../dtos/budget.dto';
 import { toCategoryDTO, toCategoryGroupDTO } from '../dtos/category.dto';
+import { toShareDTO, toShareInfoDTO } from '../dtos/share.dto';
+import type { BudgetShareInfo } from '../repos/budgets';
 import type { Milliunit } from '../engine/primitives';
 
 describe('Account DTOs', () => {
@@ -375,6 +377,123 @@ describe('Category DTOs', () => {
       const dto = toCategoryGroupDTO(row);
       expect(dto.isIncome).toBe(true);
       expect(dto.hidden).toBe(true);
+    });
+  });
+});
+
+describe('Share DTOs', () => {
+  describe('toShareDTO', () => {
+    it('converts a ShareRow to ShareDTO with Date createdAt', () => {
+      const date = new Date('2025-12-15T10:30:00.000Z');
+      const row = {
+        id: 1,
+        budgetId: 5,
+        userId: 'user-abc-123',
+        role: 'editor',
+        createdAt: date,
+      };
+
+      const dto = toShareDTO(row);
+
+      expect(dto).toEqual({
+        id: 1,
+        budgetId: 5,
+        userId: 'user-abc-123',
+        role: 'editor',
+        createdAt: '2025-12-15T10:30:00.000Z',
+      });
+    });
+
+    it('converts null createdAt to null string', () => {
+      const row = {
+        id: 2,
+        budgetId: 5,
+        userId: 'user-xyz-456',
+        role: 'viewer',
+        createdAt: null,
+      };
+
+      const dto = toShareDTO(row);
+
+      expect(dto.createdAt).toBeNull();
+    });
+
+    it('preserves all field values exactly', () => {
+      const row = {
+        id: 999,
+        budgetId: 42,
+        userId: 'long-user-id-with-dashes',
+        role: 'owner',
+        createdAt: new Date('2020-01-01T00:00:00.000Z'),
+      };
+
+      const dto = toShareDTO(row);
+
+      expect(dto.id).toBe(999);
+      expect(dto.budgetId).toBe(42);
+      expect(dto.userId).toBe('long-user-id-with-dashes');
+      expect(dto.role).toBe('owner');
+      expect(dto.createdAt).toBe('2020-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('toShareInfoDTO', () => {
+    it('converts a BudgetShareInfo to ShareInfoDTO with Date createdAt', () => {
+      const date = new Date('2025-06-01T14:00:00.000Z');
+      const row: BudgetShareInfo = {
+        id: 10,
+        budgetId: 3,
+        userId: 'user-info-1',
+        userName: 'Jane Doe',
+        userEmail: 'jane@example.com',
+        role: 'editor',
+        createdAt: date,
+      };
+
+      const dto = toShareInfoDTO(row);
+
+      expect(dto).toEqual({
+        id: 10,
+        budgetId: 3,
+        userId: 'user-info-1',
+        userName: 'Jane Doe',
+        userEmail: 'jane@example.com',
+        role: 'editor',
+        createdAt: '2025-06-01T14:00:00.000Z',
+      });
+    });
+
+    it('converts null createdAt to null string', () => {
+      const row: BudgetShareInfo = {
+        id: 11,
+        budgetId: 3,
+        userId: 'user-info-2',
+        userName: 'John Smith',
+        userEmail: 'john@example.com',
+        role: 'viewer',
+        createdAt: null,
+      };
+
+      const dto = toShareInfoDTO(row);
+
+      expect(dto.createdAt).toBeNull();
+    });
+
+    it('includes user name and email fields', () => {
+      const row: BudgetShareInfo = {
+        id: 12,
+        budgetId: 7,
+        userId: 'user-info-3',
+        userName: 'María García',
+        userEmail: 'maria@ejemplo.com',
+        role: 'owner',
+        createdAt: new Date('2024-03-15T08:30:00.000Z'),
+      };
+
+      const dto = toShareInfoDTO(row);
+
+      expect(dto.userName).toBe('María García');
+      expect(dto.userEmail).toBe('maria@ejemplo.com');
     });
   });
 });
