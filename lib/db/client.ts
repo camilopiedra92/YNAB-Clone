@@ -34,10 +34,35 @@ import env from '../env';
 
 const connectionString = env.DATABASE_URL;
 
-const client = postgres(connectionString);
+const client = postgres(connectionString, {
+  // ── Connection Pool Settings ──────────────────────────────
+  max: 10,              // Max simultaneous connections (CX22–CX32 safe)
+  idle_timeout: 20,     // Close idle connections after 20 seconds
+  connect_timeout: 10,  // Fail connection attempt after 10 seconds
+  max_lifetime: 60 * 30,// Recycle connections every 30 minutes
+});
 const db: DrizzleDB = drizzle(client, { schema });
 
 export default db;
+
+// ── Graceful Shutdown ────────────────────────────────────────
+// Clean up PostgreSQL connections on process termination.
+// Without this, Docker SIGTERM leaves orphan connections in pg_stat_activity.
+if (typeof process !== 'undefined') {
+  const shutdown = async (signal: string) => {
+    console.log(`[DB] Received ${signal} — closing connections...`);
+    try {
+      await client.end({ timeout: 5 });
+      console.log('[DB] Connections closed cleanly.');
+    } catch (err) {
+      console.error('[DB] Error during shutdown:', err);
+    }
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
 
 // ====== Factory: compose all domain repos into a single API ======
 

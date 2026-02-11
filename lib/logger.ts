@@ -32,24 +32,40 @@ function getLogLevel(): LogLevel {
 
 class Logger {
   private level = LOG_LEVELS[getLogLevel()];
+  private isProd = process.env.NODE_ENV === 'production';
 
   private shouldLog(level: LogLevel): boolean {
     return LOG_LEVELS[level] >= this.level;
   }
 
-  private formatMessage(message: string, context?: LogContext): string {
+  /**
+   * Format a log message.
+   * - Production: JSON line (parseable by Coolify, Axiom, Loki, Grafana)
+   * - Dev: human-readable `[LEVEL] message | context: {...}`
+   */
+  private formatMessage(level: string, message: string, context?: LogContext): string {
+    if (this.isProd) {
+      return JSON.stringify({
+        level,
+        msg: message,
+        timestamp: new Date().toISOString(),
+        ...context,
+      });
+    }
     if (!context) return message;
     return `${message} | context: ${JSON.stringify(context)}`;
   }
 
   info(message: string, context?: LogContext) {
     if (!this.shouldLog('info')) return;
-    console.log(`[INFO] ${this.formatMessage(message, context)}`);
+    const formatted = this.formatMessage('info', message, context);
+    console.log(this.isProd ? formatted : `[INFO] ${formatted}`);
   }
 
   warn(message: string, context?: LogContext) {
     if (!this.shouldLog('warn')) return;
-    console.warn(`[WARN] ${this.formatMessage(message, context)}`);
+    const formatted = this.formatMessage('warn', message, context);
+    console.warn(this.isProd ? formatted : `[WARN] ${formatted}`);
   }
 
   error(message: string, error?: unknown, context?: LogContext) {
@@ -57,13 +73,14 @@ class Logger {
     const errorContext = error instanceof Error 
       ? { ...context, error: error.message, stack: error.stack }
       : { ...context, error };
-      
-    console.error(`[ERROR] ${this.formatMessage(message, errorContext)}`);
+    const formatted = this.formatMessage('error', message, errorContext);
+    console.error(this.isProd ? formatted : `[ERROR] ${formatted}`);
   }
 
   debug(message: string, context?: LogContext) {
     if (!this.shouldLog('debug')) return;
-    console.debug(`[DEBUG] ${this.formatMessage(message, context)}`);
+    const formatted = this.formatMessage('debug', message, context);
+    console.debug(this.isProd ? formatted : `[DEBUG] ${formatted}`);
   }
 }
 
