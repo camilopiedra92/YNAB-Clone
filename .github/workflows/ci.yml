@@ -14,9 +14,11 @@ on:
     branches: [staging, main]
 
 concurrency:
-  # Include event_name so push and pull_request events don't cancel each other.
-  # push to staging = ci-staging-push, PR from staging = ci-staging-pull_request
-  group: ci-${{ github.head_ref || github.ref_name }}-${{ github.event_name }}
+  # Push and PR on the same branch share a group — if a PR CI starts while
+  # push CI is running, the push run is cancelled (same code, avoid duplicates).
+  # This is safe because ci-passed only runs on pull_request events,
+  # so cancelled push checks never block PR merges.
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
