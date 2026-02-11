@@ -73,8 +73,12 @@ export async function createTestDb() {
             id SERIAL PRIMARY KEY,
             budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            role TEXT DEFAULT 'editor' NOT NULL
+            role TEXT DEFAULT 'editor' NOT NULL,
+            created_at TIMESTAMP DEFAULT now()
         )
+    `);
+    await drizzleDb.execute(sql`
+        CREATE UNIQUE INDEX budget_shares_budget_user ON budget_shares(budget_id, user_id)
     `);
 
     await drizzleDb.execute(sql`

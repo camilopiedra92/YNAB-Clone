@@ -16,7 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT_PATH="$SCRIPT_DIR/$(basename "$0")"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # ─── Parse arguments ────────────────────────────────────────────────
@@ -44,8 +44,8 @@ done
 
 # ─── Determine file list ────────────────────────────────────────────
 if [ "$SCAN_ALL" = true ]; then
-  FILES=$(find ynab-app/app ynab-app/hooks ynab-app/lib ynab-app/components \
-    -name '*.ts' -o -name '*.tsx' 2>/dev/null | grep -v node_modules | grep -v '.test.' | sort)
+  FILES=$(find ./app ./hooks ./lib ./components \
+    \( -name '*.ts' -o -name '*.tsx' \) 2>/dev/null | grep -v node_modules | grep -v '.test.' | sort)
 else
   FILES=$(git diff --name-only main...HEAD 2>/dev/null | grep -E '\.(ts|tsx)$' | grep -v node_modules || true)
   if [ -z "$FILES" ]; then
@@ -110,11 +110,24 @@ check "P0" "Inline financial math outside lib/engine/" \
   "lib/engine/"
 
 # 2. Missing requireBudgetAccess in budget routes
-check "P0" "Budget route missing requireBudgetAccess()" \
-  "export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)" \
-  "budgets/\[budgetId\].*route\.ts" \
-  ""
-# Note: This flags routes — manually verify requireBudgetAccess is called
+# Custom check: find budget routes that export handlers but DON'T call requireBudgetAccess
+{
+  _missing=""
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    if grep -qE 'export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)' "$f" && \
+       ! grep -q 'requireBudgetAccess' "$f"; then
+      _missing="${_missing}${f}\n"
+    fi
+  done <<< "$(echo "$FILES" | grep -E 'budgets/\[budgetId\].*route\.ts')"
+  if [ -n "$_missing" ]; then
+    FINDINGS=$((FINDINGS + 1))
+    P0_COUNT=$((P0_COUNT + 1))
+    echo ""
+    echo "🔴 [P0] Budget route missing requireBudgetAccess()"
+    printf "%b" "$_missing" | sed '/^$/d' | sed 's/^/   /'
+  fi
+}
 
 # 3. Raw SQL in API routes (bypassing repos)
 check "P1" "Direct db/SQL access in API routes (use repos)" \
@@ -143,10 +156,11 @@ check "P1" "Direct toast() call in hooks (use meta.errorMessage)" \
   ""
 
 # 7. Manual Milliunit cast (should use mu() in tests, milliunit() in prod)
+# Exclude primitives.ts (defines milliunit()), schema.ts (DB type), engine/ (internal casts)
 check "P1" "Manual 'as Milliunit' cast (use mu()/milliunit())" \
   "as\s+Milliunit" \
   "\.(ts|tsx)$" \
-  ""
+  "(primitives\.ts|schema\.ts|lib/engine/)"
 
 # 8. DB imports in engine (engine must be pure)
 check "P0" "DB/HTTP/React dependency in engine (must be pure)" \
@@ -156,18 +170,33 @@ check "P0" "DB/HTTP/React dependency in engine (must be pure)" \
 
 # ─── P2: Style issues ──────────────────────────────────────────────
 
-# 9. Missing mutationKey
-check "P2" "useMutation without mutationKey" \
-  "useMutation\(\{" \
-  "hooks/use.*Mutation" \
-  ""
-# Note: This flags all mutations — manually verify mutationKey is present
+# 9. Missing mutationKey — compare counts of useMutation vs mutationKey per file
+{
+  _no_key=""
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    _mut_count=$(grep -c 'useMutation(' "$f" 2>/dev/null || true)
+    _mut_count=${_mut_count:-0}
+    _key_count=$(grep -c 'mutationKey' "$f" 2>/dev/null || true)
+    _key_count=${_key_count:-0}
+    if [ "$_mut_count" -gt "$_key_count" ]; then
+      _no_key="${_no_key}${f} (${_mut_count} mutations, ${_key_count} keys)\n"
+    fi
+  done <<< "$(echo "$FILES" | grep -E 'hooks/use.*Mutation')"
+  if [ -n "$_no_key" ]; then
+    FINDINGS=$((FINDINGS + 1))
+    P2_COUNT=$((P2_COUNT + 1))
+    echo ""
+    echo "🟡 [P2] useMutation without mutationKey"
+    printf "%b" "$_no_key" | sed '/^$/d' | sed 's/^/   /'
+  fi
+}
 
 # 10. console.log left in production code
 check "P2" "console.log in production code (use console.error for errors)" \
   "console\.log\(" \
   "\.(ts|tsx)$" \
-  "(test|spec|scripts/|\.test\.)" \
+  "(test|spec|scripts/|\.test\.|logger\.ts)" \
 
 # 11. Snake_case in API payloads (should be camelCase)
 check "P2" "Possible snake_case in API payload (use camelCase)" \

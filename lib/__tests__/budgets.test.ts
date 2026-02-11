@@ -183,3 +183,135 @@ describe('deleteBudget', () => {
         expect(deleted).toBeUndefined();
     });
 });
+
+// ── Share Management Tests ──
+
+describe('getShares', () => {
+    it('returns empty array when no shares exist', async () => {
+        const budgets = await fns.getBudgets(defaultUserId);
+        const shares = await fns.getShares(budgets[0].id);
+        expect(shares).toHaveLength(0);
+    });
+
+    it('returns shares with user info', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'Shared User',
+            email: 'shared@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        await fns.addShare(budgets[0].id, otherUser.id, 'editor');
+
+        const shares = await fns.getShares(budgets[0].id);
+        expect(shares).toHaveLength(1);
+        expect(shares[0].userName).toBe('Shared User');
+        expect(shares[0].userEmail).toBe('shared@test.com');
+        expect(shares[0].role).toBe('editor');
+    });
+});
+
+describe('addShare', () => {
+    it('creates a share entry', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'New Member',
+            email: 'member@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        const share = await fns.addShare(budgets[0].id, otherUser.id, 'viewer');
+
+        expect(share).toBeDefined();
+        expect(share.role).toBe('viewer');
+        expect(share.budgetId).toBe(budgets[0].id);
+    });
+
+    it('rejects duplicate shares (unique constraint)', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'Dup User',
+            email: 'dup@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        await fns.addShare(budgets[0].id, otherUser.id, 'editor');
+
+        // Attempt duplicate
+        await expect(
+            fns.addShare(budgets[0].id, otherUser.id, 'viewer')
+        ).rejects.toThrow();
+    });
+
+    it('makes the budget visible to the shared user', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'Viewer',
+            email: 'viewer@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        await fns.addShare(budgets[0].id, otherUser.id, 'editor');
+
+        const otherBudgets = await fns.getBudgets(otherUser.id);
+        expect(otherBudgets).toHaveLength(1);
+        expect(otherBudgets[0].role).toBe('editor');
+    });
+});
+
+describe('updateShareRole', () => {
+    it('changes role from editor to viewer', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'Role Change',
+            email: 'role@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        const share = await fns.addShare(budgets[0].id, otherUser.id, 'editor');
+
+        const updated = await fns.updateShareRole(share.id, 'viewer');
+        expect(updated).toBeDefined();
+        expect(updated.role).toBe('viewer');
+    });
+});
+
+describe('removeShare', () => {
+    it('removes a share entry', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'To Remove',
+            email: 'remove@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        const share = await fns.addShare(budgets[0].id, otherUser.id, 'editor');
+
+        const removed = await fns.removeShare(share.id);
+        expect(removed).toBeDefined();
+
+        const shares = await fns.getShares(budgets[0].id);
+        expect(shares).toHaveLength(0);
+    });
+
+    it('budget is no longer visible to removed user', async () => {
+        const [otherUser] = await db.insert(schema.users).values({
+            name: 'Removed User',
+            email: 'removed@test.com',
+            password: 'password',
+        }).returning();
+
+        const budgets = await fns.getBudgets(defaultUserId);
+        const share = await fns.addShare(budgets[0].id, otherUser.id, 'editor');
+
+        // Verify they can see it
+        let otherBudgets = await fns.getBudgets(otherUser.id);
+        expect(otherBudgets).toHaveLength(1);
+
+        // Remove and verify
+        await fns.removeShare(share.id);
+        otherBudgets = await fns.getBudgets(otherUser.id);
+        expect(otherBudgets).toHaveLength(0);
+    });
+});
+

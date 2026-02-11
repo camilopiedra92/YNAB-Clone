@@ -64,7 +64,10 @@ export function useAnimatedNumber(targetValue: number, duration: number = 350): 
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [targetValue, duration]); // eslint-disable-line react-hooks/exhaustive-deps
+        // Intentionally excluding `displayValue` — including it would restart the animation
+        // on every frame (since setDisplayValue is called inside), causing an infinite loop.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [targetValue, duration]);
 
     return displayValue;
 }

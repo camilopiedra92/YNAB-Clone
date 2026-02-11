@@ -104,7 +104,6 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
                 : null;
 
             // Compute carryforward from the category's previous available
-            // const prevAvailable = existing ? existing.available - existing.assigned : 0;
             const isCCPayment = !!currentItem?.linkedAccountId;
             const carryforward = computeCarryforward(
                 (existing ? existing.available - (currentItem?.activity || 0) - existing.assigned + (currentItem?.assigned || 0) : null) as Milliunit | null,

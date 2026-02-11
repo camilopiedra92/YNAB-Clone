@@ -85,3 +85,102 @@ export function useBudgetMutations() {
     deleteBudget: deleteMutation,
   };
 }
+
+// ── Shares ──
+
+export type ShareInfo = {
+  id: number;
+  budgetId: number;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: string;
+  createdAt: string | null;
+};
+
+export function useShares(budgetId?: number) {
+  return useQuery<ShareInfo[]>({
+    queryKey: ['shares', budgetId],
+    queryFn: async () => {
+      if (!budgetId) throw new Error('Budget ID is required');
+      const res = await fetch(`/api/budgets/${budgetId}/shares`);
+      if (!res.ok) throw new Error('Failed to fetch shares');
+      return res.json();
+    },
+    enabled: !!budgetId,
+  });
+}
+
+export function useShareMutations(budgetId: number) {
+  const queryClient = useQueryClient();
+
+  const addShare = useMutation({
+    mutationKey: ['share-add'],
+    retry: false, // 4xx errors (user not found, duplicate, etc.) are not transient
+    meta: {
+      successMessage: 'Invitación enviada',
+      errorMessage: 'Error al compartir presupuesto',
+    },
+    mutationFn: async (data: { email: string; role?: string }) => {
+      const res = await fetch(`/api/budgets/${budgetId}/shares`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add share');
+      }
+      return res.json();
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['shares', budgetId] });
+    },
+  });
+
+  const updateRole = useMutation({
+    mutationKey: ['share-update-role'],
+    meta: {
+      successMessage: 'Rol actualizado',
+      errorMessage: 'Error al actualizar rol',
+    },
+    mutationFn: async ({ shareId, role }: { shareId: number; role: string }) => {
+      const res = await fetch(`/api/budgets/${budgetId}/shares/${shareId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      if (!res.ok) throw new Error('Failed to update role');
+      return res.json();
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['shares', budgetId] });
+    },
+  });
+
+  const removeShareMutation = useMutation({
+    mutationKey: ['share-remove'],
+    meta: {
+      successMessage: 'Acceso revocado',
+      errorMessage: 'Error al revocar acceso',
+    },
+    mutationFn: async (shareId: number) => {
+      const res = await fetch(`/api/budgets/${budgetId}/shares/${shareId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to remove share');
+      return res.json();
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['shares', budgetId] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+    },
+  });
+
+  return {
+    addShare,
+    updateRole,
+    removeShare: removeShareMutation,
+  };
+}
+

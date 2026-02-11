@@ -1,0 +1,2 @@
+ALTER TABLE "budget_shares" ADD COLUMN "created_at" timestamp DEFAULT now();--> statement-breakpoint
+CREATE UNIQUE INDEX "budget_shares_budget_user" ON "budget_shares" USING btree ("budget_id","user_id");

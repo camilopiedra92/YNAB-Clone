@@ -2,10 +2,8 @@ import { eq } from 'drizzle-orm';
 import { users } from '../db/schema';
 import { type DrizzleDB } from '../db/client';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface UserRepoDeps {
-  // No dependencies for now
-}
+/** Placeholder for future cross-repo dependency injection (matches TransactionRepoDeps / BudgetRepoDeps pattern). */
+export type UserRepoDeps = Record<string, never>;
 
 
 

@@ -3,9 +3,13 @@ export {
     BudgetAssignmentSchema,
     CreateBudgetSchema,
     UpdateBudgetSchema,
+    AddShareSchema,
+    UpdateShareRoleSchema,
     type BudgetAssignmentInput,
     type CreateBudgetInput,
-    type UpdateBudgetInput
+    type UpdateBudgetInput,
+    type AddShareInput,
+    type UpdateShareRoleInput,
 } from './budget';
 export {
     CreateTransactionSchema,

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -15,11 +15,8 @@ import {
     PlusCircle,
     Settings,
     LogOut,
-    ChevronRight,
     Landmark,
     Lock,
-    TrendingUp,
-    Building2,
     Pencil,
     Upload
 } from 'lucide-react';
@@ -29,11 +26,7 @@ import AccountEditModal from './AccountEditModal';
 import ImportModal from './ImportModal';
 import { formatCurrency } from '@/lib/format';
 
-const mainNavigation = [
-    { name: 'Plan', href: '/budget', icon: LayoutDashboard },
-    { name: 'Reflect', href: '/reports', icon: PieChart },
-    { name: 'All Accounts', href: '/accounts', icon: Wallet },
-];
+
 
 const groupIcons: Record<string, typeof Landmark> = {
     'Cash': Landmark,
@@ -43,12 +36,7 @@ const groupIcons: Record<string, typeof Landmark> = {
 
 
 
-const accountTypeIcons: Record<string, typeof Building2> = {
-    'checking': Building2,
-    'savings': TrendingUp,
-    'cash': Wallet,
-    'credit': CreditCard,
-};
+
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -66,7 +54,6 @@ export default function Sidebar() {
     const [isImportOpen, setIsImportOpen] = useState(false);
 
     const userName = session?.user?.name ?? 'Usuario';
-    const userEmail = session?.user?.email ?? '';
     const userInitial = userName.charAt(0).toUpperCase();
 
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -308,7 +295,6 @@ export default function Sidebar() {
                                             ) : (
                                                 accs.map((account) => {
                                                     const isAccountActive = pathname === `/budgets/${budgetId}/accounts/${account.id}`;
-                                                    const AccIcon = accountTypeIcons[account.type] || Building2;
                                                     return (
                                                         <Link
                                                             key={account.id}

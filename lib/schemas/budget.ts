@@ -29,3 +29,16 @@ export type CreateBudgetInput = z.infer<typeof CreateBudgetSchema>;
 export const UpdateBudgetSchema = CreateBudgetSchema.partial();
 
 export type UpdateBudgetInput = z.infer<typeof UpdateBudgetSchema>;
+
+export const AddShareSchema = z.object({
+  email: z.string().trim().email('Email inválido'),
+  role: z.enum(['editor', 'viewer']).default('editor'),
+});
+
+export type AddShareInput = z.infer<typeof AddShareSchema>;
+
+export const UpdateShareRoleSchema = z.object({
+  role: z.enum(['editor', 'viewer']),
+});
+
+export type UpdateShareRoleInput = z.infer<typeof UpdateShareRoleSchema>;
