@@ -27,6 +27,15 @@ This file defines the **MANDATORY** technology stack and high-level goals for th
 | **Unit/Integration** | Vitest     | `npm run test`     |
 | **End-to-End (E2E)** | Playwright | `npm run test:e2e` |
 
+## 2b. DevOps & CLI Tools
+
+| Tool         | Purpose                                     | Install                |
+| :----------- | :------------------------------------------ | :--------------------- |
+| **gh** (CLI) | PR creation, CI status, merge from terminal | `brew install gh`      |
+| **git**      | Version control                             | Pre-installed on macOS |
+
+`gh` is authenticated as `camilopiedra92`. See `15-git-branching-strategy.md` §7 for usage.
+
 ## 3. High-Level Goals
 
 ### A. "Zero Regressions"
