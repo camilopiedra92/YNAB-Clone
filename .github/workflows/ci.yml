@@ -173,7 +173,7 @@ jobs:
   # ─── Summary Gate (single required check for rulesets) ──
   # GitHub appends (push)/(pull_request) to job names, breaking
   # ruleset matching. This job provides ONE stable check name.
-  # Rulesets should require ONLY: CI / ci-passed
+  # Rulesets should require ONLY: ci-passed (the job ID)
   ci-passed:
     if: always()
     needs: [quality-gate, unit-tests, e2e-tests]
@@ -186,10 +186,17 @@ jobs:
           echo "unit-tests:   ${{ needs.unit-tests.result }}"
           echo "e2e-tests:    ${{ needs.e2e-tests.result }}"
 
-          if [[ "${{ needs.quality-gate.result }}" == "failure" ]] || \
-             [[ "${{ needs.unit-tests.result }}" == "failure" ]] || \
-             [[ "${{ needs.e2e-tests.result }}" == "failure" ]]; then
-            echo "❌ One or more checks failed"
+          # quality-gate and unit-tests MUST succeed (always required)
+          if [[ "${{ needs.quality-gate.result }}" != "success" ]] || \
+             [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+            echo "❌ Required checks did not succeed"
+            exit 1
+          fi
+
+          # e2e-tests may be skipped (conditional job) but must not fail
+          if [[ "${{ needs.e2e-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.e2e-tests.result }}" == "cancelled" ]]; then
+            echo "❌ E2E tests failed or were cancelled"
             exit 1
           fi
 
