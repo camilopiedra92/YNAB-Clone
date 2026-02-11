@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Job 1: Security + Static Analysis + Build (L2-L5) ──
+  quality-gate:
+    name: Audit → Lint → Typecheck → Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Security Audit (L2)
+        run: npm audit --audit-level=high
+
+      - name: Lint (L3)
+        run: npm run lint
+
+      - name: Typecheck (L4)
+        run: npm run typecheck
+
+      - name: Production Build (L5)
+        run: npm run build
+        env:
+          NEXT_TEST_BUILD: "1"
+          NODE_ENV: production
+          DATABASE_URL: postgresql://localhost:5432/dummy
+          AUTH_SECRET: ci-dummy-secret-at-least-32-characters-long
+          AUTH_TRUST_HOST: "true"
+
+  # ─── Job 2: Unit Tests + Coverage (L6) ─────────────────
+  unit-tests:
+    name: Unit Tests (PGlite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run Unit Tests with Coverage (L6)
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: postgresql://localhost:5432/dummy
+          AUTH_SECRET: ci-dummy-secret-at-least-32-characters-long
+          AUTH_TRUST_HOST: "true"
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ─── Job 3: E2E Tests (L7) ─────────────────────────────
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ynab_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ynab_dev
+      AUTH_SECRET: ci-e2e-secret-at-least-32-characters-long
+      AUTH_TRUST_HOST: "true"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright System Deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Run E2E Tests (L7)
+        run: npm run test:e2e
+
+      - name: Upload Playwright Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload Test Results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+  # ─── Job 4: Lighthouse CI ──────────────────────────────
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [quality-gate]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ynab_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ynab_dev
+      AUTH_SECRET: ci-lhci-secret-at-least-32-characters-long
+      AUTH_TRUST_HOST: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Production Bundle
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: lighthouserc.json
+          uploadArtifacts: true

@@ -16,10 +16,10 @@ The codebase is architecturally sound: 542 unit tests, 50 E2E tests, 98.79% cove
 
 Currently all quality checks run locally. A GitHub Actions pipeline would catch regressions automatically.
 
-- [ ] GitHub Actions workflow: `lint → typecheck → build → test:coverage → test:e2e`
-- [ ] Branch protection: require CI pass before merge
-- [ ] Coverage badge in README
-- [ ] Lighthouse CI for performance budgets
+- [x] GitHub Actions workflow: `audit → lint → typecheck → build → test:coverage → test:e2e`
+- [x] Branch protection: require CI pass before merge
+- [x] Coverage badge in README
+- [x] Lighthouse CI for performance budgets
 
 ### I2. Split `budget.ts` (967 lines)
 

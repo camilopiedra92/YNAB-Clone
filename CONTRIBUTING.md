@@ -79,12 +79,14 @@ npm run git:sync -- "fix(scope): handle empty state"
 
 ### 3. Verify Before Merging
 
-Run the full test suite before merging:
+**CI runs automatically** on every push and PR to `main` via GitHub Actions. The pipeline runs the full QA suite (audit → lint → typecheck → build → unit tests → E2E tests). Branch protection requires all checks to pass before merge.
+
+To verify locally before pushing (optional — CI will catch issues too):
 
 ```bash
 npm test                # Unit tests
 npm run test:e2e        # E2E tests
-npx tsc --noEmit        # Type check
+npm run typecheck       # Type check
 ```
 
 ### 4. Squash Merge to Main

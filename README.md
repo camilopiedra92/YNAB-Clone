@@ -1,5 +1,7 @@
 # YNAB Clone
 
+[![CI](https://github.com/camilopiedra92/YNAB-Clone/actions/workflows/ci.yml/badge.svg)](https://github.com/camilopiedra92/YNAB-Clone/actions/workflows/ci.yml)
+
 A powerful personal finance management application inspired by [YNAB (You Need A Budget)](https://www.youneedabudget.com/). Built with Next.js, PostgreSQL (via Drizzle ORM), and TanStack Query, this application implements the core principles of zero-based budgeting.
 
 ![YNAB Clone Preview](public/preview.png) _(Note: Add a real preview image to the public folder)_
