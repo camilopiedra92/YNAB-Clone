@@ -32,7 +32,7 @@ export default function NewBudgetPage() {
     try {
       const budget = await createBudget.mutateAsync(result.data);
       toast.success('Presupuesto creado con éxito');
-      router.push(`/budget?budgetId=${budget.id}`);
+      router.push(`/budgets/${budget.id}/budget`);
     } catch (_error) {
       toast.error('Error al crear el presupuesto');
     }
