@@ -87,6 +87,9 @@ npm run git:sync -- "fix(scope): handle empty state"
 # Multiple commits are fine on feature branches!
 ```
 
+> [!TIP]
+> **Local quality gates run automatically.** Every `git commit` runs lint + typecheck on staged files (~5s). Every `git push` runs unit tests (~5–10s). If something fails, the commit/push is blocked. Bypass with `--no-verify` or `SKIP_HOOKS=1` in emergencies.
+
 **CI runs automatically when you open a PR** for your feature branch — quality-gate + unit-tests (~3 min).
 
 ### 3. Open a Pull Request to Staging
@@ -155,7 +158,30 @@ git push origin --delete feat/my-feature  # if it was pushed
 
 ---
 
-## CI Pipeline
+## Quality Pipeline
+
+Quality is enforced at **two layers**: local git hooks (instant feedback) and CI (authoritative gate).
+
+### Local Quality Gates (Git Hooks)
+
+Installed automatically via `npm install` (the `prepare` script runs `scripts/install-hooks.sh`).
+
+| Hook         | Trigger            | What it runs                                   | ~Time  |
+| ------------ | ------------------ | ---------------------------------------------- | ------ |
+| `pre-commit` | Every `git commit` | ESLint (staged files) + TypeScript typecheck   | ~5–8s  |
+| `pre-push`   | Every `git push`   | Branch protection (blocks `main`) + Unit tests | ~5–10s |
+
+**Bypass** (emergencies only):
+
+```bash
+git commit --no-verify    # skip pre-commit
+git push --no-verify      # skip pre-push
+SKIP_HOOKS=1 git commit   # alternative via env var
+```
+
+Hooks live in `scripts/hooks/` and are copied to `.git/hooks/` by the installer.
+
+### CI Pipeline (GitHub Actions)
 
 CI runs **only on `pull_request` events** — no push CI. All code goes through PRs (rulesets enforce it), so push CI is redundant.
 

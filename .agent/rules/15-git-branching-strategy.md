@@ -42,8 +42,22 @@ staging ────────────────────────
 - Multiple commits are fine; they'll be squashed on merge
 - `sync.sh` blocks direct pushes to `main` (error + exit)
 - Direct pushes to `staging` are allowed (bypass actor) for trivial changes
+- **Git hooks run automatically** — see §5 below
 
-## 5. CI Pipeline — PR-Only (`ci.yml`)
+## 5. Local Quality Gates (Git Hooks)
+
+Hooks live in `scripts/hooks/` and are installed to `.git/hooks/` via `npm run git:install-hooks` (also runs automatically on `npm install` via `prepare`).
+
+| Hook         | Trigger            | What it runs                                   | ~Time  |
+| ------------ | ------------------ | ---------------------------------------------- | ------ |
+| `pre-commit` | Every `git commit` | ESLint (staged files) + TypeScript typecheck   | ~5–8s  |
+| `pre-push`   | Every `git push`   | Branch protection (blocks `main`) + Unit tests | ~5–10s |
+
+- **Bypass:** `--no-verify` flag or `SKIP_HOOKS=1` env var
+- **CI skip:** Hooks auto-skip when `CI=true` (GitHub Actions sets this)
+- These are **Layer 0** — fast local feedback before CI even runs
+
+## 6. CI Pipeline — PR-Only (`ci.yml`)
 
 CI runs **only on `pull_request` events** — no push CI. This is the industry standard: all code goes through PRs (rulesets enforce it), so push CI is redundant.
 
@@ -56,7 +70,7 @@ CI runs **only on `pull_request` events** — no push CI. This is the industry s
 - **Concurrency:** `pr-{branch}` — PR updates cancel prior PR run
 - **No push CI** — feature branches get CI only through PRs; direct pushes to staging (trivial changes) rely on local validation (`npm test`)
 
-### `ci-passed` Summary Gate
+### 6a. `ci-passed` Summary Gate
 
 Depends on quality-gate, unit-tests, and e2e-tests. Provides a single stable required check for rulesets.
 
@@ -64,7 +78,7 @@ Depends on quality-gate, unit-tests, and e2e-tests. Provides a single stable req
 - `e2e-tests` may be skipped (PRs to staging) but must not fail or cancel
 - **Rulesets must require ONLY:** `ci-passed`
 
-## 6. GitHub Rulesets Configuration
+## 7. GitHub Rulesets Configuration
 
 Three rulesets protect the repository:
 
@@ -98,7 +112,7 @@ Three rulesets protect the repository:
 2. **Select from autocomplete:** When adding checks in the ruleset UI, type `ci-` and select from the dropdown. This links the correct integration source.
 3. **Never add checks to feature branch rulesets:** Pushes would be rejected because the checks haven't run yet (chicken-and-egg).
 
-## 7. GitHub CLI (`gh`)
+## 8. GitHub CLI (`gh`)
 
 `gh` is installed and authenticated for `camilopiedra92`. Use it for PR operations:
 
@@ -145,7 +159,7 @@ If staging is accidentally deleted, restore it immediately:
 git checkout main && git checkout -b staging && git push -u origin staging
 ```
 
-## 8. When to Skip (Direct-to-Staging)
+## 9. When to Skip (Direct-to-Staging)
 
 - Single-file documentation updates
 - `.gitignore` or config tweaks

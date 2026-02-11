@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # scripts/install-hooks.sh
 # Installs git hooks from scripts/hooks/ into .git/hooks/
+# Hooks: pre-commit (lint + typecheck), pre-push (branch protection + unit tests)
 # Run automatically via `npm prepare` on install/clone.
 
 set -euo pipefail
