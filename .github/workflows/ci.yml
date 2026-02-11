@@ -14,7 +14,9 @@ on:
     branches: [staging, main]
 
 concurrency:
-  group: ci-${{ github.head_ref || github.ref_name }}
+  # Include event_name so push and pull_request events don't cancel each other.
+  # push to staging = ci-staging-push, PR from staging = ci-staging-pull_request
+  group: ci-${{ github.head_ref || github.ref_name }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
