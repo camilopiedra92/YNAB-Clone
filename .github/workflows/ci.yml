@@ -14,7 +14,7 @@ on:
     branches: [staging, main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -169,3 +169,28 @@ jobs:
           echo ""
           echo "=== Checking users in ynab_test ==="
           psql "postgresql://postgres:postgres@localhost:5432/ynab_test" -c "SELECT id, email, substring(password, 1, 20) as pw_prefix FROM users;" 2>/dev/null || echo "Cannot query ynab_test.users"
+
+  # ─── Summary Gate (single required check for rulesets) ──
+  # GitHub appends (push)/(pull_request) to job names, breaking
+  # ruleset matching. This job provides ONE stable check name.
+  # Rulesets should require ONLY: CI / ci-passed
+  ci-passed:
+    if: always()
+    needs: [quality-gate, unit-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check upstream job results
+        run: |
+          echo "quality-gate: ${{ needs.quality-gate.result }}"
+          echo "unit-tests:   ${{ needs.unit-tests.result }}"
+          echo "e2e-tests:    ${{ needs.e2e-tests.result }}"
+
+          if [[ "${{ needs.quality-gate.result }}" == "failure" ]] || \
+             [[ "${{ needs.unit-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.e2e-tests.result }}" == "failure" ]]; then
+            echo "❌ One or more checks failed"
+            exit 1
+          fi
+
+          echo "✅ All checks passed"
