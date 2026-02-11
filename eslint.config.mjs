@@ -25,6 +25,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "coverage/**",
     "next-env.d.ts",
+    "public/swagger-ui/**",
   ]),
   {
     files: ["lib/engine/**/*"],

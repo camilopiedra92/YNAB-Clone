@@ -27,7 +27,7 @@ import {
   CreateCategoryGroupSchema,
   ReorderSchema,
 } from '@/lib/schemas';
-import { RegisterSchema, LoginSchema, UpdateProfileSchema, ChangePasswordSchema } from '@/lib/schemas/auth';
+import { RegisterSchema, UpdateProfileSchema, ChangePasswordSchema } from '@/lib/schemas/auth';
 
 // Extend Zod with OpenAPI support (required once)
 extendZodWithOpenApi(z);
@@ -54,7 +54,7 @@ const SuccessResponse = registry.register(
 );
 
 // Path parameters
-const budgetIdParam = registry.registerParameter(
+const _budgetIdParam = registry.registerParameter(
   'BudgetId',
   z.number().int().positive().openapi({
     param: { name: 'budgetId', in: 'path' },
@@ -62,7 +62,7 @@ const budgetIdParam = registry.registerParameter(
   })
 );
 
-const accountIdParam = registry.registerParameter(
+const _accountIdParam = registry.registerParameter(
   'AccountId',
   z.number().int().positive().openapi({
     param: { name: 'id', in: 'path' },
@@ -70,7 +70,7 @@ const accountIdParam = registry.registerParameter(
   })
 );
 
-const shareIdParam = registry.registerParameter(
+const _shareIdParam = registry.registerParameter(
   'ShareId',
   z.number().int().positive().openapi({
     param: { name: 'shareId', in: 'path' },
