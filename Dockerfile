@@ -61,10 +61,8 @@ USER nextjs
 # Expose the application port
 EXPOSE 3000
 
-# Docker-level health check (used by Coolify for container health)
-# Requires /api/health endpoint (created in Phase 2)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
+# Note: Health monitoring via /api/health endpoint (external probes)
+# Docker HEALTHCHECK removed — conflicts with Coolify's deployment process
 
 # Start the standalone Next.js server
 CMD ["node", "server.js"]
