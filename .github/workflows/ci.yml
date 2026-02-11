@@ -83,6 +83,7 @@ jobs:
   # PRs to staging: skipped (quality-gate + unit-tests is enough)
   # PRs to main: full E2E (staging → main promotion must be fully validated)
   e2e-tests:
+    needs: quality-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.base_ref == 'main'
