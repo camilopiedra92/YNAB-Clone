@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb, seedBasicBudget, seedCompleteMonth, today, currentMonth, mu } from './test-helpers';
 import type { createDbFunctions } from '../repos';
-import type { DrizzleDB } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
 import * as schema from '../db/schema';
 
 let db: DrizzleDB;

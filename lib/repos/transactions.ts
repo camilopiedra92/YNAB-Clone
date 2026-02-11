@@ -13,8 +13,8 @@ import { eq, sql, or, and, type SQL, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, transactions, transfers } from '../db/schema';
 import { currentDate } from '../db/sql-helpers';
 import { milliunit, ZERO } from '../engine/primitives';
-import type { DrizzleDB } from '../db/client';
-import { queryRows } from '../db/client';
+import type { DrizzleDB } from '../db/helpers';
+import { queryRows } from '../db/helpers';
 
 export interface TransactionRepoDeps {
   updateAccountBalances: (budgetId: number, accountId: number) => Promise<unknown> | void;
