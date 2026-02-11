@@ -20,3 +20,7 @@
 2. **Multiple matches are possible.** If a task involves both "new feature" AND "E2E test", read BOTH skills.
 3. **Skills are instructions, not suggestions.** Once a skill is read, follow its steps as a protocol.
 4. **No shortcuts.** Even if you "already know" the procedure, you MUST `view_file` the SKILL.md. The skill is the single source of truth.
+
+## Quick Reference: Git Commit Header Limit
+
+The commit header (`type(scope): description`) has a **hard limit of 72 characters**. The `type(scope): ` prefix uses ~15–20 chars, leaving ~52–57 for the description. If the description has commas or 3+ items joined by "and", it's too long — put details in the body argument instead.

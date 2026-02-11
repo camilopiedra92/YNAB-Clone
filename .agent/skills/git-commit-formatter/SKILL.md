@@ -47,6 +47,36 @@ If you find yourself thinking: _"Let me just check if it really pushed..."_ -> *
 
 ---
 
+## 📏 HEADER LENGTH LIMIT (72 CHARACTERS MAX)
+
+The validator enforces a **maximum of 72 characters** for the entire header line (`type(scope): description`). This is a hard limit — the commit will be rejected if exceeded.
+
+### Practical Guidance
+
+- The `type(scope): ` prefix uses ~15–20 chars, leaving **~52–57 chars** for the description.
+- **Keep descriptions short and punchy.** Summarize the _what_, not every detail.
+- Use the **body** argument for additional context (100 chars/line limit).
+
+### Examples
+
+```bash
+# ❌ TOO LONG (75 chars) — REJECTED
+npm run git:sync -- "refactor(audit): extract TransactionModal form hook, fix TMPDIR config, complete audit phases"
+
+# ✅ CONCISE (48 chars) — ACCEPTED
+npm run git:sync -- "refactor(audit): extract form hook and fix test config"
+
+# ✅ WITH BODY for details (header short, body has context)
+npm run git:sync -- "refactor(audit): extract form hook and fix test config" "- Extract useTransactionForm from TransactionModal
+- Add TMPDIR override in vitest.config.ts"
+```
+
+### Rule of Thumb
+
+If the description has commas or "and" connecting 3+ items, it's too long. Pick the most important change for the header and put the rest in the body.
+
+---
+
 ## 🛠️ ARCHITECTURAL PROTOCOL
 
 ### 1. The "Success" State
