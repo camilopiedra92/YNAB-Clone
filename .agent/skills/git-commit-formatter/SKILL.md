@@ -99,6 +99,34 @@ Refer to `resources/scope-map.md` for the mandatory `type(scope)` format.
 
 ---
 
+## 🔀 POST-SYNC: PR Operations (via `gh` CLI)
+
+After a successful sync, the user may ask to create a PR or merge. Use `gh` CLI:
+
+```bash
+# Create PR to staging
+gh pr create --base staging --title "type: description"
+
+# Create PR to promote staging to production
+gh pr create --base main --head staging --title "chore: promote to production"
+
+# Check PR status
+gh pr checks
+
+# Merge PR (feature → staging: OK with --delete-branch)
+gh pr merge --merge --delete-branch
+
+# Merge PR (staging → main: ⚠️ NEVER use --delete-branch)
+gh pr merge --merge
+```
+
+### ⚠️ Merge Safety Rule
+
+- **Feature → staging:** `--delete-branch` is OK (cleans up the feature branch)
+- **Staging → main:** **NEVER** pass `--delete-branch` — it deletes the `staging` branch!
+
+---
+
 ## 📚 RESOURCES (Diagnostic Only)
 
 - **Scope Map**: `.agent/skills/git-commit-formatter/resources/scope-map.md`

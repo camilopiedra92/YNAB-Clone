@@ -39,11 +39,17 @@ git stash pop 2>/dev/null || true
 
 ## After Work Is Complete
 
-When the feature is done and tests pass, push and open a PR to `staging`:
+When the feature is done and tests pass, push and create a PR to `staging`:
 
 ```bash
+# Push the branch
 git push -u origin TYPE/NAME
-# Open PR on GitHub: TYPE/NAME → staging
+
+# Create PR with gh CLI (recommended):
+gh pr create --base staging --title "type: description"
+
+# Monitor checks:
+gh pr checks
 ```
 
 After the PR is merged, clean up the branch:
@@ -55,4 +61,17 @@ git branch -d TYPE/NAME && git push origin --delete TYPE/NAME 2>/dev/null || tru
 
 ## Promote to Production
 
-When staging is ready for production, open a PR on GitHub: `staging → main`. All CI checks (quality-gate + unit-tests + E2E) must pass before merge.
+When staging is ready for production:
+
+```bash
+# Create PR: staging → main
+gh pr create --base main --head staging --title "chore: promote to production"
+
+# Monitor checks:
+gh pr checks
+
+# Merge (⚠️ NEVER use --delete-branch here — it would delete staging!)
+gh pr merge --merge
+```
+
+The `ci-passed` required check gates all PRs. It depends on `quality-gate`, `unit-tests`, and `e2e-tests` (E2E only runs on PRs to main).

@@ -61,12 +61,25 @@ fi
 echo "📦 Staging changes..."
 git add .
 
+# Build commit message (supports body and footer)
+BODY="${2:-}"
+FOOTER="${3:-}"
+
+TMP_DIR="$REPO_ROOT/.tmp"
+mkdir -p "$TMP_DIR"
+MSG_FILE=$(mktemp "$TMP_DIR/commit-msg.XXXXXX")
+
+echo "$HEADER" > "$MSG_FILE"
+[ -n "$BODY" ] && echo -e "\n$BODY" >> "$MSG_FILE"
+[ -n "$FOOTER" ] && echo -e "\n$FOOTER" >> "$MSG_FILE"
+
 echo "📝 Committing: $HEADER"
-# Use git commit directly
-if ! git commit -m "$HEADER"; then
+if ! git commit -F "$MSG_FILE"; then
+    rm -f "$MSG_FILE"
     echo "❌ ERROR: Commit failed."
     exit 1
 fi
+rm -f "$MSG_FILE"
 
 echo "🚀 Pushing to remote..."
 if ! git push; then
@@ -75,4 +88,8 @@ if ! git push; then
 fi
 
 echo "🚀🚀🚀 REMOTE SYNCED!"
+
+# Lightweight auto-prune: remove stale remote tracking refs
+git fetch --prune --quiet 2>/dev/null || true
+
 echo "📊 STATUS: SUCCESS"
