@@ -123,6 +123,8 @@ export default function SyncStatus() {
 
     return (
         <div
+            role="status"
+            aria-live="polite"
             className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-500 ${current.bg}`}
             style={{
                 backdropFilter: 'blur(12px)',

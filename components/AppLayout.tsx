@@ -6,7 +6,9 @@ import SyncStatus from './ui/SyncStatus';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <>
-            {children}
+            <main id="main-content">
+                {children}
+            </main>
             <Toaster
                 position="bottom-left"
                 toastOptions={{

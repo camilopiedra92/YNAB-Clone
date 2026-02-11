@@ -18,6 +18,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className} suppressHydrationWarning>
+        <a href="#main-content" className="skip-to-content">
+          Ir al contenido principal
+        </a>
         <ClientShell>
           {children}
         </ClientShell>

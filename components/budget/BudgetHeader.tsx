@@ -34,8 +34,9 @@ export function BudgetHeader({
                         onClick={() => onNavigateMonth(-1)}
                         className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95"
                         title="Mes Anterior"
+                        aria-label="Mes anterior"
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                         onClick={onGoToCurrentMonth}
@@ -51,15 +52,20 @@ export function BudgetHeader({
                         onClick={() => onNavigateMonth(1)}
                         className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95"
                         title="Mes Siguiente"
+                        aria-label="Mes siguiente"
                     >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
             </div>
 
             {/* Prominent Ready to Assign Widget */}
             <div className="absolute left-1/2 -translate-x-1/2">
-                <div className={`bg-background px-8 py-2 rounded-[2rem] flex flex-col items-center shadow-neu-md relative group cursor-pointer hover:shadow-neu-lg transition-all duration-500 overflow-hidden min-w-[220px] ${animatedRTA < -0.5 ? 'ring-2 ring-red-400/50' : animatedRTA > 0.5 ? 'ring-2 ring-emerald-400/30' : ''
+                <div
+                    role="status"
+                    aria-live="polite"
+                    aria-label={`Ready to Assign: ${formatCurrency(Math.round(animatedRTA))}`}
+                    className={`bg-background px-8 py-2 rounded-[2rem] flex flex-col items-center shadow-neu-md relative group cursor-pointer hover:shadow-neu-lg transition-all duration-500 overflow-hidden min-w-[220px] ${animatedRTA < -0.5 ? 'ring-2 ring-red-400/50' : animatedRTA > 0.5 ? 'ring-2 ring-emerald-400/30' : ''
                     }`}>
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <span data-testid="rta-amount" className={`text-2xl font-black tracking-tighter leading-none relative z-10 tabular-nums ${animatedRTA < -0.5 ? 'text-red-500' : animatedRTA > 0.5 ? 'text-emerald-600' : 'text-foreground'
@@ -74,11 +80,11 @@ export function BudgetHeader({
 
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 p-1 rounded-xl shadow-neu-inset-sm">
-                    <button className="p-2 rounded-lg shadow-neu-sm">
-                        <LayoutGrid className="w-4 h-4 text-primary" />
+                    <button className="p-2 rounded-lg shadow-neu-sm" aria-label="Vista de cuadrícula" aria-pressed="true">
+                        <LayoutGrid className="w-4 h-4 text-primary" aria-hidden="true" />
                     </button>
-                    <button className="p-2 rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors">
-                        <List className="w-4 h-4" />
+                    <button className="p-2 rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors" aria-label="Vista de lista" aria-pressed="false">
+                        <List className="w-4 h-4" aria-hidden="true" />
                     </button>
                 </div>
             </div>

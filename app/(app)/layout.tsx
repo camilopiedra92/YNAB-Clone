@@ -13,11 +13,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex min-h-screen bg-background text-foreground overflow-hidden font-sans">
             <Sidebar />
-            <main className="flex-1 lg:pl-[272px] min-h-screen flex flex-col">
+            <div className="flex-1 lg:pl-[272px] min-h-screen flex flex-col">
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {children}
                 </div>
-            </main>
+            </div>
         </div>
     );
 }

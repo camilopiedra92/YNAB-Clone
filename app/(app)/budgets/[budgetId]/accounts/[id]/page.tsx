@@ -215,8 +215,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                    <button className="neu-btn p-2.5 rounded-xl text-muted-foreground transition-all active:scale-95">
-                        <Pencil className="w-4 h-4" />
+                    <button className="neu-btn p-2.5 rounded-xl text-muted-foreground transition-all active:scale-95" aria-label="Editar cuenta">
+                        <Pencil className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
                         onClick={handleOpenReconcile}

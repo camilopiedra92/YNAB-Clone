@@ -104,11 +104,62 @@
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-feature-settings: "rlig" 1, "calt" 1;
+  font-feature-settings:
+    "rlig" 1,
+    "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ══════════════════════════════════════════
+   ACCESSIBILITY — Focus & Skip Link
+   ══════════════════════════════════════════ */
+
+/* Global focus-visible ring — WCAG 2.1 AA keyboard navigation */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove default outline for mouse/touch users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip-to-content link — hidden until focused */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 0.75rem 1.5rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 800;
+  font-size: 0.875rem;
+  border-radius: 0 0 var(--radius) var(--radius);
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Screen reader only — visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
 
 /* ══════════════════════════════════════════
    NEUMORPHIC UTILITY CLASSES
@@ -242,7 +293,6 @@ body {
     -10px -10px 24px 0 var(--neu-light-strong);
 }
 
-
 /* ══════════════════════════════════════════
    SIDEBAR NEUMORPHISM (Dark)
    ══════════════════════════════════════════ */
@@ -269,7 +319,6 @@ body {
   color: hsl(var(--foreground));
 }
 
-
 /* ══════════════════════════════════════════
    TYPOGRAPHY
    ══════════════════════════════════════════ */
@@ -289,7 +338,6 @@ body {
   @apply text-[10px] font-black uppercase tracking-[0.15em] opacity-80;
 }
 
-
 /* ══════════════════════════════════════════
    INDICATORS
    ══════════════════════════════════════════ */
@@ -307,7 +355,6 @@ body {
   @apply font-bold;
 }
 
-
 /* ══════════════════════════════════════════
    SHADOW & DEPTH — Tailwind-compatible
    ══════════════════════════════════════════ */
@@ -323,7 +370,6 @@ body {
     8px 8px 18px 0 var(--neu-dark-strong),
     -8px -8px 18px 0 var(--neu-light-strong);
 }
-
 
 /* ══════════════════════════════════════════
    SCROLLBAR
@@ -347,7 +393,6 @@ body {
   background: hsl(var(--muted-foreground));
 }
 
-
 /* ══════════════════════════════════════════
    SPACING / LAYOUT UTILITIES
    ══════════════════════════════════════════ */
@@ -369,13 +414,11 @@ body {
   scrollbar-width: none;
 }
 
-
 /* ══════════════════════════════════════════
    ANIMATIONS
    ══════════════════════════════════════════ */
 
 @keyframes subtle-bounce {
-
   0%,
   100% {
     transform: translateY(0);

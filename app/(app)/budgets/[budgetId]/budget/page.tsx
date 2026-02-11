@@ -253,6 +253,7 @@ export default function BudgetPage() {
                                                     <input
                                                         type="checkbox"
                                                         className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
+                                                        aria-label="Seleccionar todas las categorías"
                                                         checked={(() => {
                                                             const validCount = budgetData.filter(i => i.categoryId !== null).length;
                                                             return validCount > 0 && selectedIds.size === validCount;
@@ -268,6 +269,7 @@ export default function BudgetPage() {
                                                     onClick={toggleAllGroups}
                                                     className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
                                                     title={areAllExpanded ? "Collapse All" : "Expand All"}
+                                                    aria-label={areAllExpanded ? "Collapse All" : "Expand All"}
                                                 >
                                                     {areAllExpanded ? (
                                                         <ChevronDown className="w-4 h-4" />

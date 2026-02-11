@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -12,27 +12,68 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
-    useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isOpen) {
-                onClose();
-            }
-        };
+    const modalRef = useRef<HTMLDivElement>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+    const titleId = `modal-title-${title.replace(/\s+/g, '-').toLowerCase()}`;
 
-        document.addEventListener('keydown', handleEscape);
-        return () => document.removeEventListener('keydown', handleEscape);
-    }, [isOpen, onClose]);
+    // Focus trap — keep focus within modal
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            onClose();
+            return;
+        }
+
+        if (e.key !== 'Tab' || !modalRef.current) return;
+
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+            if (document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    }, [onClose]);
 
     useEffect(() => {
         if (isOpen) {
+            // Save previously focused element
+            previousFocusRef.current = document.activeElement as HTMLElement;
+            document.addEventListener('keydown', handleKeyDown);
             document.body.style.overflow = 'hidden';
+
+            // Focus first focusable element inside modal
+            requestAnimationFrame(() => {
+                if (modalRef.current) {
+                    const firstFocusable = modalRef.current.querySelector<HTMLElement>(
+                        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                    );
+                    firstFocusable?.focus();
+                }
+            });
         } else {
             document.body.style.overflow = 'unset';
+            // Restore focus on close
+            previousFocusRef.current?.focus();
         }
+
         return () => {
+            document.removeEventListener('keydown', handleKeyDown);
             document.body.style.overflow = 'unset';
         };
-    }, [isOpen]);
+    }, [isOpen, handleKeyDown]);
 
     if (!isOpen) return null;
 
@@ -49,10 +90,15 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
             <div
                 className="absolute inset-0 bg-background/70 transition-opacity duration-500 animate-in fade-in"
                 onClick={onClose}
+                aria-hidden="true"
             />
 
             {/* Modal */}
             <div
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
                 className={`relative w-full ${sizeClasses[size]} neu-card rounded-[2rem] transform transition-all animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 flex flex-col max-h-[90vh]`}
                 style={{
                     boxShadow: '12px 12px 30px 0 var(--neu-dark-strong), -12px -12px 30px 0 var(--neu-light-strong)',
@@ -62,15 +108,16 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
                 {/* Header */}
                 <div className="flex items-center justify-between pb-4 flex-shrink-0">
                     <div>
-                        <h2 className="text-2xl font-black text-foreground tracking-tighter">
+                        <h2 id={titleId} className="text-2xl font-black text-foreground tracking-tighter">
                             {title}<span className="text-primary">.</span>
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Cerrar"
                         className="neu-btn p-3 rounded-xl text-muted-foreground hover:text-destructive transition-colors active:scale-90"
                     >
-                        <X className="h-5 w-5" />
+                        <X className="h-5 w-5" aria-hidden="true" />
                     </button>
                 </div>
 

@@ -101,7 +101,7 @@ export default function Sidebar() {
 
     return (
         <>
-            <aside className="fixed left-0 top-0 bottom-0 w-[272px] flex flex-col z-50 hidden lg:flex"
+            <aside aria-label="Navegación principal" className="fixed left-0 top-0 bottom-0 w-[272px] flex flex-col z-50 hidden lg:flex"
                 style={{
                     background: 'hsl(222 35% 18%)',
                 }}
@@ -260,6 +260,8 @@ export default function Sidebar() {
                                     <button
                                         className="w-full flex items-center justify-between px-3 py-2 group/btn rounded-lg transition-all duration-200"
                                         onClick={() => toggleSection(group)}
+                                        aria-expanded={isExpanded}
+                                        aria-label={`${group}: ${accs.length} cuentas`}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.boxShadow = '2px 2px 6px 0 rgba(0,0,0,0.2), -2px -2px 6px 0 rgba(255,255,255,0.02)';
                                         }}
@@ -333,8 +335,9 @@ export default function Sidebar() {
                                                                         onClick={(e) => handleEditClick(e, account)}
                                                                         className="absolute inset-0 flex items-center justify-center rounded-md opacity-0 group-hover/item:opacity-100 text-white/40 hover:text-white/80 transition-all duration-150"
                                                                         title="Edit account"
+                                                                        aria-label={`Editar ${account.name}`}
                                                                     >
-                                                                        <Pencil className="w-3 h-3" />
+                                                                        <Pencil className="w-3 h-3" aria-hidden="true" />
                                                                     </button>
                                                                 </div>
                                                                 <span className={`truncate ${isAccountActive ? 'font-medium' : ''}`}>
@@ -405,17 +408,19 @@ export default function Sidebar() {
                             <button
                                 className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
                                 title="Settings"
+                                aria-label="Configuración de perfil"
                                 onClick={() => setIsProfileOpen(true)}
                                 data-testid="sidebar-settings"
                             >
-                                <Settings className="w-[15px] h-[15px]" />
+                                <Settings className="w-[15px] h-[15px]" aria-hidden="true" />
                             </button>
                             <button
                                 className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
                                 title="Cerrar sesión"
+                                aria-label="Cerrar sesión"
                                 onClick={() => signOut({ callbackUrl: '/auth/login' })}
                             >
-                                <LogOut className="w-[15px] h-[15px]" />
+                                <LogOut className="w-[15px] h-[15px]" aria-hidden="true" />
                             </button>
                         </div>
                     </div>

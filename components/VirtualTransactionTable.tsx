@@ -55,6 +55,7 @@ const TransactionRow = memo(function TransactionRow({
                     checked={isSelected}
                     onChange={() => { }}
                     onClick={(e) => onToggleSelect(t.id, e)}
+                    aria-label={`Seleccionar transacción: ${t.payee}`}
                     className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
                 />
             </td>
@@ -125,7 +126,8 @@ const ClearedIcon = memo(function ClearedIcon({
     if (t.cleared === 'Reconciled') {
         return (
             <div className="p-1 rounded-lg cursor-default shadow-neu-inset-sm" title="Reconciliada">
-                <Lock className="h-3.5 w-3.5 text-violet-500" />
+                <Lock className="h-3.5 w-3.5 text-violet-500" aria-hidden="true" />
+                <span className="sr-only">Reconciliada</span>
             </div>
         );
     }
@@ -135,8 +137,9 @@ const ClearedIcon = memo(function ClearedIcon({
                 onClick={(e) => { e.stopPropagation(); onToggle(t.id, t.cleared); }}
                 className="p-1 rounded-lg transition-all text-emerald-500 shadow-neu-inset-sm hover:shadow-neu-sm"
                 title="Cleared"
+                aria-label="Marcar como no verificada"
             >
-                <Check className="h-3.5 w-3.5" />
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
         );
     }
@@ -145,8 +148,9 @@ const ClearedIcon = memo(function ClearedIcon({
             onClick={(e) => { e.stopPropagation(); onToggle(t.id, t.cleared); }}
             className="p-1 rounded-lg transition-all text-muted-foreground/30 hover:text-emerald-400 shadow-neu-inset-sm hover:shadow-neu-sm"
             title="Uncleared"
+            aria-label="Marcar como verificada"
         >
-            <Circle className="h-3.5 w-3.5 fill-current opacity-20" />
+            <Circle className="h-3.5 w-3.5 fill-current opacity-20" aria-hidden="true" />
         </button>
     );
 });
@@ -174,6 +178,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                 <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
+                    aria-label={`Seleccionar transacción programada: ${t.payee}`}
                     onClick={(e) => e.stopPropagation()}
                 />
             </td>
@@ -315,26 +320,29 @@ export default function VirtualTransactionTable({
                     }}
                 >
                     <tr className="uppercase tracking-widest text-muted-foreground text-[10px] font-bold">
-                        <th className="w-12 py-1 px-4 border-b border-border">
+                        <th className="w-12 py-1 px-4 border-b border-border" scope="col">
                             <div className="flex items-center justify-center">
                                 <input
                                     type="checkbox"
                                     checked={selectedRows.size === currentTransactions.length && currentTransactions.length > 0}
                                     onChange={onToggleSelectAll}
+                                    aria-label="Seleccionar todas las transacciones"
                                     className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
                                 />
                             </div>
                         </th>
                         {showAccount && (
-                            <th className="py-1 px-3 text-left font-black border-b border-border w-28">Account</th>
+                            <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">Account</th>
                         )}
-                        <th className="py-1 px-3 text-left font-black border-b border-border w-28">Date</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border w-44">Payee</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border">Category</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border">Memo</th>
-                        <th className="py-1 px-4 text-right font-black border-b border-border w-32">Outflow</th>
-                        <th className="py-1 px-4 text-right font-black border-b border-border w-32">Inflow</th>
-                        <th className="w-12 py-1 px-3 text-center border-b border-border"></th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">Date</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border w-44" scope="col">Payee</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">Category</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">Memo</th>
+                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">Outflow</th>
+                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">Inflow</th>
+                        <th className="w-12 py-1 px-3 text-center border-b border-border" scope="col">
+                            <span className="sr-only">Estado</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
