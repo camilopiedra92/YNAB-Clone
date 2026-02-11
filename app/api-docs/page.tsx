@@ -1,16 +1,14 @@
 /**
  * Swagger UI Page — interactive API explorer (dev only).
  *
- * Uses swagger-ui-dist static assets served via a self-contained HTML page.
- * Accessible at /api-docs in development mode.
+ * Located outside the (app) route group so it does NOT inherit
+ * the authenticated sidebar layout.
  */
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 export default function ApiDocsPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     // Dynamically load Swagger UI from CDN to avoid SSR issues
     const link = document.createElement('link');
@@ -50,7 +48,7 @@ export default function ApiDocsPage() {
 
   if (process.env.NODE_ENV === 'production') {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'system-ui' }}>
         <h1>Not Available</h1>
         <p>API documentation is only available in development mode.</p>
       </div>
@@ -60,7 +58,6 @@ export default function ApiDocsPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#fafafa' }}>
       <div
-        ref={containerRef}
         id="swagger-ui"
         style={{ maxWidth: '1200px', margin: '0 auto' }}
       />
