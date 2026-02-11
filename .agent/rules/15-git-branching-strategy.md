@@ -121,10 +121,27 @@ gh pr checks <PR_NUMBER>
 gh pr merge --merge
 ```
 
-### ⚠️ Merge Safety
+### ⚠️ Merge Safety (CRITICAL — Staging Protection)
 
-- **Feature → staging:** `gh pr merge --merge --delete-branch` ← OK (deletes feature branch)
-- **Staging → main:** `gh pr merge --merge` ← **NO --delete-branch** (would delete staging!)
+**`staging` must NEVER be deleted.** Three layers protect it:
+
+1. **GitHub setting:** `delete_branch_on_merge = false` (prevents auto-deletion after PR merge)
+2. **GitHub Ruleset:** "Staging — Integration" has "Restrict deletions" rule
+3. **Agent enforcement:** All merge commands below explicitly prohibit `--delete-branch` for staging
+
+```bash
+# Feature → staging: --delete-branch is OK (cleans up the feature branch)
+gh pr merge --merge --delete-branch
+
+# Staging → main: ⚠️ NEVER use --delete-branch (would delete staging!)
+gh pr merge --merge
+```
+
+If staging is accidentally deleted, restore it immediately:
+
+```bash
+git checkout main && git checkout -b staging && git push -u origin staging
+```
 
 ## 8. When to Skip (Direct-to-Staging)
 
