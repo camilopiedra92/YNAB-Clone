@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getBudgets, createBudget } from '@/lib/repos';
 import { validateBody, CreateBudgetSchema } from '@/lib/schemas';
-import { requireAuth } from '@/lib/auth-helpers';
+import { requireAuth, setTenantContext } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 import { apiError } from '@/lib/api-error';
+import db from '@/lib/db/client';
 
 export async function GET() {
   const authResult = await requireAuth();
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validation = validateBody(CreateBudgetSchema, body);
     if (!validation.success) return validation.response;
+
+    // Set RLS context — budgets table requires app.user_id for INSERT
+    await setTenantContext(db, { userId: authResult.userId, budgetId: 0 });
 
     const budget = await createBudget(authResult.userId, validation.data);
     return NextResponse.json(budget, { status: 201 });
