@@ -1,20 +1,20 @@
 # 🚀 Deployment Guide: YNAB App → Hetzner + Coolify
 
 **Created:** 2026-02-11
-**Last Updated:** 2026-02-11 (Phase 2 ✅)
+**Last Updated:** 2026-02-11 (Phase 3 ✅)
 **Status:** 🟡 In Progress
 
 ---
 
 ## 📊 Progress Dashboard
 
-### Overall Progress: 14 / 42 tasks complete
+### Overall Progress: 21 / 42 tasks complete
 
 | Phase                                                                               | Status         | Progress | Priority    |
 | ----------------------------------------------------------------------------------- | -------------- | -------- | ----------- |
 | [Phase 1: Containerization](#phase-1-containerization)                              | ✅ Complete    | 8/8      | 🔴 Blocker  |
 | [Phase 2: Health & Observability](#phase-2-health--observability)                   | ✅ Complete    | 6/6      | 🔴 Blocker  |
-| [Phase 3: Database Production Config](#phase-3-database-production-config)          | 🔴 Not Started | 0/7      | 🔴 Critical |
+| [Phase 3: Database Production Config](#phase-3-database-production-config)          | ✅ Complete    | 7/7      | 🔴 Critical |
 | [Phase 4: Deploy Pipeline](#phase-4-deploy-pipeline)                                | 🔴 Not Started | 0/5      | 🟡 High     |
 | [Phase 5: Environment & Secrets](#phase-5-environment--secrets)                     | 🔴 Not Started | 0/6      | 🟡 High     |
 | [Phase 6: Server Setup (Hetzner + Coolify)](#phase-6-server-setup-hetzner--coolify) | 🔴 Not Started | 0/10     | 🟡 High     |
@@ -25,7 +25,7 @@
 | --------------------------------- | ------------------ | ------ |
 | Docker image builds locally       | Phase 1 complete   | ✅     |
 | Health endpoint responds          | Phase 2 complete   | ✅     |
-| DB production-ready               | Phase 3 complete   | ⬜     |
+| DB production-ready               | Phase 3 complete   | ✅     |
 | **MVP: App accessible on domain** | Phase 1-6 complete | ⬜     |
 | Backups configured                | Post-launch        | ⬜     |
 | Monitoring configured             | Post-launch        | ⬜     |
@@ -560,13 +560,13 @@ docker logs ynab-test | grep "Received SIGTERM"
 
 ### Checklist
 
-- [ ] **3.1** Add connection pool settings to `postgres()` client
-- [ ] **3.2** Create production database user (non-superuser for RLS)
-- [ ] **3.3** Decide migration strategy (startup vs pre-deploy)
-- [ ] **3.4** Add `AUTH_URL` to env schema
-- [ ] **3.5** Document production `DATABASE_URL` format
-- [ ] **3.6** Verify RLS enforces with non-superuser role
-- [ ] **3.7** Set up PostgreSQL backup strategy in Coolify
+- [x] **3.1** Add connection pool settings to `postgres()` client
+- [x] **3.2** Create production database user (non-superuser for RLS)
+- [x] **3.3** Decide migration strategy (startup vs pre-deploy)
+- [x] **3.4** Add `AUTH_URL` to env schema
+- [x] **3.5** Document production `DATABASE_URL` format
+- [x] **3.6** Verify RLS enforces with non-superuser role
+- [x] **3.7** Set up PostgreSQL backup strategy in Coolify
 
 ### 3.1 Connection Pool Settings
 

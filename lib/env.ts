@@ -7,10 +7,15 @@ const envSchema = z.object({
   // Authentication (Auth.js v5)
   AUTH_SECRET: z.string().min(32),
   AUTH_URL: z.string().url().optional(), // Auto-detected in dev
+  AUTH_TRUST_HOST: z.string().optional().default('true'),
 
   // Application
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3000),
+
+  // Deployment (optional — used in production)
+  CORS_ORIGIN: z.string().optional(),
+  LOG_LEVEL: z.string().optional(),
 
   // YNAB Data Import (Local file paths or URLs)
   // Optional because they are only needed for the import script
