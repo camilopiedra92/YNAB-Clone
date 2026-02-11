@@ -113,12 +113,19 @@ gh pr create --base main --head staging --title "chore: promote to production"
 # Check PR status
 gh pr checks
 
-# Merge PR (feature → staging: OK with --delete-branch)
-gh pr merge --merge --delete-branch
+# Merge PR (feature → staging: squash + delete branch)
+gh pr merge --squash --delete-branch
 
-# Merge PR (staging → main: ⚠️ NEVER use --delete-branch)
+# Merge PR (staging → main: merge commit, ⚠️ NEVER --squash or --delete-branch)
 gh pr merge --merge
 ```
+
+### Merge Strategy Convention
+
+| PR Type            | Method     | Why                                                   |
+| ------------------ | ---------- | ----------------------------------------------------- |
+| `feat/* → staging` | `--squash` | Compresses dev commits into one clean entry           |
+| `staging → main`   | `--merge`  | Preserves history linkage between long-lived branches |
 
 ### 🛑 Merge Safety Rule (CRITICAL — Staging Protection)
 
