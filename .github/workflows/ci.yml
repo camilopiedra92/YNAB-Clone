@@ -96,8 +96,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ynab_dev
-      AUTH_SECRET: ci-e2e-secret-at-least-32-characters-long
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ynab_test
+      AUTH_SECRET: e2e-test-secret-at-least-32-characters-long
       AUTH_TRUST_HOST: "true"
       CI: "true"
     steps:
@@ -112,8 +112,8 @@ jobs:
 
       - name: Create .env for test scripts
         run: |
-          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ynab_dev" >> .env
-          echo "AUTH_SECRET=ci-e2e-secret-at-least-32-characters-long" >> .env
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ynab_test" >> .env
+          echo "AUTH_SECRET=e2e-test-secret-at-least-32-characters-long" >> .env
           echo "AUTH_TRUST_HOST=true" >> .env
           echo "YNAB_REGISTER_CSV=${{ github.workspace }}/tests/fixtures/register.csv" >> .env
           echo "YNAB_PLAN_CSV=${{ github.workspace }}/tests/fixtures/plan.csv" >> .env
