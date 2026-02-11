@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # scripts/sync.sh
-# Atomic Git Sync: Staging -> Validate -> Commit -> Push
+# Atomic Git Sync: Stage → Validate → Commit → Push
+# Enforces branching strategy: blocks main, warns staging
 
 set -euo pipefail
 
@@ -25,11 +26,22 @@ if [ -z "$(git status --porcelain)" ]; then
     exit 0
 fi
 
-# Branching strategy reminder
+# Branching strategy enforcement
 CURRENT_BRANCH=$(git branch --show-current)
 if [ "$CURRENT_BRANCH" = "main" ]; then
-    echo "⚠️  WARNING: Committing directly to main."
-    echo "   Consider using a feature branch: git checkout -b feat/your-feature"
+    echo "🚫 ERROR: Direct pushes to main are NOT allowed."
+    echo "   main only receives code via PR from staging."
+    echo ""
+    echo "   To fix:"
+    echo "   1. git stash"
+    echo "   2. git checkout staging && git pull"
+    echo "   3. git checkout -b feat/your-feature"
+    echo "   4. git stash pop"
+    exit 1
+elif [ "$CURRENT_BRANCH" = "staging" ]; then
+    echo "⚠️  WARNING: Committing directly to staging."
+    echo "   Consider using a feature branch for non-trivial changes:"
+    echo "   git checkout -b feat/your-feature"
 fi
 
 # Argument Check

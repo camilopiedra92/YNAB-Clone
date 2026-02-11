@@ -2,27 +2,32 @@
 
 ## Overview
 
-This project uses **GitHub Flow** — a simple branching model optimized for solo development with clean history.
+This project uses a **Staging-Based Gitflow** — a branching model with `staging` as the integration branch and `main` as production-only.
 
 ```
-main ──────────────────────────────────────────────────────►
-       \                                    /
-        feat/recurring-transactions ───────► (squash merge)
+main    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━►  (production)
+                                          ▲
+staging ──────────────────────────────────►│           (integration)
+         \                        /       │
+          feat/my-feature ───────► (PR → staging → PR → main)
 ```
 
-**One rule:** `main` is always stable. All work happens on feature branches.
+**Two rules:**
+
+1. `main` is always production-ready. Only receives merges from `staging`.
+2. `staging` is the integration branch. All feature work merges here first.
 
 ---
 
 ## Quick Reference
 
-| Step             | Command                                                            |
-| ---------------- | ------------------------------------------------------------------ |
-| Start a feature  | `git checkout main && git pull && git checkout -b feat/my-feature` |
-| Commit work      | `npm run git:sync -- "feat(scope): description"`                   |
-| Finish & merge   | `git checkout main && git merge --squash feat/my-feature`          |
-| Commit the merge | `npm run git:sync -- "feat(scope): summary of feature"`            |
-| Clean up         | `git branch -d feat/my-feature`                                    |
+| Step               | Command                                                               |
+| ------------------ | --------------------------------------------------------------------- |
+| Start a feature    | `git checkout staging && git pull && git checkout -b feat/my-feature` |
+| Commit work        | `npm run git:sync -- "feat(scope): description"`                      |
+| Open PR to staging | Push branch, open PR on GitHub: `feat/my-feature → staging`           |
+| After merge        | `git checkout staging && git pull && git branch -d feat/my-feature`   |
+| Promote to prod    | Open PR on GitHub: `staging → main`                                   |
 
 ---
 
@@ -53,11 +58,11 @@ Branch prefixes match [Conventional Commits](https://www.conventionalcommits.org
 
 ### 1. Create a Feature Branch
 
-Always start from an up-to-date `main`:
+Always start from an up-to-date `staging`:
 
 ```bash
-git checkout main
-git pull origin main
+git checkout staging
+git pull origin staging
 git checkout -b feat/my-feature
 ```
 
@@ -77,34 +82,33 @@ npm run git:sync -- "fix(scope): handle empty state"
 # Multiple commits are fine on feature branches!
 ```
 
-### 3. Verify Before Merging
+**CI runs automatically on every push** to your feature branch (`quality-gate` + `unit-tests`, ~3 min).
 
-**CI runs automatically** on every push and PR to `main` via GitHub Actions. The pipeline runs the full QA suite (audit → lint → typecheck → build → unit tests → E2E tests). Branch protection requires all checks to pass before merge.
+### 3. Open a Pull Request to Staging
 
-To verify locally before pushing (optional — CI will catch issues too):
-
-```bash
-npm test                # Unit tests
-npm run test:e2e        # E2E tests
-npm run typecheck       # Type check
-```
-
-### 4. Squash Merge to Main
-
-Squash merging collapses all branch commits into a single clean commit on `main`:
+Push your branch and open a PR targeting `staging` on GitHub. The same CI checks run on the PR. The GATE ruleset requires both `quality-gate` and `unit-tests` to pass before merge.
 
 ```bash
-git checkout main
-git pull origin main
-git merge --squash feat/my-feature
-npm run git:sync -- "feat(scope): add recurring transactions"
+git push -u origin feat/my-feature
+# Then open PR on GitHub: feat/my-feature → staging
 ```
 
-**Why squash?** The branch had 15 commits like "wip", "fix typo", "actually fix it". Main gets one clean commit that describes the whole feature.
+### 4. Merge to Staging
 
-### 5. Clean Up
+After CI passes, merge the PR (squash merge recommended). This triggers the **full CI suite including E2E tests** (~10 min) on the `staging` branch.
 
-Delete the branch locally (and remotely if pushed):
+### 5. Promote to Production
+
+When staging is stable and ready for production:
+
+1. Open a PR on GitHub: `staging → main`
+2. All 3 checks must pass: `quality-gate`, `unit-tests`, `e2e-tests`
+3. Merge the PR
+4. The deploy workflow triggers automatically
+
+### 6. Clean Up
+
+Delete the feature branch locally (and remotely if pushed):
 
 ```bash
 git branch -d feat/my-feature
@@ -113,11 +117,23 @@ git push origin --delete feat/my-feature  # if it was pushed
 
 ---
 
-## When It's OK to Skip (Direct to Main)
+## CI Pipeline
 
-For trivial changes, you can commit directly to `main`. The `sync.sh` script will show a warning as a reminder, but won't block you.
+| Stage                | Trigger      | Checks                          | Duration |
+| -------------------- | ------------ | ------------------------------- | -------- |
+| Feature branch       | Every push   | quality-gate + unit-tests       | ~3 min   |
+| PR → staging         | Pull request | quality-gate + unit-tests       | ~3 min   |
+| Staging (post-merge) | Push         | quality-gate + unit-tests + E2E | ~10 min  |
+| PR → main            | Pull request | quality-gate + unit-tests + E2E | ~10 min  |
+| Main (post-merge)    | Push         | Deploy only                     | ~2 min   |
 
-Acceptable direct-to-main commits:
+---
+
+## When It's OK to Skip (Direct to Staging)
+
+For trivial changes, you can commit directly to `staging`. The `sync.sh` script will show a warning as a reminder, but won't block you.
+
+Acceptable direct-to-staging commits:
 
 - Single-file documentation updates
 - `.gitignore` or config tweaks
@@ -125,6 +141,8 @@ Acceptable direct-to-main commits:
 - Agent rule/workflow updates
 
 **Rule of thumb:** If it touches application code, use a branch.
+
+> **⚠️ Direct pushes to `main` are blocked.** The `sync.sh` script will error if you try. All code reaches `main` via PR from `staging`.
 
 ---
 
@@ -163,7 +181,7 @@ npm run git:sync -- "feat(cc-payment): add funded spending calc" \
 
 ## FAQ
 
-**Q: What if I started working on `main` by accident?**
+**Q: What if I started working on `staging` by accident?**
 
 Stash your changes, create a branch, and apply them:
 
@@ -173,21 +191,25 @@ git checkout -b feat/my-feature
 git stash pop
 ```
 
-**Q: What if my feature branch has conflicts with `main`?**
+**Q: What if my feature branch has conflicts with `staging`?**
 
-Rebase your branch on top of the latest `main`:
+Rebase your branch on top of the latest `staging`:
 
 ```bash
 git checkout feat/my-feature
-git rebase main
+git rebase staging
 # Resolve any conflicts, then continue
 git rebase --continue
 ```
 
 **Q: Should I push feature branches to remote?**
 
-Optional. Pushing gives you a backup, but for short-lived branches it's not necessary. If a branch lives for more than a day, push it.
+Yes — CI runs on every push and gives you feedback. Plus it creates a backup.
 
 **Q: Can I have multiple feature branches at once?**
 
 Yes, but try to keep it to 1-2 active branches to avoid merge complexity.
+
+**Q: How do I promote staging to production?**
+
+Open a PR on GitHub: `staging → main`. All CI checks must pass. Merge the PR.

@@ -23,6 +23,7 @@ Use this table to determine the correct scope for a commit based on which files 
 | `.agent/workflows/*`                                     | **workflows** | Agent workflows                          |
 | `ynab-app/scripts/*`, `scripts/*`                        | **scripts**   | Project utility scripts                  |
 | `docs/*.md`                                              | **docs**      | Project documentation                    |
+| `.github/workflows/*`                                    | **ci**        | GitHub Actions CI/CD workflows           |
 
 ## Common Special Scopes
 

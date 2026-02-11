@@ -2,16 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - staging
+      - "feat/**"
+      - "fix/**"
+      - "refactor/**"
+      - "docs/**"
+      - "chore/**"
+      - "test/**"
   pull_request:
-    branches: [main]
+    branches: [staging, main]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ─── Job 1: Security + Static Analysis + Build (L2-L5) ──
+  # ─── Job 1: Security + Static Analysis + Build ─────────
   quality-gate:
     name: Audit → Lint → Typecheck → Build
     runs-on: ubuntu-latest
@@ -32,19 +39,19 @@ jobs:
           echo "AUTH_SECRET=ci-dummy-secret-at-least-32-characters-long" >> .env
           echo "AUTH_TRUST_HOST=true" >> .env
 
-      - name: Security Audit (L2)
+      - name: Security Audit
         run: npm audit --audit-level=high
 
-      - name: Lint (L3)
+      - name: Lint
         run: npm run lint
 
-      - name: Typecheck (L4)
+      - name: Typecheck
         run: npm run typecheck
 
-      - name: Production Build (L5)
+      - name: Production Build
         run: NEXT_TEST_BUILD=1 NODE_ENV=production npm run build
 
-  # ─── Job 2: Unit Tests + Coverage (L6) ─────────────────
+  # ─── Job 2: Unit Tests + Coverage ──────────────────────
   unit-tests:
     name: Unit Tests (PGlite)
     runs-on: ubuntu-latest
@@ -65,7 +72,7 @@ jobs:
           echo "AUTH_SECRET=ci-dummy-secret-at-least-32-characters-long" >> .env
           echo "AUTH_TRUST_HOST=true" >> .env
 
-      - name: Run Unit Tests with Coverage (L6)
+      - name: Run Unit Tests with Coverage
         run: npm run test:coverage
 
       - name: Upload Coverage Report
@@ -76,11 +83,16 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  # ─── Job 3: E2E Tests (L7) ─────────────────────────────
+  # ─── Job 3: E2E Tests (staging + main only) ────────────
+  # Runs on: push to staging, PR to main
+  # Skipped on: push to feature branches, PR to staging
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/staging') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
     services:
       postgres:
         image: postgres:16
@@ -133,15 +145,8 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      - name: Run E2E Tests (L7)
-        run: |
-          echo "=== .env content ==="
-          cat .env
-          echo ""
-          echo "=== DATABASE_URL env ==="
-          echo "$DATABASE_URL"
-          echo ""
-          npm run test:e2e
+      - name: Run E2E Tests
+        run: npm run test:e2e
 
       - name: Upload Playwright Report
         if: failure()

@@ -1,0 +1,64 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # Never cancel an in-progress deploy
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ─── Placeholder: Replace with your deployment platform ───
+      # Examples:
+      #
+      # Vercel:
+      #   - uses: amondnet/vercel-action@v25
+      #     with:
+      #       vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #       vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #       vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #       vercel-args: '--prod'
+      #
+      # Railway:
+      #   - uses: bervProject/railway-deploy@main
+      #     with:
+      #       railway_token: ${{ secrets.RAILWAY_TOKEN }}
+      #       service: ynab-app
+      #
+      # Fly.io:
+      #   - uses: superfly/flyctl-actions/setup-flyctl@master
+      #   - run: flyctl deploy --remote-only
+      #     env:
+      #       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy (placeholder)
+        run: |
+          echo "══════════════════════════════════════════════"
+          echo "  🚀 Production Deploy Triggered"
+          echo "══════════════════════════════════════════════"
+          echo ""
+          echo "  Branch:  ${{ github.ref_name }}"
+          echo "  Commit:  ${{ github.sha }}"
+          echo "  Author:  ${{ github.actor }}"
+          echo ""
+          echo "  ⚠️  No deployment platform configured yet."
+          echo "  Edit .github/workflows/deploy.yml to add"
+          echo "  your Vercel/Railway/Fly.io deployment step."
+          echo ""
+          echo "══════════════════════════════════════════════"

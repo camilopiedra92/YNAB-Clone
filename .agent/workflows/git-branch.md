@@ -1,15 +1,15 @@
 ---
-description: Create a feature branch from main before starting implementation work
+description: Create a feature branch from staging before starting implementation work
 ---
 
 # Create a Feature Branch
 
 // turbo-all
 
-1. Ensure the worktree is clean and you're on `main`:
+1. Ensure the worktree is clean and you're on `staging`:
 
 ```bash
-cd /Users/camilopiedra/Documents/YNAB/ynab-app && git stash --include-untracked 2>/dev/null; git checkout main && git pull origin main
+cd /Users/camilopiedra/Documents/YNAB/ynab-app && git stash --include-untracked 2>/dev/null; git checkout staging && git pull origin staging
 ```
 
 2. Create and switch to the new branch. Replace `TYPE` and `NAME` with the appropriate values (see `15-git-branching-strategy.md` for naming rules):
@@ -39,14 +39,20 @@ git stash pop 2>/dev/null || true
 
 ## After Work Is Complete
 
-When the feature is done and tests pass, merge back to `main`:
+When the feature is done and tests pass, push and open a PR to `staging`:
 
 ```bash
-git checkout main && git merge --squash TYPE/NAME && npm run git:sync -- "type(scope): description"
+git push -u origin TYPE/NAME
+# Open PR on GitHub: TYPE/NAME → staging
 ```
 
-Then delete the feature branch:
+After the PR is merged, clean up the branch:
 
 ```bash
+git checkout staging && git pull origin staging
 git branch -d TYPE/NAME && git push origin --delete TYPE/NAME 2>/dev/null || true
 ```
+
+## Promote to Production
+
+When staging is ready for production, open a PR on GitHub: `staging → main`. All CI checks (quality-gate + unit-tests + E2E) must pass before merge.

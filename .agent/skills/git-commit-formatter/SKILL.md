@@ -79,6 +79,10 @@ If the description has commas or "and" connecting 3+ items, it's too long. Pick 
 
 ## 🛠️ ARCHITECTURAL PROTOCOL
 
+### 0. Branch Awareness (Critical)
+
+`sync.sh` **blocks** direct pushes to `main`. If the user is on `main`, you MUST first switch to a feature branch (from `staging`) before committing. The `sync.sh` script will exit with an error if you try to push to `main`.
+
 ### 1. The "Success" State
 
 One command MUST lead to the goal. Your turn ends when `npm run git:sync` reports `📊 STATUS: SUCCESS` or `📊 STATUS: SYNCED`.
