@@ -982,19 +982,47 @@ After installation (~2 min):
 
 ---
 
-### 6.4 Configure Domain DNS
+### 6.4 Configure Domain DNS (Cloudflare + Proxy)
 
-| Record Type | Name                                 | Value         | TTL |
-| ----------- | ------------------------------------ | ------------- | --- |
-| A           | `@` (root domain)                    | `<server-ip>` | 300 |
-| A           | `www`                                | `<server-ip>` | 300 |
-| A           | `coolify` (optional, for Coolify UI) | `<server-ip>` | 300 |
+Since this is a SaaS app, use **Cloudflare Proxy** (orange cloud 🟠) for DDoS protection, CDN, and IP hiding.
 
-**DNS propagation takes 5-30 minutes.** Verify with:
+#### DNS Records (Cloudflare Dashboard → DNS)
+
+| Record Type | Name  | Content       | Proxy      | TTL  |
+| ----------- | ----- | ------------- | ---------- | ---- |
+| A           | `@`   | `<server-ip>` | 🟠 Proxied | Auto |
+| A           | `www` | `<server-ip>` | 🟠 Proxied | Auto |
+
+#### SSL Configuration (Cloudflare → SSL/TLS)
+
+| Setting         | Value             | Why                                          |
+| --------------- | ----------------- | -------------------------------------------- |
+| Encryption mode | **Full (Strict)** | End-to-end encryption, validates origin cert |
+
+#### Origin Certificate (Cloudflare → SSL/TLS → Origin Server)
+
+1. Click **Create Certificate** → RSA 2048 → 15-year validity
+2. Hostnames: `yourdomain.com`, `*.yourdomain.com`
+3. Save `origin.pem` (cert) and `origin.key` (private key)
+4. In Coolify → App → SSL: disable Let's Encrypt, upload Origin Certificate
+
+**SSL flow:** `User → Cloudflare (public SSL) → Traefik (Origin cert) → App :3000`
+
+#### Recommended Cloudflare Settings (Free Tier)
+
+| Setting           | Location                    | Value         |
+| ----------------- | --------------------------- | ------------- |
+| Always Use HTTPS  | SSL/TLS → Edge Certificates | ✅ On         |
+| Min TLS Version   | SSL/TLS → Edge Certificates | TLS 1.2       |
+| Auto Minify       | Speed → Optimization        | CSS, JS, HTML |
+| Brotli            | Speed → Optimization        | ✅ On         |
+| Browser Cache TTL | Caching → Configuration     | 4 hours       |
+
+#### Verify
 
 ```bash
 dig yourdomain.com +short
-# Should return your server IP
+# Should return Cloudflare IPs (NOT your Hetzner IP — it's hidden)
 ```
 
 ---
