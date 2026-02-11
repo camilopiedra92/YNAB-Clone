@@ -131,7 +131,7 @@ git push origin --delete feat/my-feature  # if it was pushed
 
 ## When It's OK to Skip (Direct to Staging)
 
-For trivial changes, you can commit directly to `staging`. The `sync.sh` script will show a warning as a reminder, but won't block you.
+For trivial changes, you can commit directly to `staging`. As a bypass actor on the GATE ruleset, this is allowed without PR.
 
 Acceptable direct-to-staging commits:
 
@@ -140,9 +140,9 @@ Acceptable direct-to-staging commits:
 - Trivial changes (< 5 lines)
 - Agent rule/workflow updates
 
-**Rule of thumb:** If it touches application code, use a branch.
+**Rule of thumb:** If it touches application code, use a feature branch.
 
-> **⚠️ Direct pushes to `main` are blocked.** The `sync.sh` script will error if you try. All code reaches `main` via PR from `staging`.
+> **⚠️ Direct pushes to `main` are always blocked.** All code reaches `main` via PR from `staging`.
 
 ---
 

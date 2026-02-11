@@ -38,10 +38,6 @@ if [ "$CURRENT_BRANCH" = "main" ]; then
     echo "   3. git checkout -b feat/your-feature"
     echo "   4. git stash pop"
     exit 1
-elif [ "$CURRENT_BRANCH" = "staging" ]; then
-    echo "⚠️  WARNING: Committing directly to staging."
-    echo "   Consider using a feature branch for non-trivial changes:"
-    echo "   git checkout -b feat/your-feature"
 fi
 
 # Argument Check
