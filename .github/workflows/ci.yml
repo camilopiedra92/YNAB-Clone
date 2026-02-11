@@ -14,11 +14,11 @@ on:
     branches: [staging, main]
 
 concurrency:
-  # Push and PR on the same branch share a group — if a PR CI starts while
-  # push CI is running, the push run is cancelled (same code, avoid duplicates).
-  # This is safe because ci-passed only runs on pull_request events,
-  # so cancelled push checks never block PR merges.
-  group: ci-${{ github.head_ref || github.ref_name }}
+  # Separate groups for push vs PR: push events get "push-{branch}",
+  # PR events get "pr-{branch}". This prevents push cancellation from
+  # marking ci-passed as "cancelled" (which blocks PR merges).
+  # Same-type events still dedup: push2 cancels push1, PR-update cancels old PR.
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.head_ref) || format('push-{0}', github.ref_name) }}
   cancel-in-progress: true
 
 jobs:

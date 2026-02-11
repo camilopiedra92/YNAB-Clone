@@ -56,11 +56,13 @@ staging ────────────────────────
 
 ### Concurrency Deduplication
 
-The CI workflow uses `concurrency.group: ci-${{ github.head_ref || github.ref_name }}` with `cancel-in-progress: true`. Push and PR events on the same branch share a concurrency group — if a PR CI starts while push CI is running, the push run is cancelled (same code, avoid duplicates).
+Push and PR events use **separate** concurrency groups to prevent push cancellation from blocking PR merges:
 
-- This is safe because `ci-passed` only runs on `pull_request` events
-- Cancelled push checks never appear as "Required: failed" on PR merge gates
-- Rapid pushes to the same branch also cancel the prior run (only latest matters)
+- Push events: `push-{branch}` (push2 cancels push1 on the same branch)
+- PR events: `pr-{branch}` (PR update cancels prior PR run)
+- Push and PR **never cancel each other** — both run independently
+
+**Why separate?** When concurrency cancels a workflow run, ALL jobs (including `ci-passed`) are marked "cancelled" — the `if` condition is never evaluated. A cancelled `ci-passed (push)` would block PR merges even though `ci-passed (pull_request)` passed. Separate groups prevent this entirely.
 
 ### `ci-passed` Summary Gate
 
