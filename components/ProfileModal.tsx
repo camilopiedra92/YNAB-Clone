@@ -14,8 +14,8 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
     const updateProfile = useUpdateProfile();
     const changePassword = useChangePassword();
 
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    const [name, setName] = useState(profile?.name ?? '');
+    const [email, setEmail] = useState(profile?.email ?? '');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -23,14 +23,6 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
 
     const overlayRef = useRef<HTMLDivElement>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
-
-    // Populate fields when profile loads
-    useEffect(() => {
-        if (profile) {
-            setName(profile.name);
-            setEmail(profile.email);
-        }
-    }, [profile]);
 
     // Focus name input on mount
     useEffect(() => {
