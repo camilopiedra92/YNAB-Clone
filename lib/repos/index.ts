@@ -90,6 +90,9 @@ export const {
   removeShare,
   // User repo
   getUserByEmail,
+  getUserById,
   createUser,
+  updateUser,
+  updatePassword,
 } = fns;
 

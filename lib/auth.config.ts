@@ -29,22 +29,31 @@ export const authConfig = {
 
   callbacks: {
     /**
-     * Attach the user ID to the JWT token on sign-in.
-     * Runs in Node runtime (sign-in) and Edge runtime (session check).
+     * Attach the user ID and name to the JWT token on sign-in.
+     * Also handles client-side session updates (trigger === 'update')
+     * for real-time name sync after profile edits.
      */
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
+      }
+      // Real-time profile name sync: client calls update({ name: 'New' })
+      if (trigger === 'update' && session?.name) {
+        token.name = session.name;
       }
       return token;
     },
 
     /**
-     * Expose the user ID on the session object.
+     * Expose the user ID and name on the session object.
      */
     async session({ session, token }) {
       if (token?.id) {
         session.user.id = token.id as string;
+      }
+      if (token?.name) {
+        session.user.name = token.name as string;
       }
       return session;
     },

@@ -56,3 +56,102 @@ describe('getUserByEmail', () => {
         expect(found!.name).toBe('Case Test');
     });
 });
+
+describe('getUserById', () => {
+    it('finds existing user by UUID', async () => {
+        const created = await fns.createUser({
+            name: 'By Id',
+            email: 'byid@test.com',
+            passwordHash: 'hashed',
+        });
+        const found = await fns.getUserById(created.id);
+        expect(found).not.toBeNull();
+        expect(found!.id).toBe(created.id);
+        expect(found!.name).toBe('By Id');
+        expect(found!.email).toBe('byid@test.com');
+        expect(found!.createdAt).toBeDefined();
+    });
+
+    it('does not expose password hash', async () => {
+        const created = await fns.createUser({
+            name: 'Safe',
+            email: 'safe@test.com',
+            passwordHash: 'secret_hash',
+        });
+        const found = await fns.getUserById(created.id);
+        expect(found).not.toBeNull();
+        // The returned object should NOT have a password field
+        expect((found as Record<string, unknown>).password).toBeUndefined();
+    });
+
+    it('returns null for non-existent UUID', async () => {
+        const found = await fns.getUserById('00000000-0000-0000-0000-000000000000');
+        expect(found).toBeNull();
+    });
+});
+
+describe('updateUser', () => {
+    it('updates name only', async () => {
+        const user = await fns.createUser({
+            name: 'Original',
+            email: 'update@test.com',
+            passwordHash: 'hashed',
+        });
+        const updated = await fns.updateUser(user.id, { name: 'New Name' });
+        expect(updated).not.toBeNull();
+        expect(updated!.name).toBe('New Name');
+        expect(updated!.email).toBe('update@test.com'); // unchanged
+    });
+
+    it('updates email with lowercase normalization', async () => {
+        const user = await fns.createUser({
+            name: 'Email Test',
+            email: 'old@test.com',
+            passwordHash: 'hashed',
+        });
+        const updated = await fns.updateUser(user.id, { email: 'NEW@Test.COM' });
+        expect(updated).not.toBeNull();
+        expect(updated!.email).toBe('new@test.com');
+    });
+
+    it('rejects duplicate email with error', async () => {
+        await fns.createUser({
+            name: 'First',
+            email: 'taken@test.com',
+            passwordHash: 'hashed',
+        });
+        const second = await fns.createUser({
+            name: 'Second',
+            email: 'second@test.com',
+            passwordHash: 'hashed',
+        });
+        await expect(
+            fns.updateUser(second.id, { email: 'taken@test.com' })
+        ).rejects.toThrow('EMAIL_ALREADY_EXISTS');
+    });
+
+    it('returns null when no fields provided', async () => {
+        const user = await fns.createUser({
+            name: 'No Op',
+            email: 'noop@test.com',
+            passwordHash: 'hashed',
+        });
+        const result = await fns.updateUser(user.id, {});
+        expect(result).toBeNull();
+    });
+});
+
+describe('updatePassword', () => {
+    it('updates the password hash', async () => {
+        const user = await fns.createUser({
+            name: 'Pwd Test',
+            email: 'pwd@test.com',
+            passwordHash: 'old_hash',
+        });
+        await fns.updatePassword(user.id, 'new_hash');
+        // Verify by fetching full user row (includes password)
+        const found = await fns.getUserByEmail('pwd@test.com');
+        expect(found).not.toBeNull();
+        expect(found!.password).toBe('new_hash');
+    });
+});

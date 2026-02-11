@@ -24,6 +24,7 @@ import { useAccounts, type Account } from '@/hooks/useAccounts';
 import { useBudgets, useBudget } from '@/hooks/useBudgets';
 import AccountEditModal from './AccountEditModal';
 import ImportModal from './ImportModal';
+import ProfileModal from './ProfileModal';
 import { formatCurrency } from '@/lib/format';
 
 
@@ -52,6 +53,7 @@ export default function Sidebar() {
     const [isBudgetSelectorOpen, setIsBudgetSelectorOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isImportOpen, setIsImportOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     const userName = session?.user?.name ?? 'Usuario';
     const userInitial = userName.charAt(0).toUpperCase();
@@ -397,9 +399,15 @@ export default function Sidebar() {
                                     {userInitial}
                                 </span>
                             </div>
+                            <span className="text-[12px] font-medium text-white/50 truncate max-w-[100px]">{userName}</span>
                         </div>
                         <div className="flex items-center gap-0.5">
-                            <button className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200" title="Settings">
+                            <button
+                                className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
+                                title="Settings"
+                                onClick={() => setIsProfileOpen(true)}
+                                data-testid="sidebar-settings"
+                            >
                                 <Settings className="w-[15px] h-[15px]" />
                             </button>
                             <button
@@ -427,6 +435,11 @@ export default function Sidebar() {
                 isOpen={isImportOpen}
                 onClose={() => setIsImportOpen(false)}
             />
+
+            {/* Profile Modal */}
+            {isProfileOpen && (
+                <ProfileModal onClose={() => setIsProfileOpen(false)} />
+            )}
         </>
     );
 }
