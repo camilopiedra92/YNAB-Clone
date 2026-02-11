@@ -134,7 +134,14 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Run E2E Tests (L7)
-        run: npm run test:e2e
+        run: |
+          echo "=== .env content ==="
+          cat .env
+          echo ""
+          echo "=== DATABASE_URL env ==="
+          echo "$DATABASE_URL"
+          echo ""
+          npm run test:e2e
 
       - name: Upload Playwright Report
         if: failure()
@@ -151,3 +158,12 @@ jobs:
           name: test-results
           path: test-results/
           retention-days: 7
+
+      - name: Diagnose DB on failure
+        if: failure()
+        run: |
+          echo "=== Checking ynab_test databases ==="
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -c "\l" 2>/dev/null || echo "Cannot connect to postgres admin DB"
+          echo ""
+          echo "=== Checking users in ynab_test ==="
+          psql "postgresql://postgres:postgres@localhost:5432/ynab_test" -c "SELECT id, email, substring(password, 1, 20) as pw_prefix FROM users;" 2>/dev/null || echo "Cannot query ynab_test.users"
