@@ -13,8 +13,11 @@ import { apiError } from '@/lib/api-error';
  */
 async function withUserContext<T>(userId: string, fn: (repos: ReturnType<typeof createDbFunctions>) => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
+    // Set both RLS variables — budget_id='0' is a safe no-match default
+    // that prevents ''::integer cast errors in RLS policies
     await tx.execute(
-      sql`SELECT set_config('app.user_id', ${userId}, true)`
+      sql`SELECT set_config('app.user_id', ${userId}, true),
+                 set_config('app.budget_id', ${'0'}, true)`
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const repos = createDbFunctions(tx as any);
