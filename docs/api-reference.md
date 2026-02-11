@@ -1,6 +1,6 @@
 # API Reference
 
-> **Interactive Documentation:** Start the dev server (`npm run dev`) and visit [`/api-docs`](http://localhost:3000/api-docs) for the full Swagger UI explorer.
+> **Interactive Documentation:** Start the dev server (`npm run dev`) and visit [`/api/docs/ui`](http://localhost:3000/api/docs/ui) for the full Swagger UI explorer.
 >
 > **Raw Spec:** [`GET /api/docs`](http://localhost:3000/api/docs) returns the OpenAPI 3.1 JSON document.
 
