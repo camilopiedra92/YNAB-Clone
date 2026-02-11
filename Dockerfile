@@ -43,7 +43,7 @@ ENV HOSTNAME="0.0.0.0"
 
 # Security: Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+  adduser --system --uid 1001 nextjs
 
 # Copy standalone output (includes server.js + minimal node_modules)
 COPY --from=builder /app/.next/standalone ./
@@ -64,7 +64,7 @@ EXPOSE 3000
 # Docker-level health check (used by Coolify for container health)
 # Requires /api/health endpoint (created in Phase 2)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
 # Start the standalone Next.js server
 CMD ["node", "server.js"]
