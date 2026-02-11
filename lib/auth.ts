@@ -41,10 +41,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        const isCI = process.env.CI === 'true';
         const parsed = LoginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          if (isCI) console.log('[AUTH-DEBUG] Schema validation failed:', parsed.error.issues);
+          return null;
+        }
 
         const { email, password } = parsed.data;
+        if (isCI) console.log('[AUTH-DEBUG] Attempting login for:', email, '| DB:', process.env.DATABASE_URL?.replace(/\/\/.*@/, '//<redacted>@'));
 
         const [user] = await db
           .select()
@@ -52,17 +57,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .where(eq(users.email, email.toLowerCase()))
           .limit(1);
 
-        if (!user) return null;
+        if (!user) {
+          if (isCI) console.log('[AUTH-DEBUG] User not found in DB');
+          return null;
+        }
+
+        if (isCI) console.log('[AUTH-DEBUG] User found:', user.email, '| Hash prefix:', user.password.substring(0, 20));
 
         // ── Account Lockout Check ──────────────────────────────────
         if (user.lockedUntil && user.lockedUntil > new Date()) {
-          // Account is currently locked — reject even if password is correct
+          if (isCI) console.log('[AUTH-DEBUG] Account locked until:', user.lockedUntil);
           return null;
         }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
+          if (isCI) console.log('[AUTH-DEBUG] bcrypt.compare FAILED for password length:', password.length);
           // ── Increment failed attempts ────────────────────────────
           const newAttempts = user.failedLoginAttempts + 1;
           const updateData: { failedLoginAttempts: number; lockedUntil?: Date | null } = {
