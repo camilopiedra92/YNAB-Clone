@@ -19,7 +19,7 @@ Currently all quality checks run locally. A GitHub Actions pipeline would catch 
 - [x] GitHub Actions workflow: `audit → lint → typecheck → build → test:coverage → test:e2e`
 - [x] Branch protection: require CI pass before merge
 - [x] Coverage badge in README
-- [x] Lighthouse CI for performance budgets
+- [ ] Lighthouse CI for performance budgets (deferred — requires auth bypass)
 
 ### I2. Split `budget.ts` (967 lines)
 
