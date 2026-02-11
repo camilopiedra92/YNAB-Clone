@@ -86,7 +86,7 @@ npm run git:sync -- "fix(scope): handle empty state"
 # Multiple commits are fine on feature branches!
 ```
 
-**CI runs automatically on every push** to your feature branch (`quality-gate` + `unit-tests`, ~3 min).
+**CI runs automatically when you open a PR** for your feature branch — quality-gate + unit-tests (~3 min).
 
 ### 3. Open a Pull Request to Staging
 
@@ -105,7 +105,7 @@ The `ci-passed` required check must pass before merge.
 
 ### 4. Merge to Staging
 
-After CI passes, merge the PR (squash merge recommended). This triggers the **full CI suite including E2E tests** (~10 min) on the `staging` branch.
+After CI passes, merge the PR (squash merge recommended).
 
 ```bash
 # Merge from CLI:
@@ -141,19 +141,19 @@ git push origin --delete feat/my-feature  # if it was pushed
 
 ## CI Pipeline
 
-| Stage                | Trigger      | Checks                          | Duration |
-| -------------------- | ------------ | ------------------------------- | -------- |
-| Feature branch       | Every push   | quality-gate + unit-tests       | ~3 min   |
-| PR → staging         | Pull request | quality-gate + unit-tests       | ~3 min   |
-| Staging (post-merge) | Push         | quality-gate + unit-tests + E2E | ~10 min  |
-| PR → main            | Pull request | quality-gate + unit-tests + E2E | ~10 min  |
-| Main (post-merge)    | Push         | Deploy only                     | ~2 min   |
+CI runs **only on `pull_request` events** — no push CI. All code goes through PRs (rulesets enforce it), so push CI is redundant.
+
+| Stage        | Checks                                      | Duration |
+| ------------ | ------------------------------------------- | -------- |
+| PR → staging | quality-gate → unit-tests + ci-passed       | ~3 min   |
+| PR → main    | quality-gate → unit-tests + E2E + ci-passed | ~10 min  |
 
 ### CI Architecture
 
-- **`ci-passed` gate:** A summary job that depends on all 3 CI jobs. This is the **only** required check in rulesets. GitHub appends `(push)`/`(pull_request)` to job names, which breaks ruleset matching — the `ci-passed` gate provides one stable name.
-- **Concurrency dedup:** If a push CI is running and a PR is created for the same branch, the push run auto-cancels. No wasted CI minutes.
-- **E2E conditional:** E2E tests only run on `push to staging` and `PR to main`. They're skipped on feature branches and PRs to staging.
+- **`ci-passed` gate:** A summary job that depends on all CI jobs. This is the **only** required check in rulesets. It provides one stable check name regardless of GitHub's internal naming.
+- **Concurrency:** `pr-{branch}` — PR updates for the same branch cancel prior CI runs. No wasted minutes.
+- **E2E conditional:** E2E tests only run on PRs to `main` (staging → main promotion). PRs to `staging` skip E2E.
+- **Job chain:** `unit-tests` depends on `quality-gate` — if lint/typecheck/build fails, unit tests don't run.
 
 ---
 
@@ -232,7 +232,7 @@ git rebase --continue
 
 **Q: Should I push feature branches to remote?**
 
-Yes — CI runs on every push and gives you feedback. Plus it creates a backup.
+Yes — pushing to a branch with an open PR triggers CI, giving you feedback. Plus it creates a backup.
 
 **Q: Can I have multiple feature branches at once?**
 

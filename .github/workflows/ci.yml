@@ -1,10 +1,10 @@
 name: CI
 
-# ─── GATEKEEPER WORKFLOW ──────────────────────────────────
+# ─── PR GATEKEEPER ────────────────────────────────────────
 # Purpose: Validate code BEFORE merge. Produces ci-passed (the only required check).
 # Trigger: pull_request to staging or main.
 # Feature branches get CI ONLY through PRs (not on push).
-# See also: ci-post-merge.yml for post-merge staging validation.
+# No push CI — all code goes through PRs (rulesets enforce it).
 
 on:
   pull_request:
@@ -49,6 +49,7 @@ jobs:
 
   # ─── Job 2: Unit Tests + Coverage ──────────────────────
   unit-tests:
+    needs: quality-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
