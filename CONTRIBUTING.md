@@ -25,11 +25,9 @@ staging ────────────────────────
 | ------------------ | --------------------------------------------------------------------- |
 | Start a feature    | `git checkout staging && git pull && git checkout -b feat/my-feature` |
 | Commit work        | `npm run git:sync -- "feat(scope): description"`                      |
-| Open PR to staging | `gh pr create --base staging --title "feat: description"`             |
-| Check PR status    | `gh pr checks`                                                        |
+| Open PR to staging | Push branch, open PR on GitHub: `feat/my-feature → staging`           |
 | After merge        | `git checkout staging && git pull && git branch -d feat/my-feature`   |
-| Promote to prod    | `gh pr create --base main --head staging --title "chore: promote"`    |
-| Merge PR           | `gh pr merge --merge`                                                 |
+| Promote to prod    | Open PR on GitHub: `staging → main`                                   |
 
 ---
 
@@ -88,43 +86,25 @@ npm run git:sync -- "fix(scope): handle empty state"
 
 ### 3. Open a Pull Request to Staging
 
-Push your branch and create a PR using `gh` CLI or GitHub web:
+Push your branch and open a PR targeting `staging` on GitHub. The same CI checks run on the PR. The GATE ruleset requires both `quality-gate` and `unit-tests` to pass before merge.
 
 ```bash
 git push -u origin feat/my-feature
-
-# Create PR with gh CLI (recommended):
-gh pr create --base staging --title "feat: description"
-
-# Or open PR on GitHub web: feat/my-feature → staging
+# Then open PR on GitHub: feat/my-feature → staging
 ```
-
-The `ci-passed` required check must pass before merge.
 
 ### 4. Merge to Staging
 
 After CI passes, merge the PR (squash merge recommended). This triggers the **full CI suite including E2E tests** (~10 min) on the `staging` branch.
 
-```bash
-# Merge from CLI:
-gh pr merge --merge --delete-branch
-
-# Or merge from GitHub web
-```
-
 ### 5. Promote to Production
 
 When staging is stable and ready for production:
 
-```bash
-# Create PR: staging → main
-gh pr create --base main --head staging --title "chore: promote to production"
-
-# Wait for all checks to pass, then merge:
-gh pr merge --merge
-```
-
-> **⚠️ CRITICAL: NEVER use `--delete-branch` when merging staging → main.** This would delete the `staging` branch.
+1. Open a PR on GitHub: `staging → main`
+2. All 3 checks must pass: `quality-gate`, `unit-tests`, `e2e-tests`
+3. Merge the PR
+4. The deploy workflow triggers automatically
 
 ### 6. Clean Up
 
@@ -146,12 +126,6 @@ git push origin --delete feat/my-feature  # if it was pushed
 | Staging (post-merge) | Push         | quality-gate + unit-tests + E2E | ~10 min  |
 | PR → main            | Pull request | quality-gate + unit-tests + E2E | ~10 min  |
 | Main (post-merge)    | Push         | Deploy only                     | ~2 min   |
-
-### CI Architecture
-
-- **`ci-passed` gate:** A summary job that depends on all 3 CI jobs. This is the **only** required check in rulesets. GitHub appends `(push)`/`(pull_request)` to job names, which breaks ruleset matching — the `ci-passed` gate provides one stable name.
-- **Concurrency dedup:** If a push CI is running and a PR is created for the same branch, the push run auto-cancels. No wasted CI minutes.
-- **E2E conditional:** E2E tests only run on `push to staging` and `PR to main`. They're skipped on feature branches and PRs to staging.
 
 ---
 
@@ -238,8 +212,5 @@ Yes, but try to keep it to 1-2 active branches to avoid merge complexity.
 
 **Q: How do I promote staging to production?**
 
-```bash
-gh pr create --base main --head staging --title "chore: promote to production"
-# Wait for CI, then:
-gh pr merge --merge   # ⚠️ NO --delete-branch!
-```
+Open a PR on GitHub: `staging → main`. All CI checks must pass. Merge the PR.
+
