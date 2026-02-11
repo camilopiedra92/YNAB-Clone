@@ -1,14 +1,14 @@
 # 🚀 Deployment Guide: YNAB App → Hetzner + Coolify
 
 **Created:** 2026-02-11
-**Last Updated:** 2026-02-11 (Phase 4 🟡)
+**Last Updated:** 2026-02-11 (Phase 6 🟡)
 **Status:** 🟡 In Progress
 
 ---
 
 ## 📊 Progress Dashboard
 
-### Overall Progress: 23 / 42 tasks complete
+### Overall Progress: 29 / 42 tasks complete
 
 | Phase                                                                               | Status         | Progress | Priority    |
 | ----------------------------------------------------------------------------------- | -------------- | -------- | ----------- |
@@ -16,19 +16,20 @@
 | [Phase 2: Health & Observability](#phase-2-health--observability)                   | ✅ Complete    | 6/6      | 🔴 Blocker  |
 | [Phase 3: Database Production Config](#phase-3-database-production-config)          | ✅ Complete    | 7/7      | 🔴 Critical |
 | [Phase 4: Deploy Pipeline](#phase-4-deploy-pipeline)                                | 🟡 In Progress | 2/5      | 🟡 High     |
-| [Phase 5: Environment & Secrets](#phase-5-environment--secrets)                     | 🔴 Not Started | 0/6      | 🟡 High     |
-| [Phase 6: Server Setup (Hetzner + Coolify)](#phase-6-server-setup-hetzner--coolify) | 🔴 Not Started | 0/10     | 🟡 High     |
+| [Phase 5: Environment & Secrets](#phase-5-environment--secrets)                     | 🟡 In Progress | 3/6      | 🟡 High     |
+| [Phase 6: Server Setup (Hetzner + Coolify)](#phase-6-server-setup-hetzner--coolify) | 🟡 In Progress | 3/10     | 🟡 High     |
 
 ### Milestone Tracker
 
-| Milestone                         | Target             | Status |
-| --------------------------------- | ------------------ | ------ |
-| Docker image builds locally       | Phase 1 complete   | ✅     |
-| Health endpoint responds          | Phase 2 complete   | ✅     |
-| DB production-ready               | Phase 3 complete   | ✅     |
-| **MVP: App accessible on domain** | Phase 1-6 complete | ⬜     |
-| Backups configured                | Post-launch        | ⬜     |
-| Monitoring configured             | Post-launch        | ⬜     |
+| Milestone                                   | Target             | Status |
+| ------------------------------------------- | ------------------ | ------ |
+| Docker image builds locally                 | Phase 1 complete   | ✅     |
+| Health endpoint responds                    | Phase 2 complete   | ✅     |
+| DB production-ready                         | Phase 3 complete   | ✅     |
+| **Infrastructure live (Hetzner + Coolify)** | Phase 6.1-6.3      | ✅     |
+| **MVP: App accessible on domain**           | Phase 1-6 complete | ⬜     |
+| Backups configured                          | Post-launch        | ⬜     |
+| Monitoring configured                       | Post-launch        | ⬜     |
 
 ---
 
@@ -51,22 +52,22 @@ The app has **strong foundations** that require zero changes for deployment:
 | **Rate Limiting**    | ⚠️ Dev-only        | In-memory sliding window — functional but resets on restart, single-instance only        |
 | **Offline Support**  | ✅ Good            | IndexedDB persistence via `idb-keyval`, mutation queue in `SyncStatus`                   |
 
-### 🔴 Critical Gaps Found
+### 🔴 Critical Gaps — Status
 
-These items **block production deployment** and must be resolved:
+These items **block production deployment**. Resolved items are marked with ✅:
 
-| #   | Gap                                               | Why It Blocks                                                                               | Effort |
-| --- | ------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------ |
-| 1   | **No Dockerfile**                                 | Coolify requires Docker image — cannot deploy without it                                    | 1 hr   |
-| 2   | **No `.dockerignore`**                            | Build context includes `node_modules`, `.next`, `.git` (~2GB) — builds fail or take 20+ min | 10 min |
-| 3   | **No `output: 'standalone'`** in `next.config.ts` | Docker image will be ~1GB+ instead of ~150MB, copies entire `node_modules`                  | 5 min  |
-| 4   | **No production health endpoint**                 | Coolify/Traefik can't verify app is alive — no auto-restart on crash                        | 20 min |
-| 5   | **No DB connection pooling**                      | Default `postgres()` client leaks connections under any real load                           | 10 min |
-| 6   | **No graceful shutdown**                          | `postgres` client connections not cleaned up on SIGTERM → zombie connections                | 10 min |
-| 7   | **Deploy workflow is a placeholder**              | `.github/workflows/deploy.yml` prints a message, does nothing                               | 15 min |
-| 8   | **`AUTH_URL` not configured**                     | Auth.js needs canonical URL for callbacks — login will fail in production                   | 5 min  |
-| 9   | **RLS bypassed with superuser**                   | If app connects as `postgres`, all RLS policies are ignored → data leak risk                | 30 min |
-| 10  | **`with-local-tmp.sh` wraps ALL scripts**         | Docker has its own temp — this script is unnecessary and may cause issues                   | 15 min |
+| #   | Gap                                               | Status      | Resolution                                                 |
+| --- | ------------------------------------------------- | ----------- | ---------------------------------------------------------- |
+| 1   | **No Dockerfile**                                 | ✅ Resolved | Multi-stage Dockerfile created (Phase 1.2)                 |
+| 2   | **No `.dockerignore`**                            | ✅ Resolved | `.dockerignore` created (Phase 1.3)                        |
+| 3   | **No `output: 'standalone'`** in `next.config.ts` | ✅ Resolved | Standalone output enabled (Phase 1.1)                      |
+| 4   | **No production health endpoint**                 | ✅ Resolved | `/api/health` endpoint created (Phase 2.1)                 |
+| 5   | **No DB connection pooling**                      | ✅ Resolved | Pool settings added to `lib/db/client.ts` (Phase 3.1)      |
+| 6   | **No graceful shutdown**                          | ✅ Resolved | SIGTERM/SIGINT handlers added (Phase 2.2)                  |
+| 7   | **Deploy workflow is a placeholder**              | ✅ Resolved | Rewritten with Coolify webhook trigger (Phase 4.2)         |
+| 8   | **`AUTH_URL` not configured**                     | ✅ Resolved | Added to env schema, set at runtime by Coolify (Phase 3.4) |
+| 9   | **RLS bypassed with superuser**                   | ⬜ Pending  | SQL script ready — run during Phase 6.6                    |
+| 10  | **`with-local-tmp.sh` wraps ALL scripts**         | ✅ Resolved | Dockerfile uses `CMD ["node", "server.js"]` directly       |
 
 ---
 
@@ -870,9 +871,9 @@ These tasks require the Hetzner server and Coolify to be running. They will be c
 - [ ] **5.1** Set all required environment variables in Coolify
 - [ ] **5.2** Generate a strong `AUTH_SECRET` for production
 - [ ] **5.3** Set `AUTH_URL` to the production domain
-- [ ] **5.4** Verify `.env` is NOT in the Docker image
-- [ ] **5.5** Update `.env.example` with all production-needed vars
-- [ ] **5.6** Document which vars are build-time vs runtime
+- [x] **5.4** Verify `.env` is NOT in the Docker image — ✅ `.dockerignore` excludes `.env` and `.env.*`
+- [x] **5.5** Update `.env.example` with all production-needed vars — ✅ All vars documented
+- [x] **5.6** Document which vars are build-time vs runtime — ✅ Classification table added to `.env.example`
 
 ### 5.1 Coolify Environment Variables
 
@@ -914,11 +915,14 @@ openssl rand -base64 32
 > **Priority:** 🟡 High — Infrastructure provisioning
 > **Estimated Effort:** ~2 hours (including DNS propagation)
 
+> [!IMPORTANT]
+> **The Hetzner server is already provisioned and Coolify is already installed and running.** Steps 6.1–6.3 are complete. The remaining work is configuring the services (PostgreSQL, DNS, app) inside Coolify.
+
 ### Checklist
 
-- [ ] **6.1** Choose Hetzner server size
-- [ ] **6.2** Provision Hetzner VPS (Ubuntu 24.04)
-- [ ] **6.3** Install Coolify on the server
+- [x] **6.1** Choose Hetzner server size — ✅ Server already provisioned
+- [x] **6.2** Provision Hetzner VPS — ✅ Hetzner server already running
+- [x] **6.3** Install Coolify on the server — ✅ Coolify already installed and operational
 - [ ] **6.4** Configure domain DNS (A record → server IP)
 - [ ] **6.5** Add PostgreSQL service in Coolify
 - [ ] **6.6** Create production database and user
@@ -927,7 +931,9 @@ openssl rand -base64 32
 - [ ] **6.9** Set environment variables in Coolify
 - [ ] **6.10** Deploy and verify
 
-### 6.1 Server Sizing
+### 6.1 Server Sizing ✅
+
+> **Status:** Server already provisioned on Hetzner.
 
 | Plan     | vCPU | RAM  | Storage | Cost    | Recommended For                 |
 | -------- | ---- | ---- | ------- | ------- | ------------------------------- |
@@ -935,11 +941,13 @@ openssl rand -base64 32
 | **CX32** | 4    | 8GB  | 80GB    | ~€8/mo  | ✅ **Recommended** — 3-10 users |
 | CX42     | 8    | 16GB | 160GB   | ~€16/mo | 10+ users, heavy data           |
 
-> **Recommendation:** Start with **CX32** (~€8/mo). It runs Coolify + PostgreSQL + the app comfortably with headroom. You can upgrade without downtime via Hetzner's resize feature.
+> You can upgrade without downtime via Hetzner's resize feature.
 
 ---
 
-### 6.2 Provision Hetzner VPS
+### 6.2 Provision Hetzner VPS ✅
+
+> **Status:** Hetzner VPS already running. Reference steps below for documentation.
 
 1. Go to [Hetzner Cloud Console](https://console.hetzner.cloud/)
 2. Create a new project (e.g., "YNAB")
@@ -953,7 +961,9 @@ openssl rand -base64 32
 
 ---
 
-### 6.3 Install Coolify
+### 6.3 Install Coolify ✅
+
+> **Status:** Coolify already installed and operational on the Hetzner server.
 
 SSH into your server and run:
 
@@ -1118,29 +1128,29 @@ These are not blockers but significantly improve production quality:
 
 ## Risk Matrix
 
-| Risk                         | Impact      | Likelihood             | Mitigation                                  | Status |
-| ---------------------------- | ----------- | ---------------------- | ------------------------------------------- | ------ |
-| DB data loss                 | 🔴 Critical | Medium                 | Automated backups to S3                     | ⬜     |
-| Secret leak (.env in image)  | 🔴 Critical | Low                    | `.dockerignore` + Coolify runtime injection | ⬜     |
-| RLS bypass (superuser)       | 🔴 High     | High (if unconfigured) | Non-superuser production DB role            | ⬜     |
-| Rate limiter reset on deploy | 🟡 Medium   | Certain                | Acceptable for 1-5 users; Redis for SaaS    | ⬜     |
-| Migration failure on startup | 🟡 Medium   | Low                    | Error handling; don't crash on failure      | ⬜     |
-| Auth callback URL wrong      | 🔴 High     | High (if unconfigured) | Set `AUTH_URL` in Coolify                   | ⬜     |
-| Connection exhaustion        | 🟡 Medium   | Medium                 | Pool settings (max=10, idle_timeout=20)     | ⬜     |
-| Docker image too large       | 🟢 Low      | Low                    | Standalone output + Alpine + .dockerignore  | ⬜     |
+| Risk                         | Impact      | Likelihood             | Mitigation                                  | Status       |
+| ---------------------------- | ----------- | ---------------------- | ------------------------------------------- | ------------ |
+| DB data loss                 | 🔴 Critical | Medium                 | Automated backups to S3                     | ⬜ Pending   |
+| Secret leak (.env in image)  | 🔴 Critical | Low                    | `.dockerignore` + Coolify runtime injection | ✅ Mitigated |
+| RLS bypass (superuser)       | 🔴 High     | High (if unconfigured) | Non-superuser production DB role            | ⬜ Phase 6.6 |
+| Rate limiter reset on deploy | 🟡 Medium   | Certain                | Acceptable for 1-5 users; Redis for SaaS    | ⚠️ Accepted  |
+| Migration failure on startup | 🟡 Medium   | Low                    | Error handling; don't crash on failure      | ✅ Mitigated |
+| Auth callback URL wrong      | 🔴 High     | High (if unconfigured) | Set `AUTH_URL` in Coolify                   | ⬜ Phase 5.3 |
+| Connection exhaustion        | 🟡 Medium   | Medium                 | Pool settings (max=10, idle_timeout=20)     | ✅ Mitigated |
+| Docker image too large       | 🟢 Low      | Low                    | Standalone output + Alpine + .dockerignore  | ✅ Mitigated |
 
 ---
 
 ## Quick Reference: Key Files
 
-| File                                                                                                              | Purpose                                           | Status      |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ----------- |
-| [`next.config.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/next.config.ts)                             | Add `output: 'standalone'`                        | ⬜ Pending  |
-| `Dockerfile`                                                                                                      | Multi-stage production build                      | ⬜ New file |
-| `.dockerignore`                                                                                                   | Exclude dev files from build context              | ⬜ New file |
-| [`app/api/health/route.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/app/api/health)                    | Health check endpoint                             | ⬜ New file |
-| [`lib/db/client.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/db/client.ts)                         | Pool settings + graceful shutdown                 | ⬜ Pending  |
-| [`lib/env.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/env.ts)                                     | Add `AUTH_TRUST_HOST`, `CORS_ORIGIN`, `LOG_LEVEL` | ⬜ Pending  |
-| [`lib/logger.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/logger.ts)                               | JSON structured logging                           | ⬜ Pending  |
-| [`.github/workflows/deploy.yml`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/.github/workflows/deploy.yml) | Coolify webhook trigger                           | ⬜ Pending  |
-| [`.env.example`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/.env.example)                                 | Document all production vars                      | ⬜ Pending  |
+| File                                                                                                              | Purpose                                  | Status  |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------- |
+| [`next.config.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/next.config.ts)                             | Standalone output enabled                | ✅ Done |
+| [`Dockerfile`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/Dockerfile)                                     | Multi-stage production build             | ✅ Done |
+| `.dockerignore`                                                                                                   | Exclude dev files from build context     | ✅ Done |
+| [`app/api/health/route.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/app/api/health/route.ts)           | Health check endpoint                    | ✅ Done |
+| [`lib/db/client.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/db/client.ts)                         | Pool settings + graceful shutdown        | ✅ Done |
+| [`lib/env.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/env.ts)                                     | `AUTH_URL`, `AUTH_TRUST_HOST` in schema  | ✅ Done |
+| [`lib/logger.ts`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/logger.ts)                               | JSON structured logging (production)     | ✅ Done |
+| [`.github/workflows/deploy.yml`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/.github/workflows/deploy.yml) | Coolify webhook trigger                  | ✅ Done |
+| [`.env.example`](file:///Users/camilopiedra/Documents/YNAB/ynab-app/.env.example)                                 | All production vars + build/runtime docs | ✅ Done |
