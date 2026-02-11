@@ -171,11 +171,11 @@ jobs:
           psql "postgresql://postgres:postgres@localhost:5432/ynab_test" -c "SELECT id, email, substring(password, 1, 20) as pw_prefix FROM users;" 2>/dev/null || echo "Cannot query ynab_test.users"
 
   # ─── Summary Gate (single required check for rulesets) ──
-  # GitHub appends (push)/(pull_request) to job names, breaking
-  # ruleset matching. This job provides ONE stable check name.
+  # Runs ONLY on pull_request events. This prevents push-triggered
+  # ci-passed from satisfying ruleset requirements before PR CI finishes.
   # Rulesets should require ONLY: ci-passed (the job ID)
   ci-passed:
-    if: always()
+    if: always() && github.event_name == 'pull_request'
     needs: [quality-gate, unit-tests, e2e-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 2

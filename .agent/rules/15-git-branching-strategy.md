@@ -63,7 +63,7 @@ The CI workflow uses `concurrency.group: ci-${{ github.head_ref || github.ref_na
 
 ### `ci-passed` Summary Gate
 
-A `ci-passed` job depends on all 3 CI jobs and provides a **single stable check name** for rulesets. GitHub appends `(push)`/`(pull_request)` to individual job names, which breaks ruleset matching. The `ci-passed` gate solves this.
+A `ci-passed` job depends on all 3 CI jobs and provides a **single stable check name** for rulesets. It runs **only on `pull_request` events** — this prevents push-triggered checks from satisfying ruleset requirements before PR CI finishes.
 
 - `quality-gate` and `unit-tests` MUST succeed (`!= "success"` → fail)
 - `e2e-tests` may be skipped (conditional job) but must not fail or cancel
