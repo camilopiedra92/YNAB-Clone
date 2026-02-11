@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from "@/lib/logger";
 import { apiError } from '@/lib/api-error';
-import { getAccount, updateAccount } from '@/lib/repos';
 import { validateBody, UpdateAccountSchema } from '@/lib/schemas';
 import { toAccountDTO } from '@/lib/dtos';
-import { requireBudgetAccess } from '@/lib/auth-helpers';
+import { withBudgetAccess } from '@/lib/with-budget-access';
 
 type RouteContext = { params: Promise<{ budgetId: string; id: string }> };
 
@@ -20,15 +19,14 @@ export async function GET(
             return apiError('Invalid account ID', 400);
         }
 
-        const access = await requireBudgetAccess(budgetId);
-        if (!access.ok) return access.response;
+        return withBudgetAccess(budgetId, async (_tenant, repos) => {
+            const account = await repos.getAccount(budgetId, accountId);
+            if (!account) {
+                return apiError('Account not found', 404);
+            }
 
-        const account = await getAccount(budgetId, accountId);
-        if (!account) {
-            return apiError('Account not found', 404);
-        }
-
-        return NextResponse.json(toAccountDTO(account));
+            return NextResponse.json(toAccountDTO(account));
+        });
     } catch (error) {
         logger.error('Error fetching account:', error);
         return apiError('Failed to fetch account', 500);
@@ -47,21 +45,20 @@ export async function PATCH(
             return apiError('Invalid account ID', 400);
         }
 
-        const access = await requireBudgetAccess(budgetId);
-        if (!access.ok) return access.response;
+        return withBudgetAccess(budgetId, async (_tenant, repos) => {
+            const body = await request.json();
+            const validation = validateBody(UpdateAccountSchema, body);
+            if (!validation.success) return validation.response;
+            const { name, note, closed } = validation.data;
 
-        const body = await request.json();
-        const validation = validateBody(UpdateAccountSchema, body);
-        if (!validation.success) return validation.response;
-        const { name, note, closed } = validation.data;
+            await repos.updateAccount(budgetId, accountId, { name, note: note ?? undefined, closed });
 
-        await updateAccount(budgetId, accountId, { name, note: note ?? undefined, closed });
-
-        const updated = await getAccount(budgetId, accountId);
-        if (!updated) {
-            return apiError('Account not found', 404);
-        }
-        return NextResponse.json(toAccountDTO(updated));
+            const updated = await repos.getAccount(budgetId, accountId);
+            if (!updated) {
+                return apiError('Account not found', 404);
+            }
+            return NextResponse.json(toAccountDTO(updated));
+        });
     } catch (error) {
         logger.error('Error updating account:', error);
         return apiError('Failed to update account', 500);
