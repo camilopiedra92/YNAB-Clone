@@ -47,6 +47,6 @@ export default defineConfig({
         reuseExistingServer: true,
         timeout: 300_000,
         stdout: 'ignore',
-        stderr: 'pipe',
+        stderr: 'ignore',
     },
 });

@@ -33,6 +33,18 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
 
+  // Suppress NextAuth internal error logs during E2E test builds.
+  // CredentialsSignin errors are EXPECTED in auth/security tests (wrong password,
+  // account lockout). Without this, they pollute the test runner output.
+  // Only active when NEXT_TEST_BUILD=1 — zero impact on dev/production.
+  ...(process.env.NEXT_TEST_BUILD && {
+    logger: {
+      error: () => {},
+      warn: console.warn,
+      debug: () => {},
+    },
+  }),
+
   providers: [
     Credentials({
       name: 'credentials',
