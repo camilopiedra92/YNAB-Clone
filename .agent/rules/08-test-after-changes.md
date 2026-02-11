@@ -13,6 +13,9 @@ description: Mandatory testing and quality standards — zero regression policy,
 - **NEVER** skip, disable, or comment out failing tests to "make it pass".
 - **NEVER** proceed with broken tests assuming "someone else will fix it".
 
+> [!TIP]
+> **Automatic enforcement:** Git hooks run lint + typecheck on every commit (`pre-commit`) and unit tests on every push (`pre-push`). Broken code can't be committed or pushed without `--no-verify`. See `15-git-branching-strategy.md` §5.
+
 ### 💡 Environment & Permission Caveats
 
 - **Permission Errors (`EPERM`)**: All `npm` scripts use `./scripts/with-local-tmp.sh` to redirect temp files to a local `.tmp/` directory, bypassing system `/tmp` permission issues.
