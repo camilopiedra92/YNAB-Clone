@@ -34,8 +34,9 @@ export const proxy = auth((req) => {
 
 /**
  * Matcher config — only run proxy on routes that need auth protection.
- * Excludes: auth pages, API routes, Next.js internals, and static assets.
+ * Excludes: auth pages, API routes, Next.js internals, static assets,
+ * and swagger-ui documentation assets.
  */
 export const config = {
-  matcher: ['/((?!auth|api|_next|favicon\\.ico|icons|.*\\.png$|.*\\.svg$).*)'],
+  matcher: ['/((?!auth|api|_next|swagger-ui|favicon\\.ico|icons|.*\\.png$|.*\\.svg$).*)'],
 };

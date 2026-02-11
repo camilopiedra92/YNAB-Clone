@@ -108,7 +108,7 @@ axe-core E2E tests run on every CI push. All WCAG 2.1 AA violations resolved (6/
 19 API routes documented with auto-generated OpenAPI 3.1 spec.
 
 - [x] Auto-generate OpenAPI spec from Zod schemas (`@asteasolutions/zod-to-openapi` v8)
-- [x] Swagger UI at `/api-docs` (dev only), raw spec at `/api/docs`
+- [x] Swagger UI at `/api/docs` (dev only), raw spec at `/api/docs/spec`
 - [x] Updated `docs/api-reference.md` to link to Swagger UI
 
 ---

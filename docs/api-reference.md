@@ -1,8 +1,8 @@
 # API Reference
 
-> **Interactive Documentation:** Start the dev server (`npm run dev`) and visit [`/api/docs/ui`](http://localhost:3000/api/docs/ui) for the full Swagger UI explorer.
+> **Interactive Documentation:** Start the dev server (`npm run dev`) and visit [`/api/docs`](http://localhost:3000/api/docs) for the full Swagger UI explorer.
 >
-> **Raw Spec:** [`GET /api/docs`](http://localhost:3000/api/docs) returns the OpenAPI 3.1 JSON document.
+> **Raw Spec:** [`GET /api/docs/spec`](http://localhost:3000/api/docs/spec) returns the OpenAPI 3.1 JSON document.
 
 ## 📡 General Standards
 
@@ -30,9 +30,12 @@
 
 The OpenAPI spec is auto-generated from existing Zod validation schemas using [`@asteasolutions/zod-to-openapi`](https://github.com/asteasolutions/zod-to-openapi).
 
-- **Registry**: [`lib/openapi/registry.ts`](../lib/openapi/registry.ts) — all routes & schemas
-- **Generator**: [`lib/openapi/generator.ts`](../lib/openapi/generator.ts) — produces the OpenAPI 3.1 document
-- **Swagger UI**: [`app/(app)/api-docs/page.tsx`](<../app/(app)/api-docs/page.tsx>) — interactive explorer
+| File                                                          | Purpose                        |
+| ------------------------------------------------------------- | ------------------------------ |
+| [`lib/openapi/registry.ts`](../lib/openapi/registry.ts)       | All routes & response schemas  |
+| [`lib/openapi/generator.ts`](../lib/openapi/generator.ts)     | OpenAPI 3.1 document generator |
+| [`app/api/docs/route.ts`](../app/api/docs/route.ts)           | Swagger UI HTML (dev only)     |
+| [`app/api/docs/spec/route.ts`](../app/api/docs/spec/route.ts) | JSON spec endpoint (dev only)  |
 
 > [!NOTE]
-> API docs are **dev-only**. The `/api/docs` endpoint returns 404 in production.
+> API docs are **dev-only**. Both `/api/docs` and `/api/docs/spec` return 404 in production.
