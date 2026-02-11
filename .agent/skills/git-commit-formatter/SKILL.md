@@ -120,10 +120,22 @@ gh pr merge --merge --delete-branch
 gh pr merge --merge
 ```
 
-### ⚠️ Merge Safety Rule
+### 🛑 Merge Safety Rule (CRITICAL — Staging Protection)
+
+**`staging` must NEVER be deleted.** Three layers protect it:
+
+1. **GitHub:** `delete_branch_on_merge = false` (prevents auto-deletion)
+2. **Ruleset:** "Restrict deletions" on staging
+3. **Agent:** Commands below explicitly prohibit `--delete-branch` for staging
 
 - **Feature → staging:** `--delete-branch` is OK (cleans up the feature branch)
-- **Staging → main:** **NEVER** pass `--delete-branch` — it deletes the `staging` branch!
+- **Staging → main:** **NEVER** pass `--delete-branch` — it deletes `staging`!
+
+**Recovery if staging is accidentally deleted:**
+
+```bash
+git checkout main && git checkout -b staging && git push -u origin staging
+```
 
 ---
 

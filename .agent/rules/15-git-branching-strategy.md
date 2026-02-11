@@ -43,31 +43,26 @@ staging ────────────────────────
 - `sync.sh` blocks direct pushes to `main` (error + exit)
 - Direct pushes to `staging` are allowed (bypass actor) for trivial changes
 
-## 5. CI Pipeline per Stage
+## 5. CI Pipeline — PR-Only (`ci.yml`)
 
-| Stage                | Trigger | Checks                          | Duration |
-| -------------------- | ------- | ------------------------------- | -------- |
-| Feature branch       | Push    | quality-gate + unit-tests       | ~3 min   |
-| PR → staging         | PR      | quality-gate + unit-tests       | ~3 min   |
-| Staging (post-merge) | Push    | quality-gate + unit-tests + E2E | ~10 min  |
-| PR → main            | PR      | quality-gate + unit-tests + E2E | ~10 min  |
-| Main (post-merge)    | Push    | Deploy only                     | ~2 min   |
+CI runs **only on `pull_request` events** — no push CI. This is the industry standard: all code goes through PRs (rulesets enforce it), so push CI is redundant.
 
-### Concurrency Deduplication
+| Stage        | Checks                                      | Duration |
+| ------------ | ------------------------------------------- | -------- |
+| PR → staging | quality-gate + unit-tests + ci-passed       | ~3 min   |
+| PR → main    | quality-gate + unit-tests + E2E + ci-passed | ~10 min  |
 
-The CI workflow uses `concurrency.group: ci-${{ github.head_ref || github.ref_name }}` with `cancel-in-progress: true`. If a push CI is running and a PR is created for the same branch, the push run is **auto-cancelled** — no duplicate CI runs.
-
-- `github.head_ref` = branch name for `pull_request` events
-- `github.ref_name` = branch name for `push` events
-- Both resolve to the same value → shared concurrency group → dedup
+- **Trigger:** `pull_request` to staging or main
+- **Concurrency:** `pr-{branch}` — PR updates cancel prior PR run
+- **No push CI** — feature branches get CI only through PRs; direct pushes to staging (trivial changes) rely on local validation (`npm test`)
 
 ### `ci-passed` Summary Gate
 
-A `ci-passed` job depends on all 3 CI jobs and provides a **single stable check name** for rulesets. GitHub appends `(push)`/`(pull_request)` to individual job names, which breaks ruleset matching. The `ci-passed` gate solves this.
+Depends on quality-gate, unit-tests, and e2e-tests. Provides a single stable required check for rulesets.
 
-- `quality-gate` and `unit-tests` MUST succeed (`!= "success"` → fail)
-- `e2e-tests` may be skipped (conditional job) but must not fail or cancel
-- **Rulesets must require ONLY:** `ci-passed` (the job ID, not `CI / ci-passed`)
+- `quality-gate` and `unit-tests` MUST succeed
+- `e2e-tests` may be skipped (PRs to staging) but must not fail or cancel
+- **Rulesets must require ONLY:** `ci-passed`
 
 ## 6. GitHub Rulesets Configuration
 
@@ -121,10 +116,27 @@ gh pr checks <PR_NUMBER>
 gh pr merge --merge
 ```
 
-### ⚠️ Merge Safety
+### ⚠️ Merge Safety (CRITICAL — Staging Protection)
 
-- **Feature → staging:** `gh pr merge --merge --delete-branch` ← OK (deletes feature branch)
-- **Staging → main:** `gh pr merge --merge` ← **NO --delete-branch** (would delete staging!)
+**`staging` must NEVER be deleted.** Three layers protect it:
+
+1. **GitHub setting:** `delete_branch_on_merge = false` (prevents auto-deletion after PR merge)
+2. **GitHub Ruleset:** "Staging — Integration" has "Restrict deletions" rule
+3. **Agent enforcement:** All merge commands below explicitly prohibit `--delete-branch` for staging
+
+```bash
+# Feature → staging: --delete-branch is OK (cleans up the feature branch)
+gh pr merge --merge --delete-branch
+
+# Staging → main: ⚠️ NEVER use --delete-branch (would delete staging!)
+gh pr merge --merge
+```
+
+If staging is accidentally deleted, restore it immediately:
+
+```bash
+git checkout main && git checkout -b staging && git push -u origin staging
+```
 
 ## 8. When to Skip (Direct-to-Staging)
 
