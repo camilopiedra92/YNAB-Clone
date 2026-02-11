@@ -14,8 +14,10 @@ staging ────────────────────────
 
 **Two rules:**
 
-1. `main` is always production-ready. Only receives merges from `staging`.
+1. `main` is always production-ready and the **GitHub default branch**. Only receives merges from `staging`.
 2. `staging` is the integration branch. All feature work merges here first.
+
+> **⚠️ Important:** Since `main` is the GitHub default branch, the web UI will default PRs to target `main`. Always select `staging` as the base branch when creating PRs for feature work.
 
 ---
 
