@@ -35,8 +35,8 @@ describe('Transaction Filters', () => {
         const cat2Result = await fns.createCategory({ name: 'Rent', category_group_id: groupId });
         const cat2Id = cat2Result.id;
 
-        await fns.createTransaction({ accountId, date: today(), payee: 'Store', outflow: 50, categoryId });
-        await fns.createTransaction({ accountId, date: today(), payee: 'Landlord', outflow: 1000, categoryId: cat2Id });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'Store', outflow: 50, categoryId });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'Landlord', outflow: 1000, categoryId: cat2Id });
 
         const txs = await fns.getTransactions({ budgetId,  categoryId });
         expect(txs).toHaveLength(1);
@@ -44,8 +44,8 @@ describe('Transaction Filters', () => {
     });
 
     it('filters by startDate', async () => {
-        await fns.createTransaction({ accountId, date: '2025-01-01', payee: 'Old', outflow: 10 });
-        await fns.createTransaction({ accountId, date: '2025-06-15', payee: 'Recent', outflow: 20 });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-01-01', payee: 'Old', outflow: 10 });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-06-15', payee: 'Recent', outflow: 20 });
 
         const txs = await fns.getTransactions({ budgetId,  startDate: '2025-06-01' });
         expect(txs).toHaveLength(1);
@@ -53,8 +53,8 @@ describe('Transaction Filters', () => {
     });
 
     it('filters by endDate', async () => {
-        await fns.createTransaction({ accountId, date: '2025-01-01', payee: 'Old', outflow: 10 });
-        await fns.createTransaction({ accountId, date: '2025-06-15', payee: 'Recent', outflow: 20 });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-01-01', payee: 'Old', outflow: 10 });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-06-15', payee: 'Recent', outflow: 20 });
 
         const txs = await fns.getTransactions({ budgetId,  endDate: '2025-03-01' });
         expect(txs).toHaveLength(1);
@@ -63,7 +63,7 @@ describe('Transaction Filters', () => {
 
     it('limits results', async () => {
         for (let i = 0; i < 5; i++) {
-            await fns.createTransaction({ accountId, date: today(), payee: `Store ${i}`, outflow: i * 10 });
+            await fns.createTransaction(budgetId, { accountId, date: today(), payee: `Store ${i}`, outflow: i * 10 });
         }
 
         const txs = await fns.getTransactions({ budgetId,  limit: 3 });
@@ -71,9 +71,9 @@ describe('Transaction Filters', () => {
     });
 
     it('combines multiple filters', async () => {
-        await fns.createTransaction({ accountId, date: '2025-01-15', payee: 'A', outflow: 10, categoryId });
-        await fns.createTransaction({ accountId, date: '2025-03-15', payee: 'B', outflow: 20, categoryId });
-        await fns.createTransaction({ accountId, date: '2025-06-15', payee: 'C', outflow: 30, categoryId });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-01-15', payee: 'A', outflow: 10, categoryId });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-03-15', payee: 'B', outflow: 20, categoryId });
+        await fns.createTransaction(budgetId, { accountId, date: '2025-06-15', payee: 'C', outflow: 30, categoryId });
 
         const txs = await fns.getTransactions({ budgetId, 
             categoryId,
@@ -85,15 +85,15 @@ describe('Transaction Filters', () => {
     });
 
     it('returns all transactions when no filters', async () => {
-        await fns.createTransaction({ accountId, date: today(), payee: 'A', outflow: 10 });
-        await fns.createTransaction({ accountId, date: today(), payee: 'B', outflow: 20 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'A', outflow: 10 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'B', outflow: 20 });
 
         const txs = await fns.getTransactions({ budgetId });
         expect(txs.length).toBeGreaterThanOrEqual(2);
     });
 
     it('returns transactions without budgetId filter', async () => {
-        await fns.createTransaction({ accountId, date: today(), payee: 'No Budget Filter', outflow: 10 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'No Budget Filter', outflow: 10 });
 
         // Cast to bypass TypeScript — testing runtime-defensive branch
         const txs = await fns.getTransactions({ accountId } as Parameters<typeof fns.getTransactions>[0]);
@@ -150,7 +150,7 @@ describe('Update Transaction - All Fields', () => {
     let txId: number;
 
     beforeEach(async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: '2025-06-01',
             payee: 'Original',
@@ -278,7 +278,7 @@ describe('Transfer Helpers', () => {
     });
 
     it('getTransferByTransactionId returns undefined for non-transfer', async () => {
-        const result = await fns.createTransaction({ accountId, date: today(), payee: 'Store', outflow: 50 });
+        const result = await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'Store', outflow: 50 });
         const txId = result.id;
 
         const found = await fns.getTransferByTransactionId(budgetId, txId);
@@ -313,7 +313,7 @@ describe('Transfer Helpers', () => {
 
     it('createTransfer updates account balances', async () => {
         // Start with initial balances by creating inflow transactions
-        await fns.createTransaction({ accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
         await fns.updateAccountBalances(budgetId, accountId);
 
         const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
@@ -379,7 +379,7 @@ describe('Transfer Helpers', () => {
 // =====================================================================
 describe('Create Transaction - Defaults', () => {
     it('creates with minimal parameters', async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
         });

@@ -58,7 +58,7 @@ describe('Credit Card Payment Budget', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         // Spend $150 on CC (fully funded: 150 <= 200)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -95,7 +95,7 @@ describe('Credit Card Payment Budget', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(80));
 
         // Spend $100 on CC (partially funded: only $80 budgeted)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -138,7 +138,7 @@ describe('Credit Card Payment Budget', () => {
         // Budget and spend
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -146,7 +146,7 @@ describe('Credit Card Payment Budget', () => {
         });
 
         // Now a refund
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -178,7 +178,7 @@ describe('Credit Card Payment Budget', () => {
         // Budget and spend on CC
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -186,7 +186,7 @@ describe('Credit Card Payment Budget', () => {
         });
 
         // Make a CC payment (transfer: checking → CC, appears as inflow with no category)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             inflow: mu(300),
@@ -233,6 +233,7 @@ describe('Credit Card Payment Budget', () => {
 
         // Create CC debt in current month
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: ccCategoryId,
             month,
             assigned: ZERO,

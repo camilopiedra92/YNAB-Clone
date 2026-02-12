@@ -79,10 +79,11 @@ export default function NewBudgetPage() {
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                <label htmlFor="currency" className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
                   <Globe className="w-4 h-4" /> Moneda (ISO)
                 </label>
                 <input
+                  id="currency"
                   type="text"
                   value={currencyCode}
                   onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())}
@@ -92,10 +93,11 @@ export default function NewBudgetPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                <label htmlFor="symbol" className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
                   <Coins className="w-4 h-4" /> Símbolo
                 </label>
                 <input
+                  id="symbol"
                   type="text"
                   value={currencySymbol}
                   onChange={(e) => setCurrencySymbol(e.target.value)}

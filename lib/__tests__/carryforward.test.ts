@@ -37,6 +37,7 @@ describe('Carryforward Logic', () => {
 
         // Create overspent category (negative available)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: mu(100),
@@ -62,6 +63,7 @@ describe('Carryforward Logic', () => {
 
         // Insert negative available (CC debt)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: ccCatId,
             month,
             assigned: ZERO,
@@ -101,6 +103,7 @@ describe('Carryforward Logic', () => {
         const next = nextMonth(month);
 
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: mu(100),

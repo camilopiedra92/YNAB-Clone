@@ -1,6 +1,6 @@
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, sql } from 'drizzle-orm';
 import { users } from '../db/schema';
-import { type DrizzleDB } from '../db/helpers';
+import { type DrizzleDB, queryRows } from '../db/helpers';
 
 /** Placeholder for future cross-repo dependency injection (matches TransactionRepoDeps / BudgetRepoDeps pattern). */
 export type UserRepoDeps = Record<string, never>;
@@ -9,7 +9,10 @@ export type UserRepoDeps = Record<string, never>;
 
 export function createUserFunctions(database: DrizzleDB, _deps: UserRepoDeps) {
   async function getUserByEmail(email: string) {
-    const rows = await database.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    // Use privileged RPC to bypass RLS (needed for Login & Sharing lookups)
+    // queryRows normalizes the driver result (PGlite returns { rows: [] }, postgres-js returns T[])
+    const rows = await queryRows<typeof users.$inferSelect>(database, sql`SELECT * FROM get_user_by_email_privileged(${email.toLowerCase()})`);
+    
     return rows[0] || null;
   }
 

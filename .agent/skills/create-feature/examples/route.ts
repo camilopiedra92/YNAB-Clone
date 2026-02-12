@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withBudgetAccess } from '@/lib/with-budget-access';
 import { validateBody, CreateGoalSchema } from '@/lib/schemas';
 import { toGoalDTO } from '@/lib/dtos';
-import { logger } from '@/lib/logger';
+import { logger as _logger } from '@/lib/logger';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
 
