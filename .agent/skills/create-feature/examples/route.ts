@@ -3,54 +3,43 @@
  *
  * Location: app/api/budgets/[budgetId]/goals/route.ts
  *
- * Every handler MUST:
- * 1. await params (Next.js 15 async params)
- * 2. Call requireBudgetAccess(budgetId)
- * 3. Validate body with validateBody() for writes
- * 4. Use repo functions (never inline SQL)
- * 5. Transform via DTO (never return raw rows)
- * 6. Wrap in try/catch → 500
+ * Every handler MUST use `withBudgetAccess()` which:
+ * 1. Authenticates the user (NextAuth session)
+ * 2. Wraps all queries in a single DB transaction
+ * 3. Sets RLS context (app.budget_id, app.user_id) on the connection
+ * 4. Verifies budget ownership/share access
+ * 5. Provides transaction-scoped repo functions
+ *
+ * See rule `11-api-route-patterns.md` for the full pattern.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { requireBudgetAccess } from '@/lib/auth-helpers';
-import { getGoals, createGoal } from '@/lib/repos';
+import { withBudgetAccess } from '@/lib/with-budget-access';
 import { validateBody, CreateGoalSchema } from '@/lib/schemas';
 import { toGoalDTO } from '@/lib/dtos';
+import { logger } from '@/lib/logger';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
-  try {
-    const { budgetId: budgetIdStr } = await params;
-    const budgetId = parseInt(budgetIdStr, 10);
+  const { budgetId: budgetIdStr } = await params;
+  const budgetId = parseInt(budgetIdStr, 10);
 
-    const access = await requireBudgetAccess(budgetId);
-    if (!access.ok) return access.response;
-
-    const goals = await getGoals(budgetId);
+  return withBudgetAccess(budgetId, async (tenant, repos) => {
+    const goals = await repos.getGoals(tenant.budgetId);
     return NextResponse.json(goals.map(toGoalDTO));
-  } catch (error) {
-    console.error('Error fetching goals:', error);
-    return NextResponse.json({ error: 'Failed to fetch goals' }, { status: 500 });
-  }
+  });
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
-  try {
-    const { budgetId: budgetIdStr } = await params;
-    const budgetId = parseInt(budgetIdStr, 10);
+  const { budgetId: budgetIdStr } = await params;
+  const budgetId = parseInt(budgetIdStr, 10);
 
-    const access = await requireBudgetAccess(budgetId);
-    if (!access.ok) return access.response;
-
+  return withBudgetAccess(budgetId, async (tenant, repos) => {
     const body = await request.json();
     const validation = validateBody(CreateGoalSchema, body);
     if (!validation.success) return validation.response;
 
-    const goal = await createGoal({ ...validation.data, budgetId });
+    const goal = await repos.createGoal({ ...validation.data, budgetId: tenant.budgetId });
     return NextResponse.json(toGoalDTO(goal), { status: 201 });
-  } catch (error) {
-    console.error('Error creating goal:', error);
-    return NextResponse.json({ error: 'Failed to create goal' }, { status: 500 });
-  }
+  });
 }

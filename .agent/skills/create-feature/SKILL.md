@@ -86,7 +86,7 @@ npm run lint
 ## Key Rules
 
 - **Monetary values** → `Milliunit` branded type (rule `05`)
-- **API routes** → `requireBudgetAccess()` first (rule `12`)
+- **API routes** → `withBudgetAccess()` wrapper (rule `11`, `12`)
 - **Mutations** → optimistic updates with snapshot/rollback (rule `06`)
 - **No inline SQL** in routes → use repo functions
 - **No raw rows** in responses → use DTO mappers

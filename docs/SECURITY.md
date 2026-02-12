@@ -1,25 +1,25 @@
 # Security Vulnerability & Hardening Tracker
 
-> **Last Updated:** 2026-02-10 · **Status:** All Known Vulnerabilities Resolved  
+> **Last Updated:** 2026-02-11 · **Status:** All Known Vulnerabilities Resolved  
 > **Maintained by:** Engineering Team · **Review Cadence:** Monthly
 
 ---
 
 ## Quick Status
 
-| Category                | Status | Details                                            |
-| ----------------------- | ------ | -------------------------------------------------- |
-| npm Dependencies        | ✅     | 0 vulnerabilities / 591 packages                   |
-| Authentication          | ✅     | Bcrypt + account lockout + rate limiting           |
-| Authorization           | ✅     | `requireBudgetAccess` on all budget routes         |
-| SQL Injection           | ✅     | Parameterized queries (Drizzle ORM)                |
-| XSS                     | ✅     | CSP + React auto-escaping                          |
-| CSRF                    | ✅     | Auth.js built-in CSRF tokens                       |
-| Clickjacking            | ✅     | `X-Frame-Options: DENY` + `frame-ancestors 'none'` |
-| Transport Security      | ✅     | HSTS with preload (2 years)                        |
-| Secrets Management      | ✅     | Zod-validated, no hardcoded secrets                |
-| Rate Limiting           | ✅     | 3 tiers: auth, API, import                         |
-| Multi-Tenancy Isolation | ✅     | App-level + RLS safety net                         |
+| Category                | Status | Details                                                        |
+| ----------------------- | ------ | -------------------------------------------------------------- |
+| npm Dependencies        | ✅     | 0 vulnerabilities / 591 packages                               |
+| Authentication          | ✅     | Bcrypt + account lockout + rate limiting                       |
+| Authorization           | ✅     | `withBudgetAccess()` on all budget routes (transaction-scoped) |
+| SQL Injection           | ✅     | Parameterized queries (Drizzle ORM)                            |
+| XSS                     | ✅     | CSP + React auto-escaping                                      |
+| CSRF                    | ✅     | Auth.js built-in CSRF tokens                                   |
+| Clickjacking            | ✅     | `X-Frame-Options: DENY` + `frame-ancestors 'none'`             |
+| Transport Security      | ✅     | HSTS with preload (2 years)                                    |
+| Secrets Management      | ✅     | Zod-validated, no hardcoded secrets                            |
+| Rate Limiting           | ✅     | 3 tiers: auth, API, import                                     |
+| Multi-Tenancy Isolation | ✅     | Transaction-scoped RLS + NULLIF-protected policies             |
 
 ---
 
@@ -154,45 +154,66 @@ Added npm `overrides` in [package.json](file:///Users/camilopiedra/Documents/YNA
 
 ### 3.1 Budget Access Control
 
-- [x] **All 12 budget API routes** use `requireBudgetAccess()` guard
+- [x] **All 14 budget API routes** use `withBudgetAccess()` wrapper
+- [x] **Transaction-per-request** — all DB queries in a request share one connection
 - [x] **Ownership verification** — checks user is owner OR has shared access
 - [x] **Consistent error shape** — returns `apiError('Budget not found or access denied', 403)`
 
-| Route                                                           | Guard Present |
-| --------------------------------------------------------------- | ------------- |
-| `budgets/[budgetId]/budget/route.ts`                            | ✅            |
-| `budgets/[budgetId]/accounts/route.ts`                          | ✅            |
-| `budgets/[budgetId]/accounts/[id]/route.ts`                     | ✅            |
-| `budgets/[budgetId]/accounts/[id]/reconciliation-info/route.ts` | ✅            |
-| `budgets/[budgetId]/categories/route.ts`                        | ✅            |
-| `budgets/[budgetId]/categories/reorder/route.ts`                | ✅            |
-| `budgets/[budgetId]/category-groups/route.ts`                   | ✅            |
-| `budgets/[budgetId]/import/route.ts`                            | ✅            |
-| `budgets/[budgetId]/payees/route.ts`                            | ✅            |
-| `budgets/[budgetId]/shares/route.ts`                            | ✅            |
-| `budgets/[budgetId]/shares/[shareId]/route.ts`                  | ✅            |
-| `budgets/[budgetId]/transactions/route.ts`                      | ✅            |
+| Route                                                           | Guard Present         |
+| --------------------------------------------------------------- | --------------------- |
+| `budgets/route.ts` (GET, POST)                                  | ✅ `withUserContext`  |
+| `budgets/[budgetId]/route.ts` (GET, PATCH, DELETE)              | ✅ `withBudgetAccess` |
+| `budgets/[budgetId]/budget/route.ts`                            | ✅                    |
+| `budgets/[budgetId]/accounts/route.ts`                          | ✅                    |
+| `budgets/[budgetId]/accounts/[id]/route.ts`                     | ✅                    |
+| `budgets/[budgetId]/accounts/[id]/reconciliation-info/route.ts` | ✅                    |
+| `budgets/[budgetId]/categories/route.ts`                        | ✅                    |
+| `budgets/[budgetId]/categories/reorder/route.ts`                | ✅                    |
+| `budgets/[budgetId]/category-groups/route.ts`                   | ✅                    |
+| `budgets/[budgetId]/import/route.ts`                            | ✅                    |
+| `budgets/[budgetId]/payees/route.ts`                            | ✅                    |
+| `budgets/[budgetId]/shares/route.ts`                            | ✅                    |
+| `budgets/[budgetId]/shares/[shareId]/route.ts`                  | ✅                    |
+| `budgets/[budgetId]/transactions/route.ts`                      | ✅                    |
 
 #### Implementation
 
 ```
-requireBudgetAccess(budgetId)
-  ├── requireAuth()          → 401 if no session
-  ├── validate budgetId      → 400 if invalid
-  ├── getBudget(id, userId)  → 403 if no access
-  └── setTenantContext()     → RLS safety net
+withBudgetAccess(budgetId, handler)
+  └─ auth()                           → 401 if no session
+  └─ validate budgetId                → 400 if invalid
+  └─ db.transaction(tx =>
+       ├─ set_config('app.user_id')   → RLS context (transaction-local)
+       ├─ set_config('app.budget_id') → RLS context (transaction-local)
+       ├─ verify ownership/share      → 403 if no access
+       ├─ createDbFunctions(tx)       → transaction-scoped repos
+       └─ handler(tenant, repos, tx)  → business logic
+     )
 ```
 
-**File:** [auth-helpers.ts](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/auth-helpers.ts)
+**File:** [with-budget-access.ts](file:///Users/camilopiedra/Documents/YNAB/ynab-app/lib/with-budget-access.ts)
 
 ### 3.2 Row-Level Security (Defense in Depth)
 
-- [x] **PostgreSQL RLS** — `set_config('app.budget_id', ...)` set on each request
+- [x] **PostgreSQL RLS** — `set_config('app.budget_id', ...)` set inside transactions
+- [x] **NULLIF protection** — all policies handle empty strings from connection pooling
 - [x] **Transaction-scoped** — `set_config(..., ..., true)` resets per-transaction
 - [x] **Graceful degradation** — silently ignored in PGlite (unit tests)
 
+#### RLS Policy Design
+
+All policies use `NULLIF` to prevent empty-string-to-integer cast errors:
+
+```sql
+-- Applied via drizzle/0007_fix_rls_nullif.sql
+CREATE POLICY accounts_budget_isolation ON accounts
+  USING (budget_id = NULLIF(current_setting('app.budget_id', true), '')::int);
+```
+
+**Why NULLIF?** With connection pooling, `current_setting()` may return `''` instead of `NULL` if a previous request set the variable to empty string on the same pooled connection. `''::integer` crashes; `NULLIF('', '')` returns `NULL`, and `budget_id = NULL` evaluates to `FALSE` (safe deny).
+
 > [!IMPORTANT]
-> RLS is a **safety net**, not the primary defense. The `requireBudgetAccess()` check is the enforcement layer. RLS prevents data leaks if a query accidentally omits the budget filter.
+> RLS is a **safety net**, not the primary defense. `withBudgetAccess()` is the enforcement layer — it verifies ownership AND sets RLS context inside a transaction. RLS prevents data leaks if a query accidentally omits the budget filter.
 
 ---
 
@@ -365,14 +386,16 @@ In-memory sliding window counter in [rate-limit.ts](file:///Users/camilopiedra/D
 
 Chronological record of every security decision — accepted risks, rejected fixes, and workarounds.
 
-| Date       | ID        | Decision                                        | Rationale                                                              |
-| ---------- | --------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| 2026-02-10 | VULN-001  | ✅ Fixed: npm override for esbuild              | Flat override forces safe version; no side effects observed            |
-| 2026-02-10 | VULN-001  | ❌ Rejected: wait for drizzle-kit               | `@esbuild-kit/*` is deprecated, unlikely to release fix                |
-| 2026-02-10 | VULN-001  | ❌ Rejected: nested npm override                | npm doesn't enforce scoped overrides on locked transitive deps         |
-| 2026-02-10 | SEC-F-001 | ⏳ Deferred: API rate limiting on budget routes | Auth required; low risk without it. Will revisit on public API release |
-| 2026-02-10 | SEC-F-002 | ⏳ Accepted Risk: CSP unsafe-inline/eval        | Next.js requirement; mitigated by React auto-escaping                  |
-| 2026-02-10 | SEC-F-003 | ⏳ Deferred: Redis rate limit store             | Single-instance deployment for now; `RateLimitStore` interface ready   |
+| Date       | ID        | Decision                                        | Rationale                                                                           |
+| ---------- | --------- | ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 2026-02-10 | VULN-001  | ✅ Fixed: npm override for esbuild              | Flat override forces safe version; no side effects observed                         |
+| 2026-02-10 | VULN-001  | ❌ Rejected: wait for drizzle-kit               | `@esbuild-kit/*` is deprecated, unlikely to release fix                             |
+| 2026-02-10 | VULN-001  | ❌ Rejected: nested npm override                | npm doesn't enforce scoped overrides on locked transitive deps                      |
+| 2026-02-10 | SEC-F-001 | ⏳ Deferred: API rate limiting on budget routes | Auth required; low risk without it. Will revisit on public API release              |
+| 2026-02-10 | SEC-F-002 | ⏳ Accepted Risk: CSP unsafe-inline/eval        | Next.js requirement; mitigated by React auto-escaping                               |
+| 2026-02-10 | SEC-F-003 | ⏳ Deferred: Redis rate limit store             | Single-instance deployment for now; `RateLimitStore` interface ready                |
+| 2026-02-11 | RLS-001   | ✅ Fixed: Transaction-per-request for RLS       | All routes use `withBudgetAccess()` — `set_config` + queries share one connection   |
+| 2026-02-11 | RLS-002   | ✅ Fixed: NULLIF in RLS policies                | `drizzle/0007_fix_rls_nullif.sql` — prevents `''::integer` cast errors from pooling |
 
 ---
 

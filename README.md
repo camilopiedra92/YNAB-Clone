@@ -44,7 +44,7 @@ Optimistic UI updates mean you never wait for a spinner when assigning money or 
 
 ## 🛠 Tech Stack
 
-- **Frontend**: Next.js 15, Tailwind CSS 4, TanStack Virtual
+- **Frontend**: Next.js 16, Tailwind CSS 4, TanStack Virtual
 - **Backend**: Next.js App Router (API Layer)
 - **Database**: PostgreSQL (Drizzle ORM)
 - **State Management**: TanStack Query (React Query)

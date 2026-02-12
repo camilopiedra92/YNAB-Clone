@@ -110,6 +110,7 @@ The project includes specialized workflows for common tasks:
   - `/lib/engine`: Pure financial logic (zero DB dependencies).
   - `/lib/db`: Drizzle schema + SQL helpers.
   - `/lib/dtos`: API contract mappers.
+  - `/lib/with-budget-access.ts`: Transaction-per-request wrapper for all budget API routes.
 - `/drizzle`: Auto-generated Drizzle migrations.
 - `/scripts`: Utility scripts for data migration and debugging.
 - `/docs`: Project documentation.

@@ -72,7 +72,7 @@ bash .agent/skills/code-review/scripts/scan-antipatterns.sh --help
 bash .agent/skills/code-review/scripts/scan-antipatterns.sh
 ```
 
-The script checks for inline financial math, raw `fetch()` in components, missing `requireBudgetAccess()`, `toast()` in hooks, and more.
+The script checks for inline financial math, raw `fetch()` in components, missing `withBudgetAccess()`, `toast()` in hooks, and more.
 
 ## Dimension Details
 
@@ -94,12 +94,12 @@ The script checks for inline financial math, raw `fetch()` in components, missin
 
 ### D3. Security (Rule 12)
 
-- **Every budget-scoped route** calls `requireBudgetAccess(budgetId)`
+- **Every budget-scoped route** uses `withBudgetAccess(budgetId, handler)`
 - **Every non-budget route** calls `requireAuth()`
 - **Input validation:** All write endpoints use `validateBody()` with Zod schemas
 - **No credential leaks:** No passwords, tokens, or internal IDs in responses
-- **`await params`** in Next.js 15 route handlers (not direct access)
-- **RLS session vars** set via `requireBudgetAccess()`
+- **`await params`** in Next.js route handlers (not direct access)
+- **RLS session vars** set via `withBudgetAccess()` (transaction-scoped)
 
 ### D4. Performance
 

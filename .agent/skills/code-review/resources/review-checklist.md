@@ -25,7 +25,7 @@ Copy this checklist into your review report and check off each item.
 
 ## D3. Security
 
-- [ ] Budget-scoped routes call `requireBudgetAccess(budgetId)` first
+- [ ] Budget-scoped routes use `withBudgetAccess(budgetId, handler)` wrapper
 - [ ] Non-budget routes call `requireAuth()` first
 - [ ] Write endpoints validate body with `validateBody()` + Zod schema
 - [ ] Zod schemas use camelCase keys
@@ -74,7 +74,7 @@ Copy this checklist into your review report and check off each item.
 - [ ] Text/numeric inputs use `useDebouncedMutation` (300-500ms)
 - [ ] User-facing strings are in Spanish
 - [ ] File naming follows conventions: `use*.ts`, `*.dto.ts`, `lib/repos/*.ts`
-- [ ] `console.error` with context in catch blocks (never silent catches)
+- [ ] `logger.error()` with context in catch blocks (never `console.error`, never silent catches)
 
 ## D8. UX & Accessibility
 
