@@ -23,8 +23,7 @@
 
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 
--- current_setting with missing_ok=true returns NULL when not set
--- NULL::int comparison returns FALSE, hiding all rows (fail-safe)
+DROP POLICY IF EXISTS accounts_budget_isolation ON accounts;
 CREATE POLICY accounts_budget_isolation ON accounts
   USING (budget_id = current_setting('app.budget_id', true)::int);
 
@@ -32,6 +31,8 @@ CREATE POLICY accounts_budget_isolation ON accounts
 
 ALTER TABLE category_groups ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS category_groups_budget_isolation ON category_groups
+  USING (budget_id = current_setting('app.budget_id', true)::int);
 CREATE POLICY category_groups_budget_isolation ON category_groups
   USING (budget_id = current_setting('app.budget_id', true)::int);
 
@@ -39,7 +40,7 @@ CREATE POLICY category_groups_budget_isolation ON category_groups
 
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 
--- Budget access is checked via user_id; we use app.user_id for this
+DROP POLICY IF EXISTS budgets_user_isolation ON budgets;
 CREATE POLICY budgets_user_isolation ON budgets
   USING (
     user_id::text = current_setting('app.user_id', true)

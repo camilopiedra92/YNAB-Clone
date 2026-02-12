@@ -1,7 +1,14 @@
--- Add columns as NULLABLE first
-ALTER TABLE "budget_months" ADD COLUMN "budget_id" integer;
-ALTER TABLE "categories" ADD COLUMN "budget_id" integer;
-ALTER TABLE "transactions" ADD COLUMN "budget_id" integer;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'budget_months' AND column_name = 'budget_id') THEN
+        ALTER TABLE "budget_months" ADD COLUMN "budget_id" integer;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'categories' AND column_name = 'budget_id') THEN
+        ALTER TABLE "categories" ADD COLUMN "budget_id" integer;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'budget_id') THEN
+        ALTER TABLE "transactions" ADD COLUMN "budget_id" integer;
+    END IF;
+END $$;
 
 -- Backfill data
 -- 1. Categories (from Category Groups)
