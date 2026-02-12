@@ -30,6 +30,7 @@ ENV AUTH_TRUST_HOST=$AUTH_TRUST_HOST
 
 # Build the Next.js standalone output
 # Call next build directly — with-local-tmp.sh is dev-only
+RUN npm run build:scripts
 RUN npx next build
 
 # ── Stage 3: Production Runner ────────────────────────────────
@@ -55,14 +56,18 @@ COPY --from=builder /app/public ./public
 # Copy Drizzle migrations (needed at runtime for db:migrate)
 COPY --from=builder /app/drizzle ./drizzle
 
+# Copy compiled scripts (needed for db:migrate:prod)
+COPY --from=builder /app/scripts/dist ./scripts/dist
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
+
+# Ensure entrypoint is executable
+RUN chmod +x ./scripts/docker-entrypoint.sh
+
 # Switch to non-root user
 USER nextjs
 
 # Expose the application port
 EXPOSE 3000
 
-
-
-
-# Start the standalone Next.js server
-CMD ["node", "server.js"]
+# Start via fail-safe entrypoint
+CMD ["./scripts/docker-entrypoint.sh"]

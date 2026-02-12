@@ -74,3 +74,41 @@ Si quieres activar la seguridad RLS real en producción:
 4.  Redespliega.
 
 Ahora, si ejecutas el script de verificación, verás `✅ User is restricted (RLS will be enforced)`.
+
+## Verificación Manual de Emergencia (Imágenes Docker Mínimas)
+
+Si la imagen Docker de producción es mínima (como Alpine) y carece de `node`, `npm` o `tsx`, el script automatizado fallará con `sh: ./scripts/...: not found`.
+
+**Usa este método manual en su lugar:**
+
+1.  **Accede al Contenedor de la Base de Datos:**
+
+    ```bash
+    # Encuentra el ID del contenedor postgres
+    docker ps | grep postgres
+
+    # Entra al contenedor
+    docker exec -it <id_contenedor_postgres> psql -U ynab_app -d ynab_prod
+    ```
+
+2.  **Verifica Políticas RLS:**
+
+    ```sql
+    -- Debería retornar 't' (true) para todas
+    SELECT relname, relrowsecurity
+    FROM pg_class
+    WHERE relname IN ('accounts', 'budgets', 'transactions');
+    ```
+
+3.  **Verifica Esquema (ej: columna budget_id):**
+
+    ```sql
+    \d transactions
+    -- Busca: "budget_id | integer | not null"
+    ```
+
+4.  **Verifica Salud de la Aplicación:**
+    ```bash
+    docker logs --tail 20 <id_contenedor_app>
+    -- Busca "Ready" y ausencia de errores SQL
+    ```
