@@ -15,6 +15,8 @@
     "test:e2e": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/@playwright/test/cli.js test",
     "db:generate": "./scripts/with-local-tmp.sh drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/migrate-db.ts",
+    "db:migrate:prod": "node scripts/dist/migrate-db.js",
+    "build:scripts": "esbuild scripts/migrate-db.ts scripts/verify-deployment.ts --bundle --platform=node --target=node22 --outdir=scripts/dist",
     "db:import": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/import-ynab-data.ts",
     "db:studio": "./scripts/with-local-tmp.sh drizzle-kit studio --config=drizzle.config.ts",
     "db:verify": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/verify-db.ts",
@@ -68,6 +70,7 @@
     "@types/swagger-ui-dist": "^3.30.6",
     "@vitest/coverage-v8": "^4.0.18",
     "drizzle-kit": "^0.31.8",
+    "esbuild": "^0.25.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
@@ -76,6 +79,5 @@
     "vitest": "^4.0.18"
   },
   "overrides": {
-    "esbuild": ">=0.25.0"
   }
 }
