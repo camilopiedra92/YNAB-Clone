@@ -53,6 +53,7 @@ export default function Sidebar() {
     const [isBudgetSelectorOpen, setIsBudgetSelectorOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isImportOpen, setIsImportOpen] = useState(false);
+    const [isCreatingAccount, setIsCreatingAccount] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     const userName = session?.user?.name ?? 'Usuario';
@@ -385,6 +386,8 @@ export default function Sidebar() {
                         onMouseUp={(e) => {
                             e.currentTarget.style.boxShadow = '4px 4px 10px 0 rgba(0,0,0,0.3), -4px -4px 10px 0 rgba(255,255,255,0.04)';
                         }}
+                        onClick={() => budgetId && setIsCreatingAccount(true)}
+                        disabled={!budgetId}
                     >
                         <PlusCircle className="w-4 h-4 text-primary-300/80" />
                         <span>Add Account</span>
@@ -431,7 +434,16 @@ export default function Sidebar() {
             {editingAccount && (
                 <AccountEditModal
                     account={editingAccount}
+                    budgetId={editingAccount.budgetId}
                     onClose={() => setEditingAccount(null)}
+                />
+            )}
+
+            {/* Account Create Modal */}
+            {isCreatingAccount && budgetId && (
+                <AccountEditModal
+                    budgetId={budgetId}
+                    onClose={() => setIsCreatingAccount(false)}
                 />
             )}
 

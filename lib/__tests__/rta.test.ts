@@ -22,7 +22,7 @@ describe('Ready to Assign (RTA)', () => {
         const month = currentMonth();
 
         // Add income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
         await fns.updateAccountBalances(budgetId, accountId);
 
         const rta = await fns.getReadyToAssign(budgetId, month);
@@ -34,11 +34,11 @@ describe('Ready to Assign (RTA)', () => {
         const month = currentMonth();
 
         // Add income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
         await fns.updateAccountBalances(budgetId, accountId);
 
         // Seed enough categories to make the month "complete" (>= 10 entries)
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Now assign budget
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -54,10 +54,10 @@ describe('Ready to Assign (RTA)', () => {
         const next = nextMonth(month);
 
         // Add income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -78,12 +78,12 @@ describe('Ready to Assign (RTA)', () => {
         const month = currentMonth();
 
         // Cash income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
         // Create CC account with positive balance (cashback reward)
         const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
         const ccId = ccResult.id;
-        await fns.createTransaction({ accountId: ccId, date: today(), inflow: 100 }); // Cashback
+        await fns.createTransaction(budgetId, { accountId: ccId, date: today(), inflow: 100 }); // Cashback
 
         const rta = await fns.getReadyToAssign(budgetId, month);
         expect(rta).toBe(5100); // 5000 cash + 100 positive CC
@@ -95,10 +95,10 @@ describe('Ready to Assign (RTA)', () => {
         const next = nextMonth(month);
 
         // Add income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
         // Seed complete month for current
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
@@ -107,6 +107,7 @@ describe('Ready to Assign (RTA)', () => {
         const ghostCatResult = await fns.createCategory({ name: 'Ghost', category_group_id: groupId });
         const ghostCatId = ghostCatResult.id;
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: ghostCatId,
             month: next,
             assigned: ZERO,
@@ -128,10 +129,10 @@ describe('Ready to Assign (RTA)', () => {
         const next = nextMonth(month);
 
         // Add income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
         // Seed complete month for current (12 filler categories)
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign to BOTH categories in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
@@ -147,7 +148,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], next, mu(100));
 
         // Seed complete month for next too (ensures >=10 entries)
-        await seedCompleteMonth(fns, db, next, groupId);
+        await seedCompleteMonth(fns, db, next, groupId, budgetId);
 
         // Current month RTA should STILL be 0 — categoryIds[1]'s available=3000
         // must be included via carryforward even though it has no row in next month
@@ -163,8 +164,8 @@ describe('Ready to Assign (RTA)', () => {
         const investResult = await fns.createAccount({ name: 'Investment', type: 'investment', budgetId });
         const investId = investResult.id;
 
-        await fns.createTransaction({ accountId: checkId, date: today(), inflow: 3000 });
-        await fns.createTransaction({ accountId: investId, date: today(), inflow: 50000 });
+        await fns.createTransaction(budgetId, { accountId: checkId, date: today(), inflow: 3000 });
+        await fns.createTransaction(budgetId, { accountId: investId, date: today(), inflow: 50000 });
 
         const rta = await fns.getReadyToAssign(budgetId, currentMonth());
         // Investment is NOT 'credit' type but it's also not excluded by current query...
@@ -179,8 +180,8 @@ describe('Ready to Assign (RTA)', () => {
         const result = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
         const accountId = result.id;
 
-        await fns.createTransaction({ accountId, date: today(), inflow: 3000 });
-        await fns.createTransaction({ accountId, date: '2099-12-31', inflow: 10000 }); // Future
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 3000 });
+        await fns.createTransaction(budgetId, { accountId, date: '2099-12-31', inflow: 10000 }); // Future
 
         const rta = await fns.getReadyToAssign(budgetId, currentMonth());
         expect(rta).toBe(3000); // Future transaction excluded
@@ -204,7 +205,7 @@ describe('RTA Breakdown', () => {
         const incomeCatId = incomeCatResult.id;
 
         // Add income transaction
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             categoryId: incomeCatId,
@@ -212,7 +213,7 @@ describe('RTA Breakdown', () => {
         });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign budget
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -239,9 +240,9 @@ describe('RTA Breakdown', () => {
         const incomeCatResult = await fns.createCategory({ name: 'Salary', category_group_id: incomeGroupId });
         const incomeCatId = incomeCatResult.id;
 
-        await fns.createTransaction({ accountId, date: today(), categoryId: incomeCatId, inflow: 3000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), categoryId: incomeCatId, inflow: 3000 });
 
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
 
         const breakdown = await fns.getReadyToAssignBreakdown(budgetId, month);

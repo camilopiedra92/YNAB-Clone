@@ -112,9 +112,9 @@ export function createAccountFunctions(database: DrizzleDB) {
   async function getReconciliationInfo(budgetId: number, accountId: number): Promise<ReconciliationInfo> {
     const rows = await queryRows<ReconciliationInfo>(database, sql`
       SELECT 
-        COALESCE(SUM(CASE WHEN ${transactions.cleared} IN ('Cleared', 'Reconciled') THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "clearedBalance",
-        COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Reconciled' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "reconciledBalance",
-        COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Cleared' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "pendingClearedBalance",
+        CAST(COALESCE(SUM(CASE WHEN ${transactions.cleared} IN ('Cleared', 'Reconciled') THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) AS INTEGER) as "clearedBalance",
+        CAST(COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Reconciled' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) AS INTEGER) as "reconciledBalance",
+        CAST(COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Cleared' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) AS INTEGER) as "pendingClearedBalance",
         COUNT(CASE WHEN ${transactions.cleared} = 'Cleared' THEN 1 END) as "pendingClearedCount"
       FROM ${transactions}
       WHERE ${transactions.accountId} = ${accountId} 

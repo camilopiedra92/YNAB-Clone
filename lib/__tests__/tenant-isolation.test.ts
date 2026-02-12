@@ -116,9 +116,9 @@ describe('Tenant Isolation — Transaction Queries', () => {
         const acctA = await fns.createAccount({ name: 'A Acct', type: 'checking', budgetId: budgetA });
         const acctB = await fns.createAccount({ name: 'B Acct', type: 'checking', budgetId: budgetB });
 
-        await fns.createTransaction({ accountId: acctA.id, date: today(), payee: 'Store A', outflow: 1000 });
-        await fns.createTransaction({ accountId: acctA.id, date: today(), payee: 'Store A2', outflow: 2000 });
-        await fns.createTransaction({ accountId: acctB.id, date: today(), payee: 'Store B', outflow: 500 });
+        await fns.createTransaction(budgetA, { accountId: acctA.id, date: today(), payee: 'Store A', outflow: 1000 });
+        await fns.createTransaction(budgetA, { accountId: acctA.id, date: today(), payee: 'Store A2', outflow: 2000 });
+        await fns.createTransaction(budgetB, { accountId: acctB.id, date: today(), payee: 'Store B', outflow: 500 });
 
         const txA = await fns.getTransactions({ budgetId: budgetA });
         const txB = await fns.getTransactions({ budgetId: budgetB });
@@ -132,7 +132,7 @@ describe('Tenant Isolation — Transaction Queries', () => {
 
     it('getTransaction with wrong budgetId returns undefined', async () => {
         const acctA = await fns.createAccount({ name: 'A', type: 'checking', budgetId: budgetA });
-        const tx = await fns.createTransaction({ accountId: acctA.id, date: today(), outflow: 100 });
+        const tx = await fns.createTransaction(budgetA, { accountId: acctA.id, date: today(), outflow: 100 });
 
         const wrongBudget = await fns.getTransaction(budgetB, tx.id);
         expect(wrongBudget).toBeUndefined();
@@ -147,8 +147,8 @@ describe('Tenant Isolation — Payee Queries', () => {
         const acctA = await fns.createAccount({ name: 'A', type: 'checking', budgetId: budgetA });
         const acctB = await fns.createAccount({ name: 'B', type: 'checking', budgetId: budgetB });
 
-        await fns.createTransaction({ accountId: acctA.id, date: today(), payee: 'PayeeA', outflow: 100 });
-        await fns.createTransaction({ accountId: acctB.id, date: today(), payee: 'PayeeB', outflow: 100 });
+        await fns.createTransaction(budgetA, { accountId: acctA.id, date: today(), payee: 'PayeeA', outflow: 100 });
+        await fns.createTransaction(budgetB, { accountId: acctB.id, date: today(), payee: 'PayeeB', outflow: 100 });
 
         const payeesA = await fns.getPayees(budgetA);
         const payeesB = await fns.getPayees(budgetB);
@@ -166,7 +166,7 @@ describe('Tenant Isolation — Budget Queries', () => {
         const { groupId: gA, categoryIds: catsA } = await seedBasicBudget(fns, {
             budgetId: budgetA, db, categoryCount: 3,
         });
-        await seedCompleteMonth(fns, db, month, gA);
+        await seedCompleteMonth(fns, db, month, gA, budgetA);
         await fns.updateBudgetAssignment(budgetA, catsA[0], month, mu(1000));
 
         // Seed budget B with categories + assignments
@@ -202,18 +202,18 @@ describe('Tenant Isolation — Budget Queries', () => {
         const { accountId: acctA, groupId: gA, categoryIds: catsA } = await seedBasicBudget(fns, {
             budgetId: budgetA, db, categoryCount: 2,
         });
-        await fns.createTransaction({ accountId: acctA, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetA, { accountId: acctA, date: today(), inflow: 5000 });
         await fns.updateAccountBalances(budgetA, acctA);
-        await seedCompleteMonth(fns, db, month, gA);
+        await seedCompleteMonth(fns, db, month, gA, budgetA);
         await fns.updateBudgetAssignment(budgetA, catsA[0], month, mu(1000));
 
         // Budget B: $10000 income, $3000 assigned
         const { accountId: acctB, groupId: gB, categoryIds: catsB } = await seedBasicBudget(fns, {
             budgetId: budgetB, db, categoryCount: 2, accountName: 'B Checking',
         });
-        await fns.createTransaction({ accountId: acctB, date: today(), inflow: 10000 });
+        await fns.createTransaction(budgetB, { accountId: acctB, date: today(), inflow: 10000 });
         await fns.updateAccountBalances(budgetB, acctB);
-        await seedCompleteMonth(fns, db, month, gB);
+        await seedCompleteMonth(fns, db, month, gB, budgetB);
         await fns.updateBudgetAssignment(budgetB, catsB[0], month, mu(3000));
 
         const rtaA = await fns.getReadyToAssign(budgetA, month);
@@ -228,8 +228,8 @@ describe('Tenant Isolation — Budget Queries', () => {
         const acctA = await fns.createAccount({ name: 'A', type: 'checking', budgetId: budgetA });
         const acctB = await fns.createAccount({ name: 'B', type: 'checking', budgetId: budgetB });
 
-        await fns.createTransaction({ accountId: acctA.id, date: today(), inflow: 5000 });
-        await fns.createTransaction({ accountId: acctB.id, date: today(), inflow: 10000 });
+        await fns.createTransaction(budgetA, { accountId: acctA.id, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetB, { accountId: acctB.id, date: today(), inflow: 10000 });
 
         await fns.updateAccountBalances(budgetA, acctA.id);
         await fns.updateAccountBalances(budgetB, acctB.id);

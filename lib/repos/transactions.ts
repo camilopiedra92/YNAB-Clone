@@ -145,7 +145,7 @@ export function createTransactionFunctions(
     return rows[0];
   }
 
-  async function createTransaction(transaction: {
+  async function createTransaction(budgetId: number, transaction: {
     accountId: number;
     date: string;
     payee?: string;
@@ -158,6 +158,7 @@ export function createTransactionFunctions(
   }) {
     const rows = await database.insert(transactions)
       .values({
+        budgetId,
         accountId: transaction.accountId,
         date: transaction.date,
         payee: transaction.payee || null,
@@ -223,6 +224,7 @@ export function createTransactionFunctions(
 
   async function getTransferByTransactionId(budgetId: number, transactionId: number): Promise<InferSelectModel<typeof transfers> | undefined> {
     const rows = await database.select({
+      budgetId: transfers.budgetId,
       id: transfers.id,
       fromTransactionId: transfers.fromTransactionId,
       toTransactionId: transfers.toTransactionId,
@@ -266,6 +268,7 @@ export function createTransactionFunctions(
       // Create outflow transaction on source account
       const fromResults = await tx.insert(transactions)
         .values({
+          budgetId,
           accountId: params.fromAccountId,
           date: params.date,
           payee: `Transfer : ${toAccount.name}`,
@@ -281,6 +284,7 @@ export function createTransactionFunctions(
       // Create inflow transaction on destination account
       const toResults = await tx.insert(transactions)
         .values({
+          budgetId,
           accountId: params.toAccountId,
           date: params.date,
           payee: `Transfer : ${fromAccount.name}`,
@@ -296,6 +300,7 @@ export function createTransactionFunctions(
       // Link them in transfers table
       const transferResults = await tx.insert(transfers)
         .values({
+          budgetId,
           fromTransactionId: fromResults[0].id,
           toTransactionId: toResults[0].id,
         })
@@ -367,7 +372,7 @@ export function createTransactionFunctions(
     flag?: string;
   }) {
     // Sequential execution — no transaction wrapper to avoid PGlite deadlock
-    const result = await createTransaction({
+    const result = await createTransaction(budgetId, {
       accountId: data.accountId,
       date: data.date,
       payee: data.payee,

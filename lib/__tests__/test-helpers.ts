@@ -22,11 +22,12 @@ export { ZERO, type Milliunit };
 /** Shape of a raw budget_months row from DB in tests */
 export interface RawBudgetMonthRow {
     id: number;
+    budget_id: number;
     category_id: number;
     month: string;
-    assigned: number;
-    activity: number;
-    available: number;
+    assigned: string; // BIGINT returns as string from PGlite
+    activity: string;
+    available: string;
 }
 
 export async function createTestDb() {
@@ -53,6 +54,14 @@ export async function createTestDb() {
             locked_until TIMESTAMP,
             created_at TIMESTAMP DEFAULT now()
         )
+    `);
+
+    // RLS bypass function for PGlite tests (production uses a SECURITY DEFINER function)
+    await drizzleDb.execute(sql`
+        CREATE FUNCTION get_user_by_email_privileged(p_email TEXT)
+        RETURNS SETOF users
+        LANGUAGE SQL STABLE
+        AS $$ SELECT * FROM users WHERE email = p_email; $$
     `);
 
     await drizzleDb.execute(sql`
@@ -87,9 +96,9 @@ export async function createTestDb() {
             budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             type account_type NOT NULL,
-            balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
-            cleared_balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
-            uncleared_balance DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            balance BIGINT DEFAULT 0 NOT NULL,
+            cleared_balance BIGINT DEFAULT 0 NOT NULL,
+            uncleared_balance BIGINT DEFAULT 0 NOT NULL,
             note TEXT DEFAULT '',
             closed BOOLEAN DEFAULT false NOT NULL,
             created_at TEXT DEFAULT now()
@@ -116,6 +125,7 @@ export async function createTestDb() {
     await drizzleDb.execute(sql`
         CREATE TABLE IF NOT EXISTS categories (
             id SERIAL PRIMARY KEY,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             category_group_id INTEGER NOT NULL REFERENCES category_groups(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             sort_order INTEGER DEFAULT 0 NOT NULL,
@@ -127,19 +137,23 @@ export async function createTestDb() {
     await drizzleDb.execute(sql`
         CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
             date DATE NOT NULL,
             payee TEXT,
             category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
             memo TEXT,
-            outflow DOUBLE PRECISION DEFAULT 0 NOT NULL,
-            inflow DOUBLE PRECISION DEFAULT 0 NOT NULL,
+            outflow BIGINT DEFAULT 0 NOT NULL,
+            inflow BIGINT DEFAULT 0 NOT NULL,
             cleared cleared_status DEFAULT 'Uncleared' NOT NULL,
             flag TEXT,
             created_at TEXT DEFAULT now()
         )
     `);
 
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_transactions_budget ON transactions(budget_id)
+    `);
     await drizzleDb.execute(sql`
         CREATE INDEX idx_transactions_account ON transactions(account_id)
     `);
@@ -154,18 +168,29 @@ export async function createTestDb() {
         CREATE TABLE IF NOT EXISTS transfers (
             id SERIAL PRIMARY KEY,
             from_transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
-            to_transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE
+            to_transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE
         )
+    `);
+    await drizzleDb.execute(sql`
+        CREATE UNIQUE INDEX transfers_from_tx_unique ON transfers(from_transaction_id)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE UNIQUE INDEX transfers_to_tx_unique ON transfers(to_transaction_id)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_transfers_budget ON transfers(budget_id)
     `);
 
     await drizzleDb.execute(sql`
         CREATE TABLE IF NOT EXISTS budget_months (
             id SERIAL PRIMARY KEY,
+            budget_id INTEGER NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
             category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
             month TEXT NOT NULL,
-            assigned DOUBLE PRECISION DEFAULT 0 NOT NULL,
-            activity DOUBLE PRECISION DEFAULT 0 NOT NULL,
-            available DOUBLE PRECISION DEFAULT 0 NOT NULL
+            assigned BIGINT DEFAULT 0 NOT NULL,
+            activity BIGINT DEFAULT 0 NOT NULL,
+            available BIGINT DEFAULT 0 NOT NULL
         )
     `);
     await drizzleDb.execute(sql`
@@ -176,6 +201,9 @@ export async function createTestDb() {
     `);
     await drizzleDb.execute(sql`
         CREATE INDEX idx_budget_months_month ON budget_months(month)
+    `);
+    await drizzleDb.execute(sql`
+        CREATE INDEX idx_budget_months_budget ON budget_months(budget_id)
     `);
 
     const fns = createDbFunctions(drizzleDb);
@@ -287,6 +315,7 @@ export async function seedCompleteMonth(
     db: DrizzleDB,
     month: string,
     groupId: number,
+    budgetId: number,
     options?: { categoryCount?: number }
 ) {
     const count = options?.categoryCount ?? 12;
@@ -303,6 +332,7 @@ export async function seedCompleteMonth(
         // Insert a budget_months row with assigned=0, activity=0, available=0
         // just to make the month "complete" for RTA calculation
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: catId,
             month,
             assigned: ZERO,

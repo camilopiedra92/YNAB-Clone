@@ -168,8 +168,9 @@ export default function TransactionModal(props: UseTransactionFormProps) {
 
                     {/* Amount */}
                     <div>
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Monto total</label>
+                        <label htmlFor="amount-input" className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Monto total</label>
                         <CurrencyInput
+                            id="amount-input"
                             value={amount}
                             onChange={setAmount}
                         />
@@ -177,8 +178,9 @@ export default function TransactionModal(props: UseTransactionFormProps) {
 
                     {/* Memo */}
                     <div className="md:col-span-2">
-                        <label className="text-meta mb-3 block opacity-60">Descripción o notas</label>
+                        <label htmlFor="memo-input" className="text-meta mb-3 block opacity-60">Descripción o notas</label>
                         <textarea
+                            id="memo-input"
                             data-testid="transaction-memo"
                             value={formData.memo}
                             onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
