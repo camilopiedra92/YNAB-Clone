@@ -11,6 +11,7 @@ interface CurrencyInputProps {
     className?: string;
     disabled?: boolean;
     allowNegative?: boolean;
+    id?: string;
 }
 
 export default function CurrencyInput({
@@ -20,6 +21,7 @@ export default function CurrencyInput({
     className = '',
     disabled = false,
     allowNegative = false,
+    id,
 }: CurrencyInputProps) {
     const [displayValue, setDisplayValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
@@ -64,6 +66,7 @@ export default function CurrencyInput({
 
     return (
         <input
+            id={id}
             type="text"
             data-testid="currency-input"
             value={displayValue}

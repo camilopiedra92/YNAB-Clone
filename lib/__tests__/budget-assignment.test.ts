@@ -192,7 +192,7 @@ describe('Budget Activity', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Spend against the category
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -219,7 +219,7 @@ describe('Budget Activity', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         // Refund
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             categoryId: categoryIds[0],

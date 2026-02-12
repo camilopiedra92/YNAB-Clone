@@ -24,7 +24,7 @@ describe('Overspending Detection', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
 
         // Spend $100 from checking (cash account) — $50 overspent
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -52,7 +52,7 @@ describe('Overspending Detection', () => {
         await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(50));
 
         // Spend $100 on CC — $50 credit overspending
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId,
@@ -83,7 +83,7 @@ describe('Overspending Detection', () => {
         await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(50));
 
         // Spend $30 from checking (cash)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: checkingId,
             date: today(),
             categoryId,
@@ -91,7 +91,7 @@ describe('Overspending Detection', () => {
         });
 
         // Spend $70 from CC (credit)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId,
@@ -115,7 +115,7 @@ describe('Overspending Detection', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         // Spend only $50 (well under budget)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             categoryId: categoryIds[0],
@@ -146,7 +146,7 @@ describe('Overspending Detection', () => {
         await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(50));
 
         // Spend $40 from checking
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: checkingId,
             date: today(),
             categoryId,
@@ -154,7 +154,7 @@ describe('Overspending Detection', () => {
         });
 
         // Spend $40 from CC
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccAccountId,
             date: today(),
             categoryId,
@@ -180,6 +180,7 @@ describe('Overspending Detection', () => {
 
         // Create negative CC Payment available (underfunded debt)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: ccCategory.id,
             month,
             assigned: ZERO,

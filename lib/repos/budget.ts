@@ -327,6 +327,7 @@ export function createBudgetFunctions(
       } else {
         await tx.insert(budgetMonths)
           .values({
+            budgetId,
             categoryId,
             month,
             assigned,
@@ -388,7 +389,7 @@ export function createBudgetFunctions(
         .where(and(eq(budgetMonths.categoryId, categoryId), eq(budgetMonths.month, month)));
     } else {
       return database.insert(budgetMonths)
-        .values({ categoryId, month, assigned: ZERO, activity, available });
+        .values({ budgetId, categoryId, month, assigned: ZERO, activity, available });
     }
   }
 
@@ -442,6 +443,7 @@ export function createBudgetFunctions(
         .where(eq(categoryGroups.budgetId, budgetId));
 
     const updates: { 
+        budgetId: number;
         categoryId: number; 
         month: string; 
         assigned: Milliunit; 
@@ -465,6 +467,7 @@ export function createBudgetFunctions(
             if (existing) deletes.push(existing.id);
         } else {
             updates.push({
+                budgetId,
                 categoryId: cat.id,
                 month,
                 assigned,
@@ -484,7 +487,8 @@ export function createBudgetFunctions(
              for (let i = 0; i < updates.length; i += 1000) {
                 const chunk = updates.slice(i, i + 1000);
                 await tx.insert(budgetMonths)
-                    .values(chunk)
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    .values(chunk as any)
                     .onConflictDoUpdate({
                         target: [budgetMonths.categoryId, budgetMonths.month],
                         set: {
@@ -657,6 +661,7 @@ export function createBudgetFunctions(
     } else if (ccResult.activity !== 0) {
       await database.insert(budgetMonths)
         .values({
+          budgetId,
           categoryId: ccCategory.id,
           month,
           assigned: ZERO,

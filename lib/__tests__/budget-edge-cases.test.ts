@@ -39,6 +39,7 @@ describe('getBudgetForMonth — edge cases', () => {
 
         // Insert a budget_months row with 0 available (activity but no budget)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: ZERO,
@@ -111,7 +112,7 @@ describe('updateBudgetAssignment — ghost entry cleanup', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // 2. Add transaction → creates activity
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -175,6 +176,7 @@ describe('updateBudgetAssignment — ghost entry cleanup', () => {
         // Create a budget_months row where the DB 'activity' column is non-zero
         // but the engine's computed activity is 0:
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: mu(100),
@@ -231,6 +233,7 @@ describe('updateBudgetAssignment — zero available edge cases', () => {
 
         // Insert a row with available=0 explicitly
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: ZERO,
@@ -259,6 +262,7 @@ describe('updateBudgetAssignment — zero available edge cases', () => {
 
         // Insert a row with available=0 and assigned=50 (e.g., activity consumed it)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: mu(50),
@@ -330,7 +334,7 @@ describe('updateCreditCardPaymentBudget — missing budget for spending category
 
         // Spend on CC in a category that has NO budget_months row
         // (no assignment, no activity update yet → catBudget is null on line 420)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -366,6 +370,7 @@ describe('getOverspendingTypes — null classification edge case', () => {
 
         // Set category to exactly 0 (not overspent)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: ZERO,
@@ -389,14 +394,14 @@ describe('getOverspendingTypes — null classification edge case', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
 
         // Spend on both cash AND CC in the same category
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Cash Store',
             categoryId: categoryIds[0],
             outflow: mu(30),
         });
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'CC Store',
@@ -419,7 +424,7 @@ describe('getReadyToAssign — per-month RTA', () => {
         const { accountId } = await seedBasicBudget(fns, { db });
 
         // Add income transaction
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             inflow: 5000,
@@ -437,14 +442,14 @@ describe('getReadyToAssign — per-month RTA', () => {
         const month = currentMonth();
 
         // Add income
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             inflow: 5000,
         });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
@@ -460,14 +465,14 @@ describe('getReadyToAssign — per-month RTA', () => {
         const farFuture = nextMonth(future);
 
         // Add income
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             inflow: 10000,
         });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -494,7 +499,7 @@ describe('deleteTransfer — balance updates', () => {
         const { accountId } = await seedBasicBudget(fns, { db });
 
         // Add initial funds
-        await fns.createTransaction({ accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
         await fns.updateAccountBalances(budgetId, accountId);
 
         const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
@@ -561,21 +566,21 @@ describe('getReadyToAssign — positive CC balances', () => {
         const ccId = ccResult.id;
 
         // Add income to cash account
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             inflow: 5000,
         });
 
         // Add cashback to CC (inflow > outflow → positive balance)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             inflow: 100,
         });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         const rta = await fns.getReadyToAssign(budgetId, month);
         // Should include the 100 positive CC balance
@@ -596,14 +601,14 @@ describe('getReadyToAssign — overspending correction', () => {
         const ccId = ccResult.id;
 
         // Income
-        await fns.createTransaction({ accountId, date: today(), inflow: 5000 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign 100 but spend 200 on CC → credit overspending of 100
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(100));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',

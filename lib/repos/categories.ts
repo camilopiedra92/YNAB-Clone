@@ -112,6 +112,16 @@ export function createCategoryFunctions(database: DrizzleDB) {
   }
 
   async function createCategory(category: { name: string; category_group_id: number; linked_account_id?: number }) {
+    // Get budgetId from the group to ensure consistency
+    const groupRows = await database.select({ budgetId: categoryGroups.budgetId })
+        .from(categoryGroups)
+        .where(eq(categoryGroups.id, category.category_group_id));
+    
+    if (!groupRows[0]) {
+        throw new Error(`Category group ${category.category_group_id} not found`);
+    }
+    const budgetId = groupRows[0].budgetId;
+
     const result = await database.select({ maxOrder: max(categories.sortOrder) })
       .from(categories)
       .where(eq(categories.categoryGroupId, category.category_group_id));
@@ -119,6 +129,7 @@ export function createCategoryFunctions(database: DrizzleDB) {
 
     const rows = await database.insert(categories)
       .values({
+        budgetId,
         name: category.name,
         categoryGroupId: category.category_group_id,
         sortOrder: newOrder,

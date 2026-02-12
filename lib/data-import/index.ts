@@ -252,6 +252,7 @@ export async function importDataFromCSV(
 
       const catResult = await targetDb.insert(categories)
         .values({
+          budgetId,
           categoryGroupId: groupId,
           name: categoryName,
           sortOrder: categorySortOrder++,
@@ -301,6 +302,7 @@ export async function importDataFromCSV(
 
       const result = await targetDb.insert(transactions)
         .values({
+          budgetId,
           accountId,
           date,
           payee,
@@ -377,6 +379,7 @@ export async function importDataFromCSV(
       // preventing both same-column AND cross-column duplicate transfer links.
       await targetDb.insert(transfers)
         .values({
+          budgetId,
           fromTransactionId: t1.id,
           toTransactionId: match.id,
         })
@@ -427,6 +430,7 @@ export async function importDataFromCSV(
 
       await targetDb.insert(budgetMonths)
         .values({
+          budgetId,
           categoryId,
           month: monthStr,
           assigned: toMilliunits(assigned),

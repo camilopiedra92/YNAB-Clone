@@ -123,7 +123,7 @@ describe('Transactions', () => {
     });
 
     it('creates and retrieves a transaction', async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -140,7 +140,7 @@ describe('Transactions', () => {
     });
 
     it('updates transaction fields', async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -156,7 +156,7 @@ describe('Transactions', () => {
     });
 
     it('deletes a transaction', async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -173,8 +173,8 @@ describe('Transactions', () => {
         const acc2Result = await fns.createAccount({ name: 'Savings', type: 'savings', budgetId });
         const acc2Id = acc2Result.id;
 
-        await fns.createTransaction({ accountId, date: today(), payee: 'A', outflow: 10 });
-        await fns.createTransaction({ accountId: acc2Id, date: today(), payee: 'B', outflow: 20 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'A', outflow: 10 });
+        await fns.createTransaction(budgetId, { accountId: acc2Id, date: today(), payee: 'B', outflow: 20 });
 
         const txs = await fns.getTransactions({ budgetId,  accountId });
         expect(txs).toHaveLength(1);
@@ -182,7 +182,7 @@ describe('Transactions', () => {
     });
 
     it('toggles transaction cleared status', async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -201,7 +201,7 @@ describe('Transactions', () => {
     });
 
     it('does not toggle reconciled transactions', async () => {
-        const result = await fns.createTransaction({
+        const result = await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -295,9 +295,9 @@ describe('Account Balances', () => {
         const result = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
         const accountId = result.id;
 
-        await fns.createTransaction({ accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
-        await fns.createTransaction({ accountId, date: today(), outflow: 300, cleared: 'Cleared' });
-        await fns.createTransaction({ accountId, date: today(), outflow: 200, cleared: 'Uncleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), outflow: 300, cleared: 'Cleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), outflow: 200, cleared: 'Uncleared' });
 
         await fns.updateAccountBalances(budgetId, accountId);
 
@@ -311,8 +311,8 @@ describe('Account Balances', () => {
         const result = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
         const accountId = result.id;
 
-        await fns.createTransaction({ accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
-        await fns.createTransaction({ accountId, date: today(), outflow: 200, cleared: 'Uncleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 1000, cleared: 'Cleared' });
+        await fns.createTransaction(budgetId, { accountId, date: today(), outflow: 200, cleared: 'Uncleared' });
 
         await fns.reconcileAccount(budgetId, accountId);
 
@@ -330,9 +330,9 @@ describe('Payees', () => {
         const result = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
         const accountId = result.id;
 
-        await fns.createTransaction({ accountId, date: today(), payee: 'Store A', outflow: 10 });
-        await fns.createTransaction({ accountId, date: today(), payee: 'Store B', outflow: 20 });
-        await fns.createTransaction({ accountId, date: today(), payee: 'Store A', outflow: 30 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'Store A', outflow: 10 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'Store B', outflow: 20 });
+        await fns.createTransaction(budgetId, { accountId, date: today(), payee: 'Store A', outflow: 30 });
 
         const payees = await fns.getPayees(budgetId);
         expect(payees).toHaveLength(2);
