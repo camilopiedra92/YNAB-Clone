@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# check-worktree-health.sh — Pre-flight check for Git commits
+#
+# Detects common noise files (untracked) and provides a summary for the agent.
+
+set -euo pipefail
+
+# Common junk patterns to flag
+JUNK_PATTERNS=("tsx-" ".DS_Store" "node_modules" "npm-debug.log" ".tmp/" "backup_")
+
+echo "🔍 Checking Worktree Health..."
+
+# 0. Repo Root Check
+if [ ! -d .git ]; then
+  echo "❌ Error: .git directory not found in current directory."
+  echo "You are likely in the workspace root instead of the project root."
+  echo "💡 Suggested Action: Run this command with 'Cwd: /Users/camilopiedra/Documents/YNAB/ynab-app'"
+  exit 1
+fi
+
+# 1. Detect Untracked Junk
+UNTRACKED=$(git ls-files --others --exclude-standard)
+JUNK_FOUND=()
+
+if [ -n "$UNTRACKED" ]; then
+  for pattern in "${JUNK_PATTERNS[@]}"; do
+    if echo "$UNTRACKED" | grep -q "$pattern"; then
+      JUNK_FOUND+=("$pattern")
+    fi
+  done
+fi
+
+if [ ${#JUNK_FOUND[@]} -gt 0 ]; then
+  echo "⚠️  Flagged untracked files found:"
+  for junk in "${JUNK_FOUND[@]}"; do
+    echo "   • Matches pattern: $junk"
+  done
+  echo ""
+  echo "💡 Advice: Consider updating .gitignore or staging these if they are relevant."
+else
+  echo "✅ No major worktree noise detected."
+fi
+
+# 2. Diff Summary for Scope Inference
+echo ""
+echo "📝 Staged Changes Summary:"
+if git diff --cached --quiet; then
+  echo "   (Nothing staged for commit)"
+else
+  git diff --cached --stat | sed 's/^/   /'
+fi
+
+echo ""
+echo "📝 Unstaged Changes (Potential misses):"
+if git diff --quiet; then
+  echo "   (No unstaged changes)"
+else
+  git diff --stat | sed 's/^/   /'
+fi
+
+# 3. Final Verdict for Agent
+echo ""
+echo "⚖️ Final Verdict:"
+IS_CLEAN=true
+if [ -n "$(git status --porcelain)" ]; then
+  echo "   ❌ Worktree is DIRTY (has changes)."
+  IS_CLEAN=false
+else
+  echo "   ✅ Worktree is CLEAN."
+fi
+
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+if [ -n "$UPSTREAM" ]; then
+  UNPUSHED=$(git log "$UPSTREAM"..HEAD --oneline)
+  if [ -n "$UNPUSHED" ]; then
+    echo "   ❌ There are UNPUSHED commits."
+    IS_CLEAN=false
+  else
+    echo "   ✅ Everything is PUSHED to $UPSTREAM."
+  fi
+else
+  echo "   ⚠️  No upstream configured."
+fi
+
+if [ "$IS_CLEAN" = true ]; then
+  echo "🛑 [STOP] Nothing to commit or push. Inform the user and end the turn."
+else
+  echo "🚀 [PROCEED] Staged/changes or unpushed commits detected."
+fi
+
+echo ""
+echo "🚀 Next Step: Choose your type(scope) based on the stats above."
