@@ -3,10 +3,9 @@ set -e
 
 echo "🚀 Starting YNAB App (Production Mode)..."
 
-# 1. Wait for DB (optional, but good practice if using wait-for-it, skipping for now as Cloud providers usually handle this)
-
-# 2. Run Migrations (Critical Step)
+# 1. Run Migrations (Critical Step)
 echo "📦 Running database migrations..."
+# The migration script includes a retry mechanism for DB connection
 if npm run db:migrate:prod; then
     echo "✅ Migrations applied successfully."
 else
