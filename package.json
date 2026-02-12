@@ -23,6 +23,7 @@
     "db:debug-import": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/debug-import.ts",
     "db:debug-rta": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/debug-rta.ts",
     "health:check": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/health-check.ts",
+    "check:deploy": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/verify-deployment.ts",
     "db:audit": "./scripts/with-local-tmp.sh node --env-file=.env --import tsx/esm scripts/db-audit.ts",
     "git:sync": "bash scripts/sync.sh",
     "git:prune": "bash scripts/prune-branches.sh",
