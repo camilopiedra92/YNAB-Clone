@@ -1,5 +1,11 @@
-CREATE TYPE "public"."account_type" AS ENUM('checking', 'savings', 'credit', 'cash', 'investment', 'tracking');--> statement-breakpoint
-CREATE TYPE "public"."cleared_status" AS ENUM('Cleared', 'Uncleared', 'Reconciled');--> statement-breakpoint
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'account_type') THEN
+        CREATE TYPE "public"."account_type" AS ENUM('checking', 'savings', 'credit', 'cash', 'investment', 'tracking');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'cleared_status') THEN
+        CREATE TYPE "public"."cleared_status" AS ENUM('Cleared', 'Uncleared', 'Reconciled');
+    END IF;
+END $$;--> statement-breakpoint
 CREATE TABLE "accounts" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
