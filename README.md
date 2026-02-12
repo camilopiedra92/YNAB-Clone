@@ -51,7 +51,11 @@ Optimistic UI updates mean you never wait for a spinner when assigning money or 
 
 ## 🤝 Contributing
 
-This project is a personal exploration of complex financial logic and modern web patterns. For setup and development details, please refer to the [Developer Guide](./docs/developer-guide.md).
+This project enforces a strict architectural and commit protocol.
+
+👉 **READ [CONTRIBUTING.md](./CONTRIBUTING.md) BEFORE WRITING ANY CODE.**
+
+For setup and development details, please refer to the [Developer Guide](./docs/developer-guide.md).
 
 ---
 
