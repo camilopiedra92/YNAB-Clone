@@ -65,11 +65,14 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
 -- Create Policies (O(1) Check)
 -- using NULLIF to handle connection pooling edge cases
+DROP POLICY IF EXISTS categories_budget_isolation ON categories;
 CREATE POLICY categories_budget_isolation ON categories
   USING (budget_id = NULLIF(current_setting('app.budget_id', true), '')::int);
 
+DROP POLICY IF EXISTS budget_months_budget_isolation ON budget_months;
 CREATE POLICY budget_months_budget_isolation ON budget_months
   USING (budget_id = NULLIF(current_setting('app.budget_id', true), '')::int);
 
+DROP POLICY IF EXISTS transactions_budget_isolation ON transactions;
 CREATE POLICY transactions_budget_isolation ON transactions
   USING (budget_id = NULLIF(current_setting('app.budget_id', true), '')::int);
