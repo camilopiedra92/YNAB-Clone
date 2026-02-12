@@ -81,7 +81,7 @@ If the description has commas or "and" connecting 3+ items, it's too long. Pick 
 
 ### 0. Branch Awareness (Critical)
 
-`sync.sh` **blocks** direct pushes to `main`. If the user is on `main`, you MUST first switch to a feature branch (from `staging`) or to `staging` directly before committing. Direct pushes to `staging` are allowed for trivial changes (the user is a bypass actor on the GATE ruleset).
+`sync.sh` and local `pre-push` hooks **HARD BLOCK** direct pushes to `main`. If you are on `main`, you MUST switch to a feature branch (from `staging`) or to `staging` directly before committing. Direct pushes to `staging` are allowed for trivial changes.
 
 ### 1. The "Success" State
 

@@ -76,6 +76,6 @@ gh pr checks
 gh pr merge --merge
 ```
 
-> **Merge strategy:** Always use `--merge` (merge commit) for staging → main. Using `--squash` causes staging to permanently show as "ahead" of main.
+> **Merge strategy:** Always use `--merge` (merge commit) for staging → main. This causes `staging` to appear "behind" `main` by 1 commit (the merge commit). This is normal. To sync, run `git checkout staging && git merge main && git push origin staging`.
 
 The `ci-passed` required check gates all PRs. It depends on `quality-gate`, `unit-tests`, and `e2e-tests` (E2E only runs on PRs to main).
