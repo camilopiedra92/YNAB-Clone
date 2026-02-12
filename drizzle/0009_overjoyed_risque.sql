@@ -1,8 +1,8 @@
--- 1. Add budget_id to transfers (Schema cleanup)
--- Drizzle generated: ALTER TABLE "transfers" ADD COLUMN "budget_id" integer NOT NULL;
--- We do this in steps to allow data backfill.
-
-ALTER TABLE "transfers" ADD COLUMN "budget_id" integer;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transfers' AND column_name = 'budget_id') THEN
+        ALTER TABLE "transfers" ADD COLUMN "budget_id" integer;
+    END IF;
+END $$;
 
 -- 2. Backfill budget_id from transactions
 -- A transfer links two transactions (from_transaction_id, to_transaction_id).
@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS "idx_transfers_budget" ON "transfers" USING btree ("b
 -- 5. Enable RLS on Transfers
 ALTER TABLE "transfers" ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS transfers_budget_isolation ON transfers;
 CREATE POLICY transfers_budget_isolation ON transfers
   USING (budget_id = NULLIF(current_setting('app.budget_id', true), '')::int);
 
@@ -37,6 +38,7 @@ ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;
 -- Policy: Users can only see their own record.
 -- NOTE: This effectively blocks 'SELECT * FROM users'.
 -- For Login and Sharing, we use the privileged function defined below.
+DROP POLICY IF EXISTS users_self_isolation ON users;
 CREATE POLICY users_self_isolation ON users
   USING (id = NULLIF(current_setting('app.user_id', true), '')::uuid);
 
@@ -44,6 +46,7 @@ CREATE POLICY users_self_isolation ON users
 ALTER TABLE "budget_shares" ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can see shares where they are the target user OR the share belongs to the current budget scope.
+DROP POLICY IF EXISTS budget_shares_authed_access ON budget_shares;
 CREATE POLICY budget_shares_authed_access ON budget_shares
   USING (
     user_id = NULLIF(current_setting('app.user_id', true), '')::uuid
