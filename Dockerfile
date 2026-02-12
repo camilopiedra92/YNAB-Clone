@@ -19,14 +19,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build-time environment variables (non-secret placeholders)
-# Next.js validates env at build time — real values injected at runtime
-ARG DATABASE_URL=postgresql://build:build@localhost:5432/build
-ARG AUTH_SECRET=build-time-placeholder-secret-at-least-32-characters
-ARG AUTH_TRUST_HOST=true
-ENV DATABASE_URL=$DATABASE_URL
-ENV AUTH_SECRET=$AUTH_SECRET
-ENV AUTH_TRUST_HOST=$AUTH_TRUST_HOST
+# Build-time environment variables (Dummy placeholders for validation)
+# We use standard ENV instead of ARG to prevent inheriting real secrets from build-args.
+# Next.js validates these at build time, but we don't need real values here.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV AUTH_SECRET="build-time-placeholder-secret-at-least-32-characters"
+ENV AUTH_TRUST_HOST="true"
+ENV AUTH_URL="http://localhost:3000"
 
 # Build the Next.js standalone output
 # Call next build directly — with-local-tmp.sh is dev-only
