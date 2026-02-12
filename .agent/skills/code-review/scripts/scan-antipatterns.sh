@@ -109,14 +109,14 @@ check "P0" "Inline financial math outside lib/engine/" \
   "(route\.ts|hooks/|components/)" \
   "lib/engine/"
 
-# 2. Missing requireBudgetAccess in budget routes
-# Custom check: find budget routes that export handlers but DON'T call requireBudgetAccess
+# 2. Missing withBudgetAccess in budget routes
+# Custom check: find budget routes that export handlers but DON'T call withBudgetAccess
 {
   _missing=""
   while IFS= read -r f; do
     [ -f "$f" ] || continue
     if grep -qE 'export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)' "$f" && \
-       ! grep -q 'requireBudgetAccess' "$f"; then
+       ! grep -q 'withBudgetAccess' "$f"; then
       _missing="${_missing}${f}\n"
     fi
   done <<< "$(echo "$FILES" | grep -E 'budgets/\[budgetId\].*route\.ts')"
@@ -124,7 +124,7 @@ check "P0" "Inline financial math outside lib/engine/" \
     FINDINGS=$((FINDINGS + 1))
     P0_COUNT=$((P0_COUNT + 1))
     echo ""
-    echo "🔴 [P0] Budget route missing requireBudgetAccess()"
+    echo "🔴 [P0] Budget route missing withBudgetAccess()"
     printf "%b" "$_missing" | sed '/^$/d' | sed 's/^/   /'
   fi
 }

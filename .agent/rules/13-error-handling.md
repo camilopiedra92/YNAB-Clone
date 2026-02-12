@@ -8,27 +8,47 @@ This file defines **MANDATORY** patterns for handling errors across the stack.
 
 ## 1. API Routes (Server)
 
-Every API route handler MUST use the try/catch pattern:
+Routes using `withBudgetAccess()` get automatic error handling for auth/access failures. For non-budget routes or additional error handling within the handler callback, use try/catch with `logger.error()`:
 
 ```typescript
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  try {
-    // ... auth, validation, business logic ...
+import { withBudgetAccess } from "@/lib/with-budget-access";
+import { logger } from "@/lib/logger";
+import { apiError } from "@/lib/api-error";
+
+// Budget-scoped: withBudgetAccess handles auth/access errors
+export async function POST(request: Request, { params }: RouteContext) {
+  const { budgetId: budgetIdStr } = await params;
+  return withBudgetAccess(parseInt(budgetIdStr, 10), async (tenant, repos) => {
+    // business logic — errors propagate and transaction rolls back
     return NextResponse.json(data, { status: 201 });
+  });
+}
+
+// Non-budget route: wrap in try/catch manually
+export async function GET() {
+  const authResult = await requireAuth();
+  if (!authResult.ok) return authResult.response;
+  try {
+    const data = await withUserContext(authResult.userId, (repos) =>
+      repos.getData(),
+    );
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error creating X:", error);
-    return NextResponse.json({ error: "Failed to create X" }, { status: 500 });
+    logger.error("Error fetching X:", error);
+    return apiError("Failed to fetch X", 500);
   }
 }
 ```
 
 ### Rules
 
-- ✅ **Always catch at the handler level** — never let unhandled errors crash the route
-- ✅ **Always `console.error` with context** — include which operation failed (e.g., "Error creating transaction:")
-- ✅ **Always return a structured error** — `{ error: 'human message' }` with appropriate HTTP status
+- ✅ **Use `withBudgetAccess()`** for budget routes — handles auth, access, and transaction errors
+- ✅ **Use `logger.error()` with context** — NOT `console.error` (structured JSON in production)
+- ✅ **Use `apiError()`** for error responses — consistent `{ error: 'message' }` shape
+- ✅ **Always return a structured error** — `apiError('human message', status)`
 - ❌ **Never swallow errors silently** — always log before returning 500
 - ❌ **Never expose stack traces to the client** — the `error` message should be generic
+- ❌ **Never use `console.error`** — use `logger.error()` from `lib/logger.ts`
 
 ## 2. Zod Validation Errors (400)
 
@@ -124,15 +144,16 @@ These errors propagate through the repo layer to the API route's catch block.
 
 ## 6. Logging Convention
 
-| Layer      | Method                                    | When              |
-| ---------- | ----------------------------------------- | ----------------- |
-| API routes | `console.error('Error [action]:', error)` | Catch blocks      |
-| Scripts    | `console.error('Step failed:', error)`    | Catch blocks      |
-| Engine     | `throw new Error(...)`                    | Invalid input     |
-| Client     | Handled by `MutationCache`                | Mutation failures |
+| Layer      | Method                                   | When              |
+| ---------- | ---------------------------------------- | ----------------- |
+| API routes | `logger.error('Error [action]:', error)` | Catch blocks      |
+| Scripts    | `logger.error('Step failed:', error)`    | Catch blocks      |
+| Repos      | Let errors propagate                     | (don't catch)     |
+| Engine     | `throw new Error(...)`                   | Invalid input     |
+| Client     | Handled by `MutationCache`               | Mutation failures |
 
 ### Rules
 
-- **No custom logger** — use `console.error` for now (structured logging is a future improvement)
+- **Use `logger` from `lib/logger.ts`** — outputs structured JSON in production, human-readable in dev
 - **Always include context** — "Error creating transaction:" not just "Error:"
 - **Never log sensitive data** — passwords, tokens, full user objects

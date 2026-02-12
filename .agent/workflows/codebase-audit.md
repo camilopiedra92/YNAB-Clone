@@ -43,7 +43,7 @@ bash .agent/skills/code-review/scripts/scan-antipatterns.sh
 
 ### 3.3 API Routes (`app/api/`)
 
-- [ ] `requireBudgetAccess`/`requireAuth` first, `validateBody()` + Zod on writes, `await params`
+- [ ] `withBudgetAccess()`/`requireAuth` first, `validateBody()` + Zod on writes, `await params`
 - [ ] `apiError()` helper, DTO transforms (no raw rows), correct HTTP status codes, no inline DB
 
 ### 3.4 Schemas & DTOs (`lib/schemas/`, `lib/dtos/`)
