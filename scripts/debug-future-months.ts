@@ -2,7 +2,6 @@
  * Debug: Future Month Inspector & Summary Calculations
  */
 import db from '../lib/db/client';
-import { sql } from 'drizzle-orm';
 import { createDbFunctions } from '../lib/repos';
 import { fromMilliunits, type Milliunit } from '../lib/engine/primitives';
 

@@ -94,7 +94,10 @@ bash .agent/skills/code-review/scripts/scan-antipatterns.sh
 ## Phase 5 — Dependencies
 
 ```bash
-npm audit --audit-level=moderate && npm outdated && npx -y depcheck --ignores="@types/*,eslint-*,prettier,typescript,postcss,autoprefixer,tailwindcss" && npx -y license-checker --summary
+./scripts/with-local-tmp.sh npm audit --audit-level=moderate
+./scripts/with-local-tmp.sh npm outdated
+./scripts/with-local-tmp.sh npx -y depcheck --ignores="@types/*,eslint-*,prettier,typescript,postcss,autoprefixer,tailwindcss"
+./scripts/with-local-tmp.sh npx -y license-checker --summary
 ```
 
 - [ ] No high vulnerabilities, no unused/phantom deps, permissive licenses only (MIT/BSD/Apache/ISC)
@@ -133,7 +136,7 @@ du -sh .next/static 2>/dev/null || du -sh .next-test/static
 
 ```bash
 find . -name '*.ts' -o -name '*.tsx' | grep -v node_modules | grep -v .next | grep -v .test. | xargs wc -l | sort -rn | head -30
-npx -y madge --circular --extensions ts,tsx lib/ hooks/ components/ app/ 2>/dev/null
+./scripts/with-local-tmp.sh npx -y madge --circular --extensions ts,tsx lib/ hooks/ components/ app/ 2>/dev/null
 ```
 
 - [ ] No file >500 lines, no function >50 lines, no >4 nesting levels, no >5 params (use object)

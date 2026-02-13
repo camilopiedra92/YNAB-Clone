@@ -3,10 +3,12 @@
  */
 import { NextResponse } from 'next/server';
 import { getOpenAPIDocument } from '@/lib/openapi/generator';
+import { apiError } from '@/lib/api-error';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 404 });
+    return apiError('Not available in production', 404);
   }
 
   try {
@@ -18,10 +20,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Error generating OpenAPI spec:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate OpenAPI spec' },
-      { status: 500 }
-    );
+    logger.error('Failed to generate OpenAPI spec', error);
+    return apiError('Failed to generate OpenAPI spec', 500);
   }
 }
