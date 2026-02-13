@@ -7,7 +7,7 @@
  */
 import { eq, sql, ne, and, isNotNull } from 'drizzle-orm';
 import { accounts, transactions } from '../db/schema';
-import { currentDate } from '../db/sql-helpers';
+import { notFutureDate } from '../db/sql-helpers';
 import { milliunit, ZERO } from '../engine/primitives';
 import type { DrizzleDB } from '../db/helpers';
 import { queryRows } from '../db/helpers';
@@ -95,7 +95,7 @@ export function createAccountFunctions(database: DrizzleDB) {
       FROM ${transactions}
       WHERE ${transactions.accountId} = ${accountId} 
         AND ${transactions.accountId} IN (SELECT ${accounts.id} FROM ${accounts} WHERE ${accounts.budgetId} = ${budgetId})
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
     `);
     const result = rows[0];
     if (!result) throw new Error(`Balance query returned no rows for account ${accountId}`);
@@ -119,7 +119,7 @@ export function createAccountFunctions(database: DrizzleDB) {
       FROM ${transactions}
       WHERE ${transactions.accountId} = ${accountId} 
         AND ${transactions.accountId} IN (SELECT ${accounts.id} FROM ${accounts} WHERE ${accounts.budgetId} = ${budgetId})
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
     `);
     // Aggregate query with COALESCE always returns exactly 1 row
     return rows[0];
@@ -133,7 +133,7 @@ export function createAccountFunctions(database: DrizzleDB) {
         eq(transactions.accountId, accountId),
         eq(accounts.budgetId, budgetId),
         eq(transactions.cleared, 'Cleared'),
-        sql`${transactions.date} <= ${currentDate()}`,
+        sql`${notFutureDate(transactions.date)}`,
         eq(transactions.accountId, accounts.id) // Join condition
       ));
     return { rowCount: result.length ?? 0 };

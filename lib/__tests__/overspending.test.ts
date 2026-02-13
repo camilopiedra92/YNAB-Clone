@@ -191,4 +191,95 @@ describe('Overspending Detection', () => {
         const types = await fns.getOverspendingTypes(budgetId, month);
         expect(types[ccCategory.id]).toBe('credit');
     });
+
+    it('getCashOverspendingForMonth excludes future-dated cash transactions (MEMORY §4D)', async () => {
+        // Reproduces the exact +340K RTA bug:
+        // - CC outflow overspends a category
+        // - Future-dated cash outflow on the same category
+        // - Without the fix, the future cash txn inflates cashOverspending
+        const checkResult = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
+        const checkingId = checkResult.id;
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccAccountId = ccResult.id;
+
+        const groupResult = await fns.createCategoryGroup('Spending', budgetId);
+        const catResult = await fns.createCategory({ name: 'Salario', category_group_id: groupResult.id });
+        const categoryId = catResult.id;
+
+        const month = currentMonth();
+
+        // Budget $100
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(100));
+
+        // CC outflow of $500 today — $400 credit overspending
+        await fns.createTransaction(budgetId, {
+            accountId: ccAccountId,
+            date: today(),
+            categoryId,
+            outflow: mu(500),
+        });
+
+        // Future-dated cash outflow of $200 (next week)
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 7);
+        const futureDateStr = futureDate.toISOString().slice(0, 10);
+
+        await fns.createTransaction(budgetId, {
+            accountId: checkingId,
+            date: futureDateStr,
+            categoryId,
+            outflow: mu(200),
+        });
+
+        await fns.updateBudgetActivity(budgetId, categoryId, month);
+
+        // Cash overspending should be 0 — the only cash transaction is future-dated
+        const cashOverspending = await fns.getCashOverspendingForMonth(budgetId, month);
+        expect(cashOverspending).toBe(0);
+    });
+
+    it('getOverspendingTypes classifies as credit when cash spending is only future-dated', async () => {
+        const checkResult = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
+        const checkingId = checkResult.id;
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccAccountId = ccResult.id;
+
+        const groupResult = await fns.createCategoryGroup('Spending', budgetId);
+        const catResult = await fns.createCategory({ name: 'Groceries', category_group_id: groupResult.id });
+        const categoryId = catResult.id;
+
+        const month = currentMonth();
+
+        // Budget $50
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(50));
+
+        // CC outflow of $200 today — $150 credit overspending
+        await fns.createTransaction(budgetId, {
+            accountId: ccAccountId,
+            date: today(),
+            categoryId,
+            outflow: mu(200),
+        });
+
+        // Future-dated cash outflow — should NOT change classification
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 5);
+        const futureDateStr = futureDate.toISOString().slice(0, 10);
+
+        await fns.createTransaction(budgetId, {
+            accountId: checkingId,
+            date: futureDateStr,
+            categoryId,
+            outflow: mu(100),
+        });
+
+        await fns.updateBudgetActivity(budgetId, categoryId, month);
+
+        // Should be 'credit' (not 'cash') — future cash txn excluded
+        const types = await fns.getOverspendingTypes(budgetId, month);
+        expect(types[categoryId]).toBe('credit');
+    });
 });
+

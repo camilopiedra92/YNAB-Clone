@@ -124,13 +124,19 @@ leftOver = RTA(M) − inflowThisMonth − positiveCCBalances + assignedThisMonth
 
 **Future transactions (date > today) are EXCLUDED from ALL calculations.** YNAB only budgets money you have _right now_.
 
-**Functions in `lib/repos/*.ts` that MUST use `AND date <= date('now')`:**
+**Functions in `lib/repos/*.ts` that MUST use `notFutureDate(transactions.date)` from `lib/db/sql-helpers.ts`:**
 
 1. `getReadyToAssign()` — cash + CC balance queries (budget repo)
 2. `updateBudgetActivity()` — category activity (budget repo)
 3. `updateCreditCardPaymentBudget()` — CC spending for funded amount (budget repo)
 4. `updateAccountBalances()` — account balances (accounts repo)
 5. `getReconciliationInfo()` — cleared balance (accounts repo)
+6. `getCashOverspendingForMonth()` — cash overspending for RTA correction (budget repo)
+7. `getOverspendingTypes()` — overspending classification for UI colors (budget repo)
+
+**Helper:** `notFutureDate(column)` in `lib/db/sql-helpers.ts` encapsulates `column <= CURRENT_DATE`. All financial queries MUST use this helper instead of inline `date <= currentDate()`.
+
+**CI Guard:** `npm run check:future-filter` scans all `SUM()` queries on `transactions` for `notFutureDate`. Fails the build if missing.
 
 Engine functions (`lib/engine/`) are pure math — future-date filter is enforced at the query layer.
 

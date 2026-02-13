@@ -186,6 +186,65 @@ describe('Ready to Assign (RTA)', () => {
         const rta = await fns.getReadyToAssign(budgetId, currentMonth());
         expect(rta).toBe(3000); // Future transaction excluded
     });
+
+    it('future-dated cash txn does not leak into RTA via overspending (MEMORY §4D)', async () => {
+        // Reproduces the exact +340K RTA bug from production:
+        // 1. CC overspending on a category (should be fully credit overspending)
+        // 2. Future-dated cash outflow on the same category
+        // 3. Without the fix: future cash inflates cashOverspending, deflates
+        //    creditOverspending correction, leaking money into RTA
+        const checkResult = await fns.createAccount({ name: 'Checking', type: 'checking', budgetId });
+        const checkingId = checkResult.id;
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccAccountId = ccResult.id;
+
+        const groupResult = await fns.createCategoryGroup('Spending', budgetId);
+        const groupId = groupResult.id;
+        const catResult = await fns.createCategory({ name: 'Salario', category_group_id: groupId });
+        const categoryId = catResult.id;
+
+        const month = currentMonth();
+
+        // Add $1000 income on checking
+        await fns.createTransaction(budgetId, { accountId: checkingId, date: today(), inflow: mu(1000) });
+
+        // Seed complete month (>=10 entries)
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
+        // Assign $100 to the category
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(100));
+
+        // CC outflow of $500 today — creates credit overspending
+        await fns.createTransaction(budgetId, {
+            accountId: ccAccountId,
+            date: today(),
+            categoryId,
+            outflow: mu(500),
+        });
+
+        await fns.updateBudgetActivity(budgetId, categoryId, month);
+        await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
+
+        // Capture RTA BEFORE adding future-dated cash transaction
+        const rtaBefore = await fns.getReadyToAssign(budgetId, month);
+
+        // Now add a future-dated cash outflow on the same category
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 7);
+        const futureDateStr = futureDate.toISOString().slice(0, 10);
+
+        await fns.createTransaction(budgetId, {
+            accountId: checkingId,
+            date: futureDateStr,
+            categoryId,
+            outflow: mu(300),
+        });
+
+        // RTA should be IDENTICAL — the future cash txn must not affect it
+        const rtaAfter = await fns.getReadyToAssign(budgetId, month);
+        expect(rtaAfter).toBe(rtaBefore);
+    });
 });
 
 describe('RTA Breakdown', () => {

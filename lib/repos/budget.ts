@@ -10,7 +10,7 @@
  */
 import { eq, and, sql, lt, gt, max, inArray, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, categoryGroups, budgetMonths, transactions } from '../db/schema';
-import { currentDate, yearMonth } from '../db/sql-helpers';
+import { yearMonth, notFutureDate } from '../db/sql-helpers';
 import type { DrizzleDB } from '../db/helpers';
 import { queryRows } from '../db/helpers';
 import * as Sentry from '@sentry/nextjs';
@@ -160,7 +160,7 @@ export function createBudgetFunctions(
       SELECT COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0) as "total"
       FROM ${transactions}
       JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-      WHERE ${accounts.type} != 'credit' AND ${transactions.date} <= ${currentDate()} AND ${accounts.budgetId} = ${budgetId}
+      WHERE ${accounts.type} != 'credit' AND ${notFutureDate(transactions.date)} AND ${accounts.budgetId} = ${budgetId}
     `);
 
     // 2. Positive CC balances
@@ -170,7 +170,7 @@ export function createBudgetFunctions(
         SELECT GREATEST(0, COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0)) as "positiveBalance"
         FROM ${transactions}
         JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-        WHERE ${accounts.type} = 'credit' AND ${transactions.date} <= ${currentDate()} AND ${accounts.budgetId} = ${budgetId}
+        WHERE ${accounts.type} = 'credit' AND ${notFutureDate(transactions.date)} AND ${accounts.budgetId} = ${budgetId}
         GROUP BY ${accounts.id}
       ) sub
     `);
@@ -254,7 +254,7 @@ export function createBudgetFunctions(
       WHERE ${categoryGroups.isIncome} = true
         AND ${accounts.type} != 'credit'
         AND ${yearMonth(transactions.date)} = ${month}
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
         AND ${categoryGroups.budgetId} = ${budgetId}
     `);
 
@@ -265,7 +265,7 @@ export function createBudgetFunctions(
         SELECT GREATEST(0, COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0)) as "positiveBalance"
         FROM ${transactions}
         JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-        WHERE ${accounts.type} = 'credit' AND ${transactions.date} <= ${currentDate()} AND ${accounts.budgetId} = ${budgetId}
+        WHERE ${accounts.type} = 'credit' AND ${notFutureDate(transactions.date)} AND ${accounts.budgetId} = ${budgetId}
         GROUP BY ${accounts.id}
       ) sub
     `);
@@ -398,7 +398,7 @@ export function createBudgetFunctions(
       JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.categoryId} = ${categoryId} 
         AND ${yearMonth(transactions.date)} = ${month} 
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
         AND ${accounts.budgetId} = ${budgetId}
     `);
 
@@ -436,7 +436,7 @@ export function createBudgetFunctions(
       JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.categoryId} IS NOT NULL
         AND ${yearMonth(transactions.date)} = ${month}
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
         AND ${accounts.budgetId} = ${budgetId}
       GROUP BY ${transactions.categoryId}
     `);
@@ -624,7 +624,7 @@ export function createBudgetFunctions(
       JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.accountId} = ${accountId}
         AND ${yearMonth(transactions.date)} = ${month}
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
         AND ${transactions.categoryId} IS NOT NULL
         AND ${transactions.categoryId} != ${ccCategory.id}
         AND ${accounts.budgetId} = ${budgetId}
@@ -653,7 +653,7 @@ export function createBudgetFunctions(
       JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.accountId} = ${accountId}
         AND ${yearMonth(transactions.date)} = ${month}
-        AND ${transactions.date} <= ${currentDate()}
+        AND ${notFutureDate(transactions.date)}
         AND ${transactions.categoryId} IS NULL
         AND ${transactions.inflow} > 0
         AND ${accounts.budgetId} = ${budgetId}
@@ -736,6 +736,7 @@ export function createBudgetFunctions(
           AND ${yearMonth(transactions.date)} = ${month} 
           AND ${accounts.type} != 'credit'
           AND ${accounts.budgetId} = ${budgetId}
+          AND ${notFutureDate(transactions.date)}
       `);
 
       inputs.push({
@@ -782,6 +783,7 @@ export function createBudgetFunctions(
             AND ${yearMonth(transactions.date)} = ${month} 
             AND ${accounts.type} != 'credit'
             AND ${accounts.budgetId} = ${budgetId}
+            AND ${notFutureDate(transactions.date)}
         `);
         const raw = m(cashActivityRows[0]!.total);
         cashSpending = maxMilliunits(ZERO, raw);
@@ -844,7 +846,7 @@ export function createBudgetFunctions(
         JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
         WHERE ${categoryGroups.isIncome} = true
           AND ${accounts.type} != 'credit'
-          AND ${transactions.date} <= ${currentDate()}
+          AND ${notFutureDate(transactions.date)}
           AND ${yearMonth(transactions.date)} >= ${twelveMonthsAgo} AND ${yearMonth(transactions.date)} < ${month}
           AND ${accounts.budgetId} = ${budgetId}
         GROUP BY ${yearMonth(transactions.date)}
