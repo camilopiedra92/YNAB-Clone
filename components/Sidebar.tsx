@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
@@ -25,7 +25,9 @@ import { useBudgets, useBudget } from '@/hooks/useBudgets';
 import AccountEditModal from './AccountEditModal';
 import ImportModal from './ImportModal';
 import ProfileModal from './ProfileModal';
+import FeedbackButton from './FeedbackButton';
 import { formatCurrency } from '@/lib/format';
+import { setBudgetContext } from '@/lib/sentry-utils';
 
 
 
@@ -64,6 +66,17 @@ export default function Sidebar() {
         'Credit': true,
         'Closed': false
     });
+
+    // ── Sentry Budget Context ────────────────────────────
+    // Tag all Sentry events with the active budget ID for filtering
+    useEffect(() => {
+        if (budgetId && activeBudget) {
+            setBudgetContext({
+                budgetId,
+                budgetName: activeBudget.name,
+            });
+        }
+    }, [budgetId, activeBudget]);
 
     const groupedAccounts = useMemo(() => accounts.reduce((acc, account) => {
         if (account.closed) {
@@ -408,6 +421,7 @@ export default function Sidebar() {
                             <span className="text-[12px] font-medium text-white/50 truncate max-w-[100px]">{userName}</span>
                         </div>
                         <div className="flex items-center gap-0.5">
+                            <FeedbackButton />
                             <button
                                 className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
                                 title="Settings"

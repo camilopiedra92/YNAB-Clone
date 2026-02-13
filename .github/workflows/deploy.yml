@@ -215,3 +215,20 @@ jobs:
           npx @sentry/cli releases finalize "${{ github.sha }}"
           npx @sentry/cli releases deploys "${{ github.sha }}" new -e production
         continue-on-error: true # Don't fail deploy if Sentry is unreachable
+
+      - name: Verify Sentry source maps
+        if: steps.verify.outputs.healthy == 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: "camilo-piedrahita"
+          SENTRY_PROJECT: "ynab-app"
+        run: |
+          echo "Verifying source maps for release ${{ github.sha }}..."
+          npx @sentry/cli releases files "${{ github.sha }}" list 2>&1 | head -20
+          FILE_COUNT=$(npx @sentry/cli releases files "${{ github.sha }}" list 2>&1 | wc -l)
+          if [ "$FILE_COUNT" -lt 5 ]; then
+            echo "⚠️ Warning: Only $FILE_COUNT source map files found — expected more"
+          else
+            echo "✅ $FILE_COUNT source map files verified"
+          fi
+        continue-on-error: true
