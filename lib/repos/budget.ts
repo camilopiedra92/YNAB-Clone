@@ -13,6 +13,7 @@ import { accounts, categories, categoryGroups, budgetMonths, transactions } from
 import { currentDate, yearMonth } from '../db/sql-helpers';
 import type { DrizzleDB } from '../db/helpers';
 import { queryRows } from '../db/helpers';
+import * as Sentry from '@sentry/nextjs';
 import {
   computeCarryforward as engineCarryforward,
   calculateRTA,
@@ -83,6 +84,7 @@ export function createBudgetFunctions(
   }
 
   async function getBudgetForMonth(budgetId: number, month: string) {
+    return Sentry.startSpan({ op: 'db.query', name: 'getBudgetForMonth', attributes: { budgetId, month } }, async () => {
     const rows = await queryRows<BudgetRow>(database, sql`
       SELECT 
         CASE WHEN c.id IS NOT NULL THEN COALESCE(bm.id, -c.id) ELSE NULL END as "id",
@@ -120,9 +122,11 @@ export function createBudgetFunctions(
       result.push(r);
     }
     return result;
+    }); // end Sentry span
   }
 
   async function getReadyToAssign(budgetId: number, month: string): Promise<Milliunit> {
+    return Sentry.startSpan({ op: 'db.query', name: 'getReadyToAssign', attributes: { budgetId, month } }, async () => {
     // ── Query phase ──
 
     // 1. Cash on hand
@@ -205,6 +209,7 @@ export function createBudgetFunctions(
       currentMonth: new Date().toISOString().slice(0, 7),
       viewedMonth: month,
     });
+    }); // end Sentry span
   }
 
   async function getReadyToAssignBreakdown(budgetId: number, month: string) {
@@ -275,6 +280,7 @@ export function createBudgetFunctions(
   }
 
   async function updateBudgetAssignment(budgetId: number, categoryId: number, month: string, assigned: Milliunit) {
+    return Sentry.startSpan({ op: 'db.query', name: 'updateBudgetAssignment', attributes: { budgetId, categoryId, month } }, async () => {
     // ── Validate phase: delegate to engine ──
     const validation = validateAssignment(assigned);
     if (!validation.valid && validation.clamped === 0) {
@@ -355,6 +361,7 @@ export function createBudgetFunctions(
           ));
       }
     });
+    }); // end Sentry span
   }
 
   async function updateBudgetActivity(budgetId: number, categoryId: number, month: string) {
@@ -571,6 +578,7 @@ export function createBudgetFunctions(
   }
 
   async function updateCreditCardPaymentBudget(budgetId: number, accountId: number, month: string) {
+    return Sentry.startSpan({ op: 'db.query', name: 'updateCreditCardPaymentBudget', attributes: { budgetId, accountId, month } }, async () => {
     const ccCategory = await getCreditCardPaymentCategory(accountId);
     if (!ccCategory) return;
 
@@ -669,6 +677,7 @@ export function createBudgetFunctions(
           available: (m(prevCCBudgetRows[0]?.available) + ccResult.activity) as Milliunit,
         });
     }
+    }); // end Sentry span
   }
 
   // ====== Overspending Detection Functions ======

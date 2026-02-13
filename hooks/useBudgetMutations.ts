@@ -13,6 +13,7 @@ import {
     type Milliunit,
 } from '@/lib/engine';
 import type { BudgetResponseDTO } from '@/lib/dtos';
+import { addUserActionBreadcrumb } from '@/lib/sentry-utils';
 
 
 
@@ -81,6 +82,7 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
         retry: 1,
 
         onMutate: async ({ categoryId, value, currentBudgetData }) => {
+            addUserActionBreadcrumb('budget.assign', { categoryId, value, month: currentMonth });
             // Cancel any outgoing refetches so they don't overwrite our optimistic update
             await queryClient.cancelQueries({ queryKey: ['budget', budgetId, currentMonth] });
 
@@ -203,6 +205,7 @@ export function useUpdateCategoryName(budgetId: number) {
         mutationKey: ['budget-update-category-name', budgetId],
         meta: { errorMessage: 'Error al renombrar categoría', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ categoryId, newName, currentName }: UpdateCategoryNameParams) => {
+            addUserActionBreadcrumb('category.rename', { categoryId, newName });
             if (!newName.trim() || newName === currentName) {
                 return { skipped: true };
             }
@@ -263,6 +266,7 @@ export function useCreateCategoryGroup(budgetId: number) {
         mutationKey: ['budget-create-category-group', budgetId],
         meta: { errorMessage: 'Error al crear grupo de categorías', broadcastKeys: ['budget', 'categories', 'category-groups'] },
         mutationFn: async (name: string) => {
+            addUserActionBreadcrumb('categoryGroup.create', { name });
             const res = await fetch(`/api/budgets/${budgetId}/category-groups`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -297,6 +301,7 @@ export function useCreateCategory(budgetId: number) {
         mutationKey: ['budget-create-category', budgetId],
         meta: { errorMessage: 'Error al crear categoría', broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ name, categoryGroupId }: { name: string; categoryGroupId: number }) => {
+            addUserActionBreadcrumb('category.create', { name, categoryGroupId });
             const res = await fetch(`/api/budgets/${budgetId}/categories`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

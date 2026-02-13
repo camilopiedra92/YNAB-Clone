@@ -11,6 +11,7 @@ import { persister, APP_CACHE_VERSION } from '@/lib/persistence/persister';
 import { STALE_TIME } from '@/lib/constants';
 import * as Sentry from '@sentry/nextjs';
 import { identifyUser, clearUser } from '@/lib/sentry-utils';
+import SentryNavigationTracker from './SentryNavigationTracker';
 
 /**
  * Global MutationCache handles toast feedback and cross-tab sync.
@@ -116,6 +117,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 }}
             >
                 <SentryUserIdentifier />
+                <SentryNavigationTracker />
                 <BroadcastSyncListener />
                 {children}
                 <ReactQueryDevtools initialIsOpen={false} />

@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TransactionDTO } from '@/lib/dtos';
+import { addUserActionBreadcrumb } from '@/lib/sentry-utils';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ export function useCreateTransaction() {
         retry: 1,
 
         onMutate: async (payload) => {
+            addUserActionBreadcrumb('transaction.create', {
+                accountId: payload.accountId,
+                payee: payload.payee,
+                outflow: payload.outflow,
+                inflow: payload.inflow,
+            });
             // Cancel outgoing refetches
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
@@ -144,6 +151,10 @@ export function useUpdateTransaction() {
         retry: 1,
 
         onMutate: async (payload) => {
+            addUserActionBreadcrumb('transaction.update', {
+                transactionId: payload.id,
+                accountId: payload.accountId,
+            });
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
             const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
@@ -213,6 +224,7 @@ export function useDeleteTransaction() {
         retry: 1,
 
         onMutate: async ({ transactionId }) => {
+            addUserActionBreadcrumb('transaction.delete', { transactionId });
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
 
             const previousQueries = queryClient.getQueriesData<TransactionDTO[]>({
@@ -290,6 +302,7 @@ export function useToggleCleared() {
         retry: 1,
 
         onMutate: async ({ transactionId, clearedStatus }) => {
+            addUserActionBreadcrumb('transaction.toggleCleared', { transactionId, clearedStatus });
             if (clearedStatus === 'Reconciled') return { skipped: true };
 
             await queryClient.cancelQueries({ queryKey: ['transactions'] });
