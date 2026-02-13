@@ -68,5 +68,10 @@ USER nextjs
 # Expose the application port
 EXPOSE 3000
 
+# Health check for container orchestration (Coolify, Docker Swarm, Kubernetes)
+# Pings /api/health every 30s. Marks container unhealthy after 3 consecutive failures.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+
 # Start via fail-safe entrypoint
 CMD ["./scripts/docker-entrypoint.sh"]

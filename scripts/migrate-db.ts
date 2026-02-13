@@ -43,8 +43,7 @@ async function main() {
     await migrate(db, { migrationsFolder });
     console.log('✅ Migrations applied successfully.');
   } catch (err) {
-    console.error('⚠️ Migration failed:', err);
-    console.error('⚠️ Migration failed:', err);
+    console.error('❌ CRITICAL: Migration failed:', err);
     process.exit(1);
   } finally {
     await client.end();
