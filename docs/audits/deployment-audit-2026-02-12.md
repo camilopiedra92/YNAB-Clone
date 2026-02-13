@@ -2,6 +2,7 @@
 
 **Date:** 2026-02-12
 **Scope:** Deployment pipeline, Docker configuration, Database migrations, Entrypoint logic.
+**Remediation:** 2026-02-13 | PR [#50](https://github.com/camilopiedra92/YNAB-Clone/pull/50) — All findings resolved
 
 ## Executive Summary
 
@@ -9,7 +10,7 @@ The current deployment setup is **90% production-ready** but contains **one crit
 
 ## Critical Findings 🚨
 
-### 1. Silent Failure of Migrations in Production
+### 1. Silent Failure of Migrations in Production — ✅ RESOLVED
 
 **Severity:** Critical
 **File:** `scripts/migrate-db.ts`
@@ -59,7 +60,7 @@ Fail hard. If migrations fail, the container **must** crash and restart (looping
 
 ## Recommended Improvements
 
-### 1. Fix the Migration Script (Immediate Priority)
+### 1. Fix the Migration Script (Immediate Priority) — ✅ DONE
 
 Remove the `try/catch` logic that swallows errors in production.
 
@@ -71,14 +72,26 @@ Remove the `try/catch` logic that swallows errors in production.
 }
 ```
 
-### 2. Implement Connection Retry
+### 2. Implement Connection Retry — ✅ DONE
 
 Add a simple retry loop or `wait-for` logic in `docker-entrypoint.sh` or the migration script to handle "Database starting up" states gracefully.
+
+> Already implemented: 5-retry loop with 2s backoff in `scripts/migrate-db.ts` lines 18–32.
 
 ### 3. Verify Coolify Configuration
 
 Ensure Coolify is pointing to the `Dockerfile` for the build strategy, not Nixpacks (unless configured carefully), as Nixpacks might ignore the custom entrypoint logic if not explicitly set.
 
+## Additional Hardening (2026-02-13)
+
+### 4. HEALTHCHECK Added to Dockerfile — ✅ DONE
+
+Docker `HEALTHCHECK` instruction added to ping `/api/health` every 30s. Enables Coolify to detect unhealthy instances and trigger auto-restart.
+
+### 5. Critical Columns Verification — ✅ DONE
+
+`verify-deployment.ts` now checks that `budget_id` exists on `budget_months`, `categories`, and `transactions` — the exact columns that caused the deployment incident.
+
 ## Conclusion
 
-The architecture is solid. The "silent failure" logic was likely added as a temporary safety measure ("keep the app running") but is actually an anti-pattern in container orchestration. Fixing this single line of code will resolve the deployment consistency issues.
+The architecture is solid. All findings have been resolved as of 2026-02-13 (PR #50). The deployment pipeline now fails hard on migration errors, retries DB connections, includes Docker health checks, and verifies critical schema columns.
