@@ -27,6 +27,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       uptime: Math.round(process.uptime()),
       version: process.env.npm_package_version || '0.1.0',
+      commit: process.env.COMMIT_SHA?.slice(0, 7) || 'dev',
       checks: {
         database: {
           status: 'up',
