@@ -12,7 +12,25 @@ async function main() {
   console.log('Running migrations against:', connectionString);
 
   // Use a single connection for migration
-  const client = postgres(connectionString, { max: 1 });
+  const client = postgres(connectionString, { max: 1, onnotice: () => {} });
+
+  // Retry logic for DB connection (Wait for DB to be ready)
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      await client`SELECT 1`;
+      break; // Connection successful
+    } catch (err) {
+      retries--;
+      if (retries === 0) {
+        console.error('❌ Could not connect to database after 5 attempts.');
+        throw err;
+      }
+      console.log(`⏳ Waiting for database... (${5 - retries}/5)`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+
   const db = drizzle(client);
 
   const migrationsFolder = path.join(process.cwd(), 'drizzle');
@@ -25,13 +43,8 @@ async function main() {
     await migrate(db, { migrationsFolder });
     console.log('✅ Migrations applied successfully.');
   } catch (err) {
-    console.error('⚠️ Migration failed:', err);
-    if (process.env.NODE_ENV === 'production') {
-      console.error('App will start with existing schema. Investigate migration failure.');
-      // Don't exit — app may still work with the previous schema version
-    } else {
-      process.exit(1);
-    }
+    console.error('❌ CRITICAL: Migration failed:', err);
+    process.exit(1);
   } finally {
     await client.end();
   }

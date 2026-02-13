@@ -142,6 +142,7 @@ export const categoryGroups = pgTable('category_groups', {
 
 export const categories = pgTable('categories', {
   id: serial().primaryKey(),
+  budgetId: integer('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
   categoryGroupId: integer('category_group_id').notNull()
     .references(() => categoryGroups.id, { onDelete: 'cascade' }),
   name: text().notNull(),
@@ -153,6 +154,7 @@ export const categories = pgTable('categories', {
 
 export const budgetMonths = pgTable('budget_months', {
   id: serial().primaryKey(),
+  budgetId: integer('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
   categoryId: integer('category_id').notNull()
     .references(() => categories.id, { onDelete: 'cascade' }),
   month: text().notNull(),
@@ -163,10 +165,12 @@ export const budgetMonths = pgTable('budget_months', {
   uniqueIndex('budget_months_cat_month').on(table.categoryId, table.month),
   index('idx_budget_months_category').on(table.categoryId),
   index('idx_budget_months_month').on(table.month),
+  index('idx_budget_months_budget').on(table.budgetId),
 ]);
 
 export const transactions = pgTable('transactions', {
   id: serial().primaryKey(),
+  budgetId: integer('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
   accountId: integer('account_id').notNull()
     .references(() => accounts.id, { onDelete: 'cascade' }),
   date: date({ mode: 'string' }).notNull(),
@@ -180,6 +184,7 @@ export const transactions = pgTable('transactions', {
   flag: text(),
   createdAt: text('created_at').default(sql`now()`),
 }, (table) => [
+  index('idx_transactions_budget').on(table.budgetId),
   index('idx_transactions_account').on(table.accountId),
   index('idx_transactions_date').on(table.date),
   index('idx_transactions_category').on(table.categoryId),
@@ -191,9 +196,11 @@ export const transfers = pgTable('transfers', {
     .references(() => transactions.id, { onDelete: 'cascade' }),
   toTransactionId: integer('to_transaction_id').notNull()
     .references(() => transactions.id, { onDelete: 'cascade' }),
+  budgetId: integer('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
 }, (table) => [
   uniqueIndex('transfers_from_tx_unique').on(table.fromTransactionId),
   uniqueIndex('transfers_to_tx_unique').on(table.toTransactionId),
+  index('idx_transfers_budget').on(table.budgetId),
 ]);
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -238,6 +245,10 @@ export const categoryGroupsRelations = relations(categoryGroups, ({ one, many })
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  budget: one(budgets, {
+    fields: [categories.budgetId],
+    references: [budgets.id],
+  }),
   group: one(categoryGroups, {
     fields: [categories.categoryGroupId],
     references: [categoryGroups.id],
@@ -251,6 +262,10 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
 }));
 
 export const budgetMonthsRelations = relations(budgetMonths, ({ one }) => ({
+  budget: one(budgets, {
+    fields: [budgetMonths.budgetId],
+    references: [budgets.id],
+  }),
   category: one(categories, {
     fields: [budgetMonths.categoryId],
     references: [categories.id],
@@ -258,6 +273,10 @@ export const budgetMonthsRelations = relations(budgetMonths, ({ one }) => ({
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
+  budget: one(budgets, {
+    fields: [transactions.budgetId],
+    references: [budgets.id],
+  }),
   account: one(accounts, {
     fields: [transactions.accountId],
     references: [accounts.id],

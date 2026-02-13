@@ -93,3 +93,5 @@ echo "🚀🚀🚀 REMOTE SYNCED!"
 git fetch --prune --quiet 2>/dev/null || true
 
 echo "📊 STATUS: SUCCESS"
+echo ""
+echo "🔗 Create PR to main: https://github.com/camilopiedra92/YNAB-Clone/compare/main...staging"

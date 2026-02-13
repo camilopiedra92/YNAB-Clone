@@ -61,3 +61,5 @@ backup_pre_multitenancy.sql
 docs/export/
 tsx-*/
 .pglite
+scripts/dist/
+scripts/*.js

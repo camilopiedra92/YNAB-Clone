@@ -27,7 +27,7 @@ beforeEach(async () => {
 
 describe('Money column type round-trip', () => {
     it('stores and retrieves positive outflow correctly', async () => {
-        const tx = await fns.createTransaction({
+        const tx = await fns.createTransaction(budgetId, {
             accountId,
             date: '2025-06-01',
             payee: 'Store',
@@ -41,7 +41,7 @@ describe('Money column type round-trip', () => {
     });
 
     it('stores and retrieves positive inflow correctly', async () => {
-        const tx = await fns.createTransaction({
+        const tx = await fns.createTransaction(budgetId, {
             accountId,
             date: '2025-06-01',
             payee: 'Salary',
@@ -54,7 +54,7 @@ describe('Money column type round-trip', () => {
     });
 
     it('handles zero values correctly', async () => {
-        const tx = await fns.createTransaction({
+        const tx = await fns.createTransaction(budgetId, {
             accountId,
             date: '2025-06-01',
             payee: 'Memo Only',
@@ -69,7 +69,7 @@ describe('Money column type round-trip', () => {
 
     it('stores account balances as money type', async () => {
         // Create a transaction that will affect balance
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: new Date().toISOString().slice(0, 10),
             payee: 'Deposit',

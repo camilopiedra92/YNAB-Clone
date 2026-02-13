@@ -27,6 +27,7 @@ Detailed documentation is available in the [`/docs`](./docs) directory:
 - **[Data Model](./docs/data-model.md)**: Database schema details and Entity Relationship diagrams.
 - **[Features Audit](./docs/features.md)**: Overview of implemented features and comparison with original YNAB.
 - **[Developer Guide](./docs/developer-guide.md)**: Setup instructions, database management, and common workflows.
+- **[Deployment Guide](./docs/DEPLOYMENT.md)**: Production setup on Hetzner + Coolify, including database migration strategies.
 
 ## ✨ Core Pillars
 
@@ -51,7 +52,11 @@ Optimistic UI updates mean you never wait for a spinner when assigning money or 
 
 ## 🤝 Contributing
 
-This project is a personal exploration of complex financial logic and modern web patterns. For setup and development details, please refer to the [Developer Guide](./docs/developer-guide.md).
+This project enforces a strict architectural and commit protocol.
+
+👉 **READ [CONTRIBUTING.md](./CONTRIBUTING.md) BEFORE WRITING ANY CODE.**
+
+For setup and development details, please refer to the [Developer Guide](./docs/developer-guide.md).
 
 ---
 

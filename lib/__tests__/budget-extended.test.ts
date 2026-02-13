@@ -56,6 +56,7 @@ describe('getBudgetForMonth', () => {
 
         // Create a budget_months row with 0
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: ZERO,
@@ -119,7 +120,7 @@ describe('getReadyToAssignBreakdown', () => {
         const incomeCatId = incomeCatResult.id;
 
         // Add income transaction
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Employer',
@@ -128,7 +129,7 @@ describe('getReadyToAssignBreakdown', () => {
         });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign to category
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -152,7 +153,7 @@ describe('getReadyToAssignBreakdown', () => {
         const future = nextMonth(month);
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -170,12 +171,12 @@ describe('getReadyToAssignBreakdown', () => {
         const prev = prevMonth(month);
 
         // Seed complete month for previous month
-        await seedCompleteMonth(fns, db, prev, groupId);
+        await seedCompleteMonth(fns, db, prev, groupId, budgetId);
 
         // Create overspending in previous month:
         // Assign 50 to category but spend 100 on cash
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], prev, mu(50));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: `${prev}-15`,
             payee: 'Overspent Store',
@@ -185,7 +186,7 @@ describe('getReadyToAssignBreakdown', () => {
         await fns.updateBudgetActivity(budgetId, categoryIds[0], prev);
 
         // Ensure we have a complete month for current
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         const breakdown = await fns.getReadyToAssignBreakdown(budgetId, month);
         expect(breakdown.cashOverspendingPreviousMonth).toBe(50); // 100 spent - 50 available = 50 overspent
@@ -201,7 +202,7 @@ describe('updateBudgetActivity', () => {
         const month = currentMonth();
 
         // Create a transaction for the category
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -231,7 +232,7 @@ describe('updateBudgetActivity', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Create a transaction
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -257,7 +258,7 @@ describe('updateBudgetActivity', () => {
         const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
 
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Refund',
@@ -291,14 +292,14 @@ describe('refreshAllBudgetActivity', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(300));
 
         // Create transactions
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store A',
             categoryId: categoryIds[0],
             outflow: 100,
         });
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store B',
@@ -342,7 +343,7 @@ describe('refreshAllBudgetActivity', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Create a CC transaction
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'CC Store',
@@ -379,7 +380,7 @@ describe('refreshAllBudgetActivity', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Create a transaction in the prior month to generate activity
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -481,7 +482,7 @@ describe('updateCreditCardPaymentBudget', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Spend 200 on CC
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -521,7 +522,7 @@ describe('updateCreditCardPaymentBudget', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
 
         // Spend 200 on CC
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -530,7 +531,7 @@ describe('updateCreditCardPaymentBudget', () => {
         });
 
         // Pay CC (transfer inflow with no category)
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Transfer',
@@ -562,7 +563,7 @@ describe('updateCreditCardPaymentBudget', () => {
 
         // Budget and spend
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -617,6 +618,7 @@ describe('updateCreditCardPaymentBudget', () => {
 
         // Pre-create an existing budget row with manual assignment
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: ccCategory.id,
             month,
             assigned: mu(100),
@@ -626,7 +628,7 @@ describe('updateCreditCardPaymentBudget', () => {
 
         // Budget and spend on CC
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -670,7 +672,7 @@ describe('getCashOverspendingForMonth', () => {
 
         // Assign 50 but spend 100 from cash
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -693,7 +695,7 @@ describe('getCashOverspendingForMonth', () => {
 
         // Assign 50 but spend 100 on CC
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -723,7 +725,7 @@ describe('getOverspendingTypes', () => {
         const month = currentMonth();
 
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -744,7 +746,7 @@ describe('getOverspendingTypes', () => {
         const ccId = ccResult.id;
 
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId: ccId,
             date: today(),
             payee: 'Store',
@@ -768,6 +770,7 @@ describe('getOverspendingTypes', () => {
 
         // Manually set negative available for CC Payment category
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: ccCat.id,
             month,
             assigned: ZERO,
@@ -800,7 +803,7 @@ describe('getBudgetInspectorData', () => {
         const incomeCatId = incomeCatResult.id;
 
         // Add income
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Employer',
@@ -809,14 +812,14 @@ describe('getBudgetInspectorData', () => {
         });
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign budgets
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(500));
 
         // Create spending
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -861,7 +864,7 @@ describe('getBudgetInspectorData', () => {
         const future = nextMonth(month);
 
         // Seed complete months
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign in current and future
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
@@ -880,11 +883,11 @@ describe('getBudgetInspectorData', () => {
         const month = currentMonth();
 
         // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Create overspending by spending without enough budget
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: today(),
             payee: 'Store',
@@ -903,11 +906,11 @@ describe('getBudgetInspectorData', () => {
         const prev = prevMonth(month);
 
         // Create carryover: assign 500 in previous month with no spending
-        await seedCompleteMonth(fns, db, prev, groupId);
+        await seedCompleteMonth(fns, db, prev, groupId, budgetId);
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], prev, mu(500));
 
         // In current month, assign 200 (but available carries forward 500 + 200 = 700)
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         const data = await fns.getBudgetInspectorData(budgetId, month);
@@ -922,6 +925,7 @@ describe('getBudgetInspectorData', () => {
 
         // Create a budget_months row that has carried-over available but no new assignment or activity
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[0],
             month,
             assigned: ZERO,
@@ -939,12 +943,12 @@ describe('getBudgetInspectorData', () => {
         const month = currentMonth();
         const prev = prevMonth(month);
 
-        await seedCompleteMonth(fns, db, prev, groupId);
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, prev, groupId, budgetId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign and spend in previous month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], prev, mu(400));
-        await fns.createTransaction({
+        await fns.createTransaction(budgetId, {
             accountId,
             date: `${prev}-15`,
             payee: 'Store',
@@ -968,7 +972,7 @@ describe('getBudgetInspectorData', () => {
         await fns.createCategoryGroup('Empty Group', budgetId);
 
         // Seed complete month — all categories will have available=0, activity=0
-        await seedCompleteMonth(fns, db, month, groupId);
+        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         const data = await fns.getBudgetInspectorData(budgetId, month);
 
@@ -990,6 +994,7 @@ describe('refreshAllBudgetActivity — ghost cleanup', () => {
         // Create a budget_months row that will become a ghost after refresh
         // (no transactions, no assignment → activity=0, available=0)
         await db.insert(budgetMonths).values({
+            budgetId,
             categoryId: categoryIds[2],
             month,
             assigned: ZERO,

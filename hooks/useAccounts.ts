@@ -89,4 +89,24 @@ export function useUpdateAccount(budgetId: number) {
     });
 }
 
+export function useCreateAccount(budgetId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationKey: ['account-create', budgetId],
+        meta: { errorMessage: 'Error al crear cuenta', broadcastKeys: ['accounts'] },
+        mutationFn: async (data: { name: string; type: string; balance: number }) => {
+            const res = await fetch(`/api/budgets/${budgetId}/accounts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...data, budgetId }),
+            });
+            if (!res.ok) throw new Error('Failed to create account');
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['accounts', budgetId] });
+        },
+    });
+}
+
 export type { AccountDTO as Account };

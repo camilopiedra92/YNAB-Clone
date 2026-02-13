@@ -2,7 +2,7 @@
 
 ## 1. The Rule
 
-**`main` is production and the GitHub default branch. `staging` is the integration branch.** All feature work happens on dedicated branches created from `staging`. Direct commits to `main` are **never** acceptable. Direct commits to `staging` are only acceptable for trivial docs/chore changes.
+**`main` is production and the GitHub default branch. `staging` is the integration branch.** All feature work happens on dedicated branches created from `staging`. Direct commits to `main` are **STRICTLY FORBIDDEN** and blocked by a local pre-push hook. Direct commits to `staging` are only acceptable for trivial docs/chore changes.
 
 ## 2. Branch Naming Convention
 

@@ -1,44 +1,197 @@
 name: Deploy to Production
 
+# ─── VERIFIED DEPLOYMENT PIPELINE ─────────────────────────
+# Trigger: push to main (via staging→main PR merge)
+# Flow: Trigger Coolify → Wait for build → Verify health → Smoke test
+# Secrets needed:
+#   COOLIFY_WEBHOOK_URL  — Coolify app webhook URL
+#   COOLIFY_API_TOKEN    — Coolify API bearer token (optional)
+#   PRODUCTION_URL       — Public URL (e.g. https://yourdomain.com)
+
 on:
   push:
     branches: [main]
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-production
   cancel-in-progress: false # Never cancel an in-progress deploy
 
+env:
+  # How long to wait for the deploy to become healthy (seconds)
+  DEPLOY_TIMEOUT: 300
+  # Interval between health polls (seconds)
+  POLL_INTERVAL: 10
+
 jobs:
   deploy:
-    name: Trigger Coolify Deploy
+    name: Deploy & Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     environment: production
     steps:
-      - name: Trigger Coolify Webhook
+      # ── 1. Trigger Coolify Build ──────────────────────────
+      - name: Validate secrets
         run: |
-          if [ -z "${{ secrets.COOLIFY_WEBHOOK_URL }}" ]; then
-            echo "❌ COOLIFY_WEBHOOK_URL secret is not set"
-            echo "Set it in GitHub → Settings → Secrets → Actions"
+          MISSING=""
+          if [ -z "${{ secrets.COOLIFY_WEBHOOK_URL }}" ]; then MISSING="$MISSING COOLIFY_WEBHOOK_URL"; fi
+          if [ -z "${{ secrets.PRODUCTION_URL }}" ]; then MISSING="$MISSING PRODUCTION_URL"; fi
+
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            echo "Set them in GitHub → Settings → Secrets → Actions"
             exit 1
           fi
 
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+      - name: Trigger Coolify webhook
+        id: trigger
+        run: |
+          START=$(date +%s)
+          RESPONSE=$(curl -sS -o /tmp/webhook-response.txt -w "%{http_code}" \
             -X GET "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}")
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
+            2>/tmp/webhook-error.txt)
 
           if [ "$RESPONSE" = "200" ] || [ "$RESPONSE" = "201" ]; then
-            echo "✅ Deploy triggered successfully (HTTP $RESPONSE)"
+            echo "✅ Deploy triggered (HTTP $RESPONSE)"
+            echo "trigger_time=$START" >> $GITHUB_OUTPUT
           else
-            echo "❌ Deploy trigger failed (HTTP $RESPONSE)"
+            echo "❌ Webhook failed (HTTP $RESPONSE)"
+            echo "Response body:"
+            cat /tmp/webhook-response.txt 2>/dev/null || true
             exit 1
           fi
 
-      - name: Deploy Summary
+      # ── 2. Wait for Deploy & Verify Health ────────────────
+      - name: Wait for healthy deployment
+        id: verify
         run: |
-          echo "## 🚀 Production Deploy" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status:** Triggered on Coolify" >> $GITHUB_STEP_SUMMARY
+          PRODUCTION_URL="${{ secrets.PRODUCTION_URL }}"
+          # Strip trailing slash
+          PRODUCTION_URL="${PRODUCTION_URL%/}"
+          HEALTH_URL="$PRODUCTION_URL/api/health"
+
+          echo "🔍 Polling $HEALTH_URL..."
+          echo "   Timeout: ${DEPLOY_TIMEOUT}s | Interval: ${POLL_INTERVAL}s"
+          echo ""
+
+          # Initial grace period for Coolify to start building (30s)
+          echo "⏳ Grace period (30s) for Coolify to pick up the build..."
+          sleep 30
+
+          ATTEMPTS=$((DEPLOY_TIMEOUT / POLL_INTERVAL))
+          ELAPSED=30
+
+          for i in $(seq 1 $ATTEMPTS); do
+            # Capture full response
+            HTTP_CODE=$(curl -sS -o /tmp/health-response.json -w "%{http_code}" \
+              --max-time 5 "$HEALTH_URL" 2>/dev/null || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              # Parse uptime from response — low uptime means fresh deploy
+              UPTIME=$(cat /tmp/health-response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('uptime','-'))" 2>/dev/null || echo "?")
+              COMMIT=$(cat /tmp/health-response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('commit','?'))" 2>/dev/null || echo "?")
+
+              echo ""
+              echo "✅ App is HEALTHY after ${ELAPSED}s"
+              echo "   Uptime: ${UPTIME}s | Commit: ${COMMIT}"
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              echo "deploy_time=$ELAPSED" >> $GITHUB_OUTPUT
+              echo "app_uptime=$UPTIME" >> $GITHUB_OUTPUT
+              echo "app_commit=$COMMIT" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            ELAPSED=$((ELAPSED + POLL_INTERVAL))
+            echo "  ⏳ [$i/$ATTEMPTS] HTTP $HTTP_CODE — waiting ${POLL_INTERVAL}s... (${ELAPSED}s elapsed)"
+            sleep $POLL_INTERVAL
+          done
+
+          echo ""
+          echo "❌ DEPLOY VERIFICATION FAILED"
+          echo "   App did not become healthy within ${DEPLOY_TIMEOUT}s"
+          echo "   Last health response:"
+          cat /tmp/health-response.json 2>/dev/null || echo "   (no response)"
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          exit 1
+
+      # ── 3. Smoke Test Critical Endpoints ──────────────────
+      - name: Smoke test
+        if: steps.verify.outputs.healthy == 'true'
+        run: |
+          PRODUCTION_URL="${{ secrets.PRODUCTION_URL }}"
+          PRODUCTION_URL="${PRODUCTION_URL%/}"
+          FAILED=0
+
+          echo "🧪 Running smoke tests..."
+          echo ""
+
+          # Test 1: Health endpoint returns valid JSON
+          echo -n "  [1/3] Health endpoint (JSON)... "
+          HEALTH=$(curl -sS --max-time 5 "$PRODUCTION_URL/api/health" 2>/dev/null)
+          STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "error")
+          if [ "$STATUS" = "healthy" ]; then
+            echo "✅ healthy"
+          else
+            echo "❌ status=$STATUS"
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 2: Login page loads (HTTP 200)
+          echo -n "  [2/3] Login page loads... "
+          LOGIN_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
+            "$PRODUCTION_URL/auth/login" 2>/dev/null || echo "000")
+          if [ "$LOGIN_CODE" = "200" ]; then
+            echo "✅ HTTP $LOGIN_CODE"
+          else
+            echo "❌ HTTP $LOGIN_CODE"
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 3: Security headers present
+          echo -n "  [3/3] Security headers... "
+          HEADERS=$(curl -sS -I --max-time 5 "$PRODUCTION_URL/auth/login" 2>/dev/null)
+          if echo "$HEADERS" | grep -qi "x-frame-options"; then
+            echo "✅ present"
+          else
+            echo "⚠️  X-Frame-Options missing (check next.config.ts)"
+          fi
+
+          echo ""
+          if [ $FAILED -gt 0 ]; then
+            echo "❌ Smoke test: $FAILED/3 checks failed"
+            exit 1
+          fi
+          echo "✅ All smoke tests passed"
+
+      # ── 4. Deploy Summary ─────────────────────────────────
+      - name: Deploy summary
+        if: always()
+        run: |
+          PRODUCTION_URL="${{ secrets.PRODUCTION_URL }}"
+          PRODUCTION_URL="${PRODUCTION_URL%/}"
+
+          if [ "${{ steps.verify.outputs.healthy }}" = "true" ]; then
+            ICON="✅"
+            STATUS="Deployed & Verified"
+          else
+            ICON="❌"
+            STATUS="FAILED — App not healthy"
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## $ICON Production Deploy
+
+          | Field | Value |
+          |-------|-------|
+          | **Status** | $STATUS |
+          | **Branch** | \`${{ github.ref_name }}\` |
+          | **Commit** | [\`${GITHUB_SHA::7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |
+          | **Author** | @${{ github.actor }} |
+          | **Deploy Time** | ${{ steps.verify.outputs.deploy_time || '?' }}s |
+          | **App Uptime** | ${{ steps.verify.outputs.app_uptime || '?' }}s |
+          | **App Commit** | \`${{ steps.verify.outputs.app_commit || '?' }}\` |
+          | **URL** | $PRODUCTION_URL |
+          EOF

@@ -26,7 +26,8 @@ elif [ "$STAGING_AHEAD" != "0" ]; then \
   echo "  ⚠️  staging → main: $STAGING_AHEAD commits to promote"; \
 fi && \
 if [ "$STAGING_BEHIND" != "0" ]; then \
-  echo "  ⚠️  staging ← main: $STAGING_BEHIND commits behind (needs pull)"; \
+  echo "  ⚠️  staging ← main: $STAGING_BEHIND commits behind (SYNC REQUIRED)"; \
+  echo "     To fix: git checkout staging && git merge main && git push origin staging"; \
 fi && \
 echo ""
 ```

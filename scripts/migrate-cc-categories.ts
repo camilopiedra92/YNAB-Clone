@@ -96,6 +96,7 @@ async function migrate() {
 
             const insertedRows = await db.insert(schema.categories)
               .values({
+                budgetId: budget.id,
                 name: account.name,
                 categoryGroupId: ccGroup.id,
                 sortOrder: newOrder,
@@ -161,6 +162,7 @@ async function migrate() {
             } else {
               await db.insert(schema.budgetMonths)
                 .values({
+                  budgetId: budget.id,
                   categoryId: category.id,
                   month,
                   assigned: ZERO,

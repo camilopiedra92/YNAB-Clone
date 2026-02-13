@@ -67,11 +67,12 @@ export default function ShareBudgetModal({
         {/* Invite form — owner only */}
         {isOwner && (
           <form onSubmit={handleInvite} className="space-y-3">
-            <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <label htmlFor="invite-email" className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Invitar por email
             </label>
             <div className="flex gap-2">
               <input
+                id="invite-email"
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setErrorMsg(null); }}
@@ -95,6 +96,7 @@ export default function ShareBudgetModal({
               <button
                 type="submit"
                 disabled={mutations.addShare.isPending || !email.trim()}
+                aria-label="Invitar"
                 className="neu-btn px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm
                   hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
                   active:scale-95 transition-all flex items-center gap-2"
