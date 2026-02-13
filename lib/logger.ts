@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/nextjs';
+
 /**
  * Structured Logger — Consistent logging across the application.
  * 
@@ -70,6 +72,18 @@ class Logger {
 
   error(message: string, error?: unknown, context?: LogContext) {
     if (!this.shouldLog('error')) return;
+
+    // Report to Sentry with context as extra data
+    if (error instanceof Error) {
+      Sentry.captureException(error, {
+        extra: { message, ...context },
+      });
+    } else if (error) {
+      Sentry.captureException(new Error(message), {
+        extra: { originalError: error, ...context },
+      });
+    }
+
     const errorContext = error instanceof Error 
       ? { ...context, error: error.message, stack: error.stack }
       : { ...context, error };

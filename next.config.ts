@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Standalone output for Docker — creates self-contained .next/standalone
@@ -40,7 +41,7 @@ const nextConfig: NextConfig = {
           "style-src 'self' 'unsafe-inline'",                // CSS-in-JS and inline styles
           "img-src 'self' data: blob:",                       // data URIs for icons, blob for generated images
           "font-src 'self' data:",                            // self-hosted fonts + data URIs
-          "connect-src 'self'",                               // API calls to same origin
+          "connect-src 'self'",                               // API calls to same origin (and Sentry tunnel)
           "frame-ancestors 'none'",                           // Reinforces X-Frame-Options DENY
           "base-uri 'self'",                                  // Prevent base tag hijacking
           "form-action 'self'",                               // Forms can only submit to same origin
@@ -74,4 +75,31 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // For all available options, see:
+  // https://github.com/getsentry/sentry-javascript/blob/master/packages/nextjs/src/config/types.ts
+
+  // Sentry org + project (from sentry.io dashboard)
+  org: process.env.SENTRY_ORG || "camilo-piedrahita",
+  project: process.env.SENTRY_PROJECT || "ynab-app",
+
+  // Only print logs for help with debugging Sentry configuration,
+  // anyway silenced if process.env.CI is set
+  silent: !process.env.CI,
+
+  // For all available options, see:
+  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#upload-source-maps
+
+
+  // Automatically tree-shake Sentry logger statements to reduce bundle size
+  disableLogger: true,
+
+  // Enables automatic instrumentation of Vercel Cron Monitors.
+  // See the following for more information:
+  // https://docs.sentry.io/product/crons/
+  // https://vercel.com/docs/cron-jobs
+  automaticVercelMonitors: false,
+
+  // Route Sentry requests through your server (avoids ad-blockers)
+  tunnelRoute: "/monitoring",
+});
