@@ -7,7 +7,7 @@
  */
 import { eq, sql, ne, and, isNotNull } from 'drizzle-orm';
 import { accounts, transactions } from '../db/schema';
-import { currentDate, notFutureDate } from '../db/sql-helpers';
+import { notFutureDate } from '../db/sql-helpers';
 import { milliunit, ZERO } from '../engine/primitives';
 import type { DrizzleDB } from '../db/helpers';
 import { queryRows } from '../db/helpers';

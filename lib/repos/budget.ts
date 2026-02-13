@@ -10,7 +10,7 @@
  */
 import { eq, and, sql, lt, gt, max, inArray, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, categoryGroups, budgetMonths, transactions } from '../db/schema';
-import { currentDate, yearMonth, notFutureDate } from '../db/sql-helpers';
+import { yearMonth, notFutureDate } from '../db/sql-helpers';
 import type { DrizzleDB } from '../db/helpers';
 import { queryRows } from '../db/helpers';
 import * as Sentry from '@sentry/nextjs';
