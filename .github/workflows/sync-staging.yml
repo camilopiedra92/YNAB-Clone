@@ -1,0 +1,70 @@
+name: Sync staging with main
+
+# ─── AUTO-SYNC PIPELINE ────────────────────────────────────
+# After a PR merges to main, this workflow fast-forwards staging
+# so it never falls behind. Uses merge (not rebase) to preserve
+# staging's commit history.
+#
+# If a conflict arises (shouldn't happen in normal flow), it
+# opens a PR for manual resolution instead of failing silently.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-staging
+  cancel-in-progress: true # Only latest sync matters
+
+jobs:
+  sync:
+    name: Sync staging ← main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge main → staging
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout staging
+          git merge origin/main --no-edit --ff-only || {
+            echo "⚠️ Fast-forward failed — attempting merge commit..."
+            git merge origin/main --no-edit || {
+              echo "❌ Merge conflict detected — creating PR for manual resolution"
+              git merge --abort
+              echo "conflict=true" >> $GITHUB_OUTPUT
+              exit 1
+            }
+          }
+
+          git push origin staging
+          echo "✅ staging synced with main"
+
+      - name: Create conflict PR (fallback)
+        if: failure()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: fix/sync-staging-conflict
+          base: staging
+          title: "fix: resolve staging ← main sync conflict"
+          body: |
+            ⚠️ **Automatic sync failed** — main has changes that conflict with staging.
+
+            This PR was auto-created to resolve the conflict. Please:
+            1. Review the conflicts in the Files tab
+            2. Resolve manually and merge
+
+            _Created by [sync-staging workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})_
+          labels: "automated,needs-review"
