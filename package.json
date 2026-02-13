@@ -30,6 +30,7 @@
     "git:sync": "bash scripts/sync.sh",
     "git:prune": "bash scripts/prune-branches.sh",
     "git:install-hooks": "bash scripts/install-hooks.sh",
+    "check:future-filter": "bash scripts/check-future-date-filter.sh",
     "prepare": "bash scripts/install-hooks.sh"
   },
   "dependencies": {
