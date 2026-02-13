@@ -22,6 +22,9 @@ COPY . .
 # Commit SHA for deployment traceability (passed via --build-arg)
 ARG COMMIT_SHA=unknown
 
+# Expose COMMIT_SHA to client-side code (Sentry release tracking)
+ENV NEXT_PUBLIC_COMMIT_SHA=$COMMIT_SHA
+
 # Build-time environment variables (Dummy placeholders for validation)
 # We use standard ENV instead of ARG to prevent inheriting real secrets from build-args.
 # Next.js validates these at build time, but we don't need real values here.

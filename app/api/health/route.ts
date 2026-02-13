@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db/client';
 import { sql } from 'drizzle-orm';
+import * as Sentry from '@sentry/nextjs';
 
 // Prevent caching — health must always be live
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,12 @@ export async function GET() {
       },
     });
   } catch (error) {
+    // Report infrastructure failure to Sentry immediately
+    Sentry.captureException(error, {
+      tags: { component: 'health-check' },
+      level: 'fatal',
+    });
+
     return NextResponse.json(
       {
         status: 'unhealthy',

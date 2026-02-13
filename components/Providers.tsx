@@ -3,13 +3,14 @@
 import { QueryClient, MutationCache } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { SessionProvider } from 'next-auth/react';
-import { useState } from 'react';
+import { SessionProvider, useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useBroadcastSync, broadcastInvalidation } from '@/hooks/useBroadcastSync';
 import { persister, APP_CACHE_VERSION } from '@/lib/persistence/persister';
 import { STALE_TIME } from '@/lib/constants';
 import * as Sentry from '@sentry/nextjs';
+import { identifyUser, clearUser } from '@/lib/sentry-utils';
 
 /**
  * Global MutationCache handles toast feedback and cross-tab sync.
@@ -114,12 +115,37 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     });
                 }}
             >
+                <SentryUserIdentifier />
                 <BroadcastSyncListener />
                 {children}
                 <ReactQueryDevtools initialIsOpen={false} />
             </PersistQueryClientProvider>
         </SessionProvider>
     );
+}
+
+/**
+ * Syncs the next-auth session user to the Sentry scope.
+ * When authenticated → Sentry.setUser({ id, email }).
+ * When logged out → Sentry.setUser(null).
+ * Must be inside SessionProvider.
+ */
+function SentryUserIdentifier() {
+    const { data: session, status } = useSession();
+
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user?.id) {
+            identifyUser({
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+            });
+        } else if (status === 'unauthenticated') {
+            clearUser();
+        }
+    }, [session, status]);
+
+    return null;
 }
 
 /**

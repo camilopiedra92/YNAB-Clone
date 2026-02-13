@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   // Does NOT affect `npm run dev`.
   output: 'standalone',
 
+  // Expose COMMIT_SHA to client-side code for Sentry release tracking.
+  // Server-side uses COMMIT_SHA directly; client needs NEXT_PUBLIC_ prefix.
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: process.env.COMMIT_SHA || 'dev',
+  },
+
   // Use a separate build directory for E2E tests so `next build` doesn't
   // overwrite the dev server's .next/ cache and crash it.
   distDir: process.env.NEXT_TEST_BUILD ? '.next-test' : '.next',
@@ -83,21 +89,20 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG || "camilo-piedrahita",
   project: process.env.SENTRY_PROJECT || "ynab-app",
 
-  // Only print logs for help with debugging Sentry configuration,
-  // anyway silenced if process.env.CI is set
+  // Only print logs for Sentry configuration debugging
   silent: !process.env.CI,
 
-  // For all available options, see:
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#upload-source-maps
-
+  // ── Source Maps ──────────────────────────────────────────
+  // Upload source maps during build (requires SENTRY_AUTH_TOKEN).
+  // Delete after upload so they're never served to clients.
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
 
   // Automatically tree-shake Sentry logger statements to reduce bundle size
   disableLogger: true,
 
-  // Enables automatic instrumentation of Vercel Cron Monitors.
-  // See the following for more information:
-  // https://docs.sentry.io/product/crons/
-  // https://vercel.com/docs/cron-jobs
+  // Vercel Cron Monitors (disabled — not on Vercel)
   automaticVercelMonitors: false,
 
   // Route Sentry requests through your server (avoids ad-blockers)
