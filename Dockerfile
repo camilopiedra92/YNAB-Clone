@@ -25,6 +25,10 @@ ARG COMMIT_SHA=unknown
 # Build-time environment variables (Dummy placeholders for validation)
 # We use standard ENV instead of ARG to prevent inheriting real secrets from build-args.
 # Next.js validates these at build time, but we don't need real values here.
+ARG SENTRY_AUTH_TOKEN=""
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV SENTRY_ORG="camilo-piedrahita"
+ENV SENTRY_PROJECT="ynab-app"
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 ENV AUTH_SECRET="build-time-placeholder-secret-at-least-32-characters"
 ENV AUTH_TRUST_HOST="true"

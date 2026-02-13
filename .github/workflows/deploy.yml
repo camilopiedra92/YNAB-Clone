@@ -195,3 +195,17 @@ jobs:
           | **App Commit** | \`${{ steps.verify.outputs.app_commit || '?' }}\` |
           | **URL** | $PRODUCTION_URL |
           EOF
+
+      # ── 5. Sentry Release ─────────────────────────────────
+      - name: Create Sentry release
+        if: steps.verify.outputs.healthy == 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: "camilo-piedrahita"
+          SENTRY_PROJECT: "ynab-app"
+        run: |
+          npx @sentry/cli releases new "${{ github.sha }}"
+          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto
+          npx @sentry/cli releases finalize "${{ github.sha }}"
+          npx @sentry/cli releases deploys "${{ github.sha }}" new -e production
+        continue-on-error: true # Don't fail deploy if Sentry is unreachable

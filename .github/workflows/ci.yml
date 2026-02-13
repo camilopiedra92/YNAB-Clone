@@ -45,7 +45,13 @@ jobs:
         run: npm run typecheck
 
       - name: Production Build
-        run: NEXT_TEST_BUILD=1 NODE_ENV=production npm run build
+        env:
+          NEXT_TEST_BUILD: "1"
+          NODE_ENV: production
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: "camilo-piedrahita"
+          SENTRY_PROJECT: "ynab-app"
+        run: npm run build
 
   # ─── Job 2: Unit Tests + Coverage ──────────────────────
   unit-tests:
