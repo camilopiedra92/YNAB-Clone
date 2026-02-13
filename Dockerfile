@@ -19,6 +19,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Commit SHA for deployment traceability (passed via --build-arg)
+ARG COMMIT_SHA=unknown
+
 # Build-time environment variables (Dummy placeholders for validation)
 # We use standard ENV instead of ARG to prevent inheriting real secrets from build-args.
 # Next.js validates these at build time, but we don't need real values here.
@@ -36,10 +39,18 @@ RUN npx next build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
+# Commit SHA for deployment traceability (/api/health)
+ARG COMMIT_SHA=unknown
+ENV COMMIT_SHA=$COMMIT_SHA
+
 # Set production environment
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# OCI metadata labels
+LABEL org.opencontainers.image.source="https://github.com/camilopiedra92/YNAB-Clone"
+LABEL org.opencontainers.image.revision="$COMMIT_SHA"
 
 # Security: Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
