@@ -31,7 +31,7 @@ echo "✓ Environment & Database Ok" || (echo "✗ Environment check failed: Ens
 Check for known vulnerabilities in dependencies.
 
 ```bash
-npm audit --audit-level=high
+./scripts/with-local-tmp.sh npm audit --audit-level=high
 ```
 
 _If this fails, fix the vulnerabilities or explicitly ignore them if they are false positives._

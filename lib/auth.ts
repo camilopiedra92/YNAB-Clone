@@ -24,6 +24,7 @@ import db from './db/client';
 import { users } from './db/schema';
 import { LoginSchema } from './schemas/auth';
 import { authConfig } from './auth.config';
+import { logger } from './logger';
 
 /** Maximum failed login attempts before lockout */
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -53,15 +54,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        const isCI = process.env.CI === 'true';
         const parsed = LoginSchema.safeParse(credentials);
         if (!parsed.success) {
-          if (isCI) console.log('[AUTH-DEBUG] Schema validation failed:', parsed.error.issues);
+          logger.debug('Auth: schema validation failed', { issues: parsed.error.issues });
           return null;
         }
 
         const { email, password } = parsed.data;
-        if (isCI) console.log('[AUTH-DEBUG] Attempting login for:', email, '| DB:', process.env.DATABASE_URL?.replace(/\/\/.*@/, '//<redacted>@'));
+        logger.debug('Auth: login attempt', { email });
 
         const [user] = await db
           .select()
@@ -70,22 +70,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .limit(1);
 
         if (!user) {
-          if (isCI) console.log('[AUTH-DEBUG] User not found in DB');
+          logger.debug('Auth: user not found', { email });
           return null;
         }
 
-        if (isCI) console.log('[AUTH-DEBUG] User found:', user.email, '| Hash prefix:', user.password.substring(0, 20));
+        logger.debug('Auth: user found', { email: user.email });
 
         // ── Account Lockout Check ──────────────────────────────────
         if (user.lockedUntil && user.lockedUntil > new Date()) {
-          if (isCI) console.log('[AUTH-DEBUG] Account locked until:', user.lockedUntil);
+          logger.debug('Auth: account locked', { email, lockedUntil: user.lockedUntil });
           return null;
         }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
-          if (isCI) console.log('[AUTH-DEBUG] bcrypt.compare FAILED for password length:', password.length);
+          logger.debug('Auth: password mismatch', { email });
           // ── Increment failed attempts ────────────────────────────
           const newAttempts = user.failedLoginAttempts + 1;
           const updateData: { failedLoginAttempts: number; lockedUntil?: Date | null } = {

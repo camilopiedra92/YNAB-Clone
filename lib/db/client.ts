@@ -15,6 +15,7 @@
  * file. Re-exported here for backward compatibility.
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { logger } from '../logger';
 import postgres from 'postgres';
 import * as schema from './schema';
 import { createAccountFunctions } from '../repos/accounts';
@@ -50,12 +51,12 @@ export default db;
 // Without this, Docker SIGTERM leaves orphan connections in pg_stat_activity.
 if (typeof process !== 'undefined') {
   const shutdown = async (signal: string) => {
-    console.log(`[DB] Received ${signal} — closing connections...`);
+    logger.info(`DB: received ${signal} — closing connections`);
     try {
       await client.end({ timeout: 5 });
-      console.log('[DB] Connections closed cleanly.');
+      logger.info('DB: connections closed cleanly');
     } catch (err) {
-      console.error('[DB] Error during shutdown:', err);
+      logger.error('DB: error during shutdown', err);
     }
     process.exit(0);
   };

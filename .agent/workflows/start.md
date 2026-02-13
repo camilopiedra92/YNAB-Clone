@@ -19,7 +19,7 @@ Ensure the `.env` file exists. If not, copy it from the example.
 ## 2. Ensure dependencies are installed
 
 ```bash
-npm install
+./scripts/with-local-tmp.sh npm install
 ```
 
 // turbo
