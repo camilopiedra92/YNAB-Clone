@@ -197,6 +197,12 @@ jobs:
           EOF
 
       # ── 5. Sentry Release ─────────────────────────────────
+      - name: Checkout for Sentry release
+        if: steps.verify.outputs.healthy == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for set-commits
+
       - name: Create Sentry release
         if: steps.verify.outputs.healthy == 'true'
         env:
