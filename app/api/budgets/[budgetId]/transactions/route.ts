@@ -79,6 +79,11 @@ export async function POST(
                 });
 
                 const transaction = await repos.getTransaction(budgetId, result.fromTransactionId);
+
+                // CQRS: refresh budget activity on the write path
+                const txMonth = data.date.slice(0, 7);
+                await repos.refreshAllBudgetActivity(budgetId, txMonth);
+
                 return NextResponse.json(toTransactionDTO(transaction), { status: 201 });
             }
 
@@ -100,6 +105,11 @@ export async function POST(
             });
 
             const transaction = await repos.getTransaction(budgetId, result.id);
+
+            // CQRS: refresh budget activity on the write path
+            const txMonth = data.date.slice(0, 7);
+            await repos.refreshAllBudgetActivity(budgetId, txMonth);
+
             return NextResponse.json(toTransactionDTO(transaction), { status: 201 });
         });
     } catch (error) {
@@ -147,6 +157,15 @@ export async function PUT(
             await repos.updateTransactionAtomic(budgetId, id, original, updateData);
 
             const transaction = await repos.getTransaction(budgetId, id);
+
+            // CQRS: refresh budget activity on the write path
+            const txMonth = (updates.date ?? original.date).slice(0, 7);
+            await repos.refreshAllBudgetActivity(budgetId, txMonth);
+            // If the date changed, also refresh the original month
+            if (updates.date && updates.date.slice(0, 7) !== original.date.slice(0, 7)) {
+                await repos.refreshAllBudgetActivity(budgetId, original.date.slice(0, 7));
+            }
+
             return NextResponse.json(toTransactionDTO(transaction));
         });
     } catch (error) {
@@ -188,6 +207,10 @@ export async function DELETE(
 
             // Atomic: delete transaction + update balances + budget + CC payment
             await repos.deleteTransactionAtomic(budgetId, transaction);
+
+            // CQRS: refresh budget activity on the write path
+            const txMonth = transaction.date.slice(0, 7);
+            await repos.refreshAllBudgetActivity(budgetId, txMonth);
 
             return NextResponse.json({ success: true });
         });

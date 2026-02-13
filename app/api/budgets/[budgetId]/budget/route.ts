@@ -9,12 +9,30 @@ import { withBudgetAccess, type TransactionRepos } from '@/lib/with-budget-acces
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
 
+/**
+ * Build the full budget response for a given month.
+ *
+ * Runs independent repo queries in parallel via Promise.all, then passes
+ * pre-computed data to getBudgetInspectorData to avoid redundant DB calls.
+ *
+ * Performance note: getBudgetInspectorData previously re-called
+ * getBudgetForMonth + getReadyToAssignBreakdown internally. Now those
+ * results are passed in as `precomputed`, eliminating duplicated queries.
+ */
 async function buildBudgetResponse(repos: TransactionRepos, budgetId: number, month: string) {
-    const rawBudget = await repos.getBudgetForMonth(budgetId, month);
-    const readyToAssign = await repos.getReadyToAssign(budgetId, month);
-    const rtaBreakdown = await repos.getReadyToAssignBreakdown(budgetId, month);
-    const overspendingTypes = await repos.getOverspendingTypes(budgetId, month);
-    const inspectorData = await repos.getBudgetInspectorData(budgetId, month);
+    // Phase 1: Independent queries run in parallel
+    const [rawBudget, readyToAssign, rtaBreakdown, overspendingTypes] = await Promise.all([
+        repos.getBudgetForMonth(budgetId, month),
+        repos.getReadyToAssign(budgetId, month),
+        repos.getReadyToAssignBreakdown(budgetId, month),
+        repos.getOverspendingTypes(budgetId, month),
+    ]);
+
+    // Phase 2: Inspector uses pre-computed data (no redundant getBudgetForMonth/breakdown calls)
+    const inspectorData = await repos.getBudgetInspectorData(budgetId, month, {
+        budgetRows: rawBudget,
+        rtaBreakdown,
+    });
 
     // Merge overspending types into rows before DTO conversion
     const budget = rawBudget.map((row) => {
@@ -28,6 +46,13 @@ async function buildBudgetResponse(repos: TransactionRepos, budgetId: number, mo
     return { budget, readyToAssign, rtaBreakdown, overspendingTypes, inspectorData };
 }
 
+/**
+ * GET /api/budgets/[budgetId]/budget?month=YYYY-MM
+ *
+ * CQRS: Read path — NO writes. refreshAllBudgetActivity is called on the
+ * write path (transaction mutations) where data actually changes, not here.
+ * This makes month navigation near-instant.
+ */
 export async function GET(
     request: Request,
     { params }: RouteContext
@@ -40,9 +65,6 @@ export async function GET(
             const { searchParams } = new URL(request.url);
             const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
 
-            // Refresh stale activity values from scheduled transactions that are now current
-            await repos.refreshAllBudgetActivity(budgetId, month);
-
             return NextResponse.json(await buildBudgetResponse(repos, budgetId, month));
         });
     } catch (error) {
@@ -51,6 +73,11 @@ export async function GET(
     }
 }
 
+/**
+ * POST /api/budgets/[budgetId]/budget
+ *
+ * Write path — refreshes activity after assignment mutation.
+ */
 export async function POST(
     request: Request,
     { params }: RouteContext
@@ -66,6 +93,9 @@ export async function POST(
             const { categoryId, month, assigned } = validation.data;
 
             await repos.updateBudgetAssignment(budgetId, categoryId, month, milliunit(assigned));
+
+            // CQRS: Refresh activity on the write path where data changes
+            await repos.refreshAllBudgetActivity(budgetId, month);
 
             return NextResponse.json({ success: true, ...(await buildBudgetResponse(repos, budgetId, month)) });
         });
