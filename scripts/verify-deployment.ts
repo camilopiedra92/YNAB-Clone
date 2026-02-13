@@ -129,6 +129,35 @@ async function main() {
      console.warn('ℹ️  Could not verify migration table (perms?):', err);
   }
 
+  // 5. Schema Version Check (Critical Columns)
+  console.log('\n--- 5. Critical Columns (Schema Version) ---');
+  const criticalColumns = [
+    { table: 'budget_months', column: 'budget_id' },
+    { table: 'categories', column: 'budget_id' },
+    { table: 'transactions', column: 'budget_id' },
+  ];
+
+  for (const { table, column } of criticalColumns) {
+    try {
+      const res = await db.execute(sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = ${table} 
+        AND column_name = ${column}
+      `);
+      
+      if (res.length > 0) {
+        console.log(`✅ [${table}.${column}] exists`);
+      } else {
+        console.error(`❌ [${table}.${column}] MISSING — schema migration incomplete!`);
+        issues++;
+      }
+    } catch (err) {
+      console.error(`❌ Error checking ${table}.${column}:`, err);
+      issues++;
+    }
+  }
+
   console.log('\n════════════════════════════════════════');
   if (issues > 0) {
     console.error(`❌ Verification FAILED with ${issues} strict issues.`);

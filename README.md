@@ -27,6 +27,7 @@ Detailed documentation is available in the [`/docs`](./docs) directory:
 - **[Data Model](./docs/data-model.md)**: Database schema details and Entity Relationship diagrams.
 - **[Features Audit](./docs/features.md)**: Overview of implemented features and comparison with original YNAB.
 - **[Developer Guide](./docs/developer-guide.md)**: Setup instructions, database management, and common workflows.
+- **[Deployment Guide](./docs/DEPLOYMENT.md)**: Production setup on Hetzner + Coolify, including database migration strategies.
 
 ## ✨ Core Pillars
 

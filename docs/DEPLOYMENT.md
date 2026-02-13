@@ -696,23 +696,21 @@ SELECT * FROM accounts;  -- Should return ZERO rows (fail-safe)
 | **B: Pre-deploy hook**             | Separates concerns; no app downtime | Coolify needs custom hook config             |    Future    |
 | **C: Separate migration job**      | Most robust; rollback possible      | Over-engineering for 1-5 users               |      No      |
 
-**Recommendation:** Keep startup migration (Option A) for now. Add error handling so migration failure doesn't prevent the app from starting with the existing schema:
+**Recommendation:** Keep startup migration (Option A). The script is now robust:
+
+- **Idempotent:** safe to run on every deploy (`If Not Exists`).
+- **Safe:** `process.exit(1)` on failure in production to prevent starting with broken schema.
+- **Resilient:** Retries connection 5 times before failing.
 
 ```typescript
-// Enhanced migrate-db.ts with production-safe error handling
+// Enhanced migrate-db.ts behavior
 try {
   await migrate(db, { migrationsFolder });
   console.log("✅ Migrations applied successfully.");
 } catch (err) {
-  console.error("⚠️ Migration failed:", err);
-  if (process.env.NODE_ENV === "production") {
-    console.error(
-      "App will start with existing schema. Investigate migration failure.",
-    );
-    // Don't exit — app may still work with the previous schema version
-  } else {
-    process.exit(1);
-  }
+  console.error("❌ Migration failed:", err);
+  // CRITICAL: Exit to prevent starting app with incompatible DB
+  process.exit(1);
 }
 ```
 
@@ -1086,21 +1084,40 @@ Run the SQL from [Section 3.2](#32-production-database-user-rls-enforcement).
 
 ---
 
-### 6.7 Run Initial Database Migration
+### 6.7 Manual Ownership Transfer (Legacy DBs only)
 
-Before the first deployment, you need to run migrations. Two approaches:
+**Critical if you are restoring from a backup or existing database.**
+If your database objects are owned by `postgres` (superuser), the `ynab_app` user will fail to migrate them (`permission denied`).
 
-**Option A: Via the first deploy (recommended)**
-The Dockerfile includes Drizzle migrations. On first `node server.js`, you can either:
-
-- Configure Coolify's "Pre-deploy Command" to `node -e "...migration script..."`
-- Or manually exec into the container after first deploy
-
-**Option B: Direct SQL import**
-If you have an existing database dump:
+**Action:** Run the ownership transfer script as superuser:
 
 ```bash
-docker exec -i <postgres-container-id> psql -U ynab_app -d ynab_prod < backup.sql
+# 1. Copy script to server (or copy-paste content)
+cat scripts/ops/fix-db-ownership.sql
+
+# 2. Run inside postgres container
+docker exec -i <postgres-container-id> psql -U postgres -d ynab_prod < scripts/ops/fix-db-ownership.sql
+```
+
+**Result:** All tables, views, sequences, functions, and types in `public` will be owned by `ynab_app`.
+
+---
+
+### 6.8 Run Initial Database Migration
+
+The `docker-entrypoint.sh` **automatically runs migrations** on container startup.
+
+**Because we made migrations idempotent (Phase 6.7 in progress log):**
+
+- You do NOT need to manually run migrations.
+- You do NOT need a pre-deploy command.
+- The app container will catch up the schema automatically on first launch.
+
+**Manual Verification (Optional):**
+If you want to verify via logs:
+
+```bash
+docker logs <app-container-id> | grep "Migrations applied"
 ```
 
 ---
