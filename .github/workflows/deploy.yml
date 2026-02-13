@@ -197,6 +197,12 @@ jobs:
           EOF
 
       # ── 5. Sentry Release ─────────────────────────────────
+      - name: Checkout (for Sentry commit association)
+        if: steps.verify.outputs.healthy == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for commit association
+
       - name: Create Sentry release
         if: steps.verify.outputs.healthy == 'true'
         env:
@@ -205,6 +211,7 @@ jobs:
           SENTRY_PROJECT: "ynab-app"
         run: |
           npx @sentry/cli releases new "${{ github.sha }}"
+          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto
           npx @sentry/cli releases finalize "${{ github.sha }}"
           npx @sentry/cli releases deploys "${{ github.sha }}" new -e production
         continue-on-error: true # Don't fail deploy if Sentry is unreachable

@@ -62,12 +62,30 @@ class Logger {
     if (!this.shouldLog('info')) return;
     const formatted = this.formatMessage('info', message, context);
     console.log(this.isProd ? formatted : `[INFO] ${formatted}`);
+
+    // Breadcrumb in production — builds context trail for error debugging
+    if (this.isProd) {
+      Sentry.addBreadcrumb({
+        category: 'log',
+        message,
+        level: 'info',
+        data: context,
+      });
+    }
   }
 
   warn(message: string, context?: LogContext) {
     if (!this.shouldLog('warn')) return;
     const formatted = this.formatMessage('warn', message, context);
     console.warn(this.isProd ? formatted : `[WARN] ${formatted}`);
+
+    // Warnings are always breadcrumbed — they often precede errors
+    Sentry.addBreadcrumb({
+      category: 'log',
+      message,
+      level: 'warning',
+      data: context,
+    });
   }
 
   error(message: string, error?: unknown, context?: LogContext) {
