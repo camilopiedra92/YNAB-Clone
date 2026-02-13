@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useBroadcastSync, broadcastInvalidation } from '@/hooks/useBroadcastSync';
 import { persister, APP_CACHE_VERSION } from '@/lib/persistence/persister';
 import { STALE_TIME } from '@/lib/constants';
+import * as Sentry from '@sentry/nextjs';
 
 /**
  * Global MutationCache handles toast feedback and cross-tab sync.
@@ -49,6 +50,17 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                         }
                     },
                     onError: (error, _variables, _context, mutation) => {
+                        // Add breadcrumb for Sentry context
+                        Sentry.addBreadcrumb({
+                            category: 'mutation',
+                            message: `Mutation failed: ${mutation.options.mutationKey}`,
+                            level: 'error',
+                            data: {
+                                mutationKey: mutation.options.mutationKey,
+                                error: error instanceof Error ? error.message : String(error),
+                            },
+                        });
+
                         const meta = mutation.options.meta as
                             | { errorMessage?: string; skipGlobalError?: boolean }
                             | undefined;
