@@ -5,7 +5,7 @@
  * This endpoint is NOT protected by authentication (proxy.ts excludes /api/*).
  *
  * Response format:
- *   { status: 'healthy'|'unhealthy', timestamp, uptime, version, checks: { database } }
+ *   { status: 'healthy'|'unhealthy', timestamp, uptime, version, sentry_release, checks: { database } }
  */
 import { NextResponse } from 'next/server';
 import db from '@/lib/db/client';
@@ -28,6 +28,7 @@ export async function GET() {
       uptime: Math.round(process.uptime()),
       version: process.env.npm_package_version || '0.1.0',
       commit: process.env.COMMIT_SHA?.slice(0, 7) || 'dev',
+      sentry_release: process.env.COMMIT_SHA || 'dev',
       checks: {
         database: {
           status: 'up',
