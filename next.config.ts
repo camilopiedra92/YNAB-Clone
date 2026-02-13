@@ -99,11 +99,13 @@ export default withSentryConfig(nextConfig, {
     deleteSourcemapsAfterUpload: true,
   },
 
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Vercel Cron Monitors (disabled — not on Vercel)
-  automaticVercelMonitors: false,
+  // Automatically tree-shake Sentry debug logging to reduce bundle size
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayIframe: true,
+    excludeReplayShadowDom: true,
+    excludeReplayWorker: true,
+  },
 
   // Route Sentry requests through your server (avoids ad-blockers)
   tunnelRoute: "/monitoring",
