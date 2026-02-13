@@ -8,8 +8,19 @@ import { STALE_TIME } from '@/lib/constants';
 export type { BudgetItemDTO as BudgetItem };
 export type { InspectorDataDTO as InspectorData };
 
-const fetchBudgetTable = async (budgetId: number, month: string): Promise<BudgetResponseDTO> => {
-    const res = await fetch(`/api/budgets/${budgetId}/budget?month=${month}`);
+/**
+ * Fetches budget table data for a given month.
+ *
+ * Accepts an optional AbortSignal from React Query so in-flight requests
+ * are automatically cancelled when the queryKey changes (month navigation).
+ * This prevents stale response pile-up during rapid navigation.
+ */
+const fetchBudgetTable = async (
+    budgetId: number,
+    month: string,
+    signal?: AbortSignal,
+): Promise<BudgetResponseDTO> => {
+    const res = await fetch(`/api/budgets/${budgetId}/budget?month=${month}`, { signal });
     if (!res.ok) throw new Error('Failed to fetch budget');
     return res.json();
 };
@@ -19,7 +30,8 @@ export function useBudgetTable(budgetId: number | undefined, currentMonth: strin
 
     const query = useQuery({
         queryKey: ['budget', budgetId, currentMonth],
-        queryFn: () => fetchBudgetTable(budgetId!, currentMonth),
+        // React Query provides `signal` — aborts automatically when queryKey changes
+        queryFn: ({ signal }) => fetchBudgetTable(budgetId!, currentMonth, signal),
         placeholderData: keepPreviousData,
         staleTime: STALE_TIME.BUDGET,
         enabled: !!budgetId,
@@ -27,6 +39,8 @@ export function useBudgetTable(budgetId: number | undefined, currentMonth: strin
 
     // Prefetch next and previous months
     useEffect(() => {
+        if (!budgetId) return;
+
         const [year, month] = currentMonth.split('-').map(Number);
 
         // Next month
@@ -39,13 +53,13 @@ export function useBudgetTable(budgetId: number | undefined, currentMonth: strin
 
         queryClient.prefetchQuery({
             queryKey: ['budget', budgetId, nextMonthStr],
-            queryFn: () => fetchBudgetTable(budgetId!, nextMonthStr),
+            queryFn: ({ signal }) => fetchBudgetTable(budgetId, nextMonthStr, signal),
             staleTime: STALE_TIME.BUDGET,
         });
 
         queryClient.prefetchQuery({
             queryKey: ['budget', budgetId, prevMonthStr],
-            queryFn: () => fetchBudgetTable(budgetId!, prevMonthStr),
+            queryFn: ({ signal }) => fetchBudgetTable(budgetId, prevMonthStr, signal),
             staleTime: STALE_TIME.BUDGET,
         });
     }, [budgetId, currentMonth, queryClient]);

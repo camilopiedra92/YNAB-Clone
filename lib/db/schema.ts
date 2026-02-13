@@ -166,6 +166,8 @@ export const budgetMonths = pgTable('budget_months', {
   index('idx_budget_months_category').on(table.categoryId),
   index('idx_budget_months_month').on(table.month),
   index('idx_budget_months_budget').on(table.budgetId),
+  // Composite: carryforward DISTINCT ON (category_id, month DESC)
+  index('idx_budget_months_cat_month_desc').on(table.categoryId, sql`month DESC`),
 ]);
 
 export const transactions = pgTable('transactions', {
@@ -188,6 +190,10 @@ export const transactions = pgTable('transactions', {
   index('idx_transactions_account').on(table.accountId),
   index('idx_transactions_date').on(table.date),
   index('idx_transactions_category').on(table.categoryId),
+  // Composite: category activity grouping with date filter
+  index('idx_transactions_category_date').on(table.categoryId, table.date),
+  // Composite: account-scoped date filter (CC payments, cash balance)
+  index('idx_transactions_account_date').on(table.accountId, table.date),
 ]);
 
 export const transfers = pgTable('transfers', {

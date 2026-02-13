@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, useTransition } from 'react';
 import { useAnimatedNumber } from '@/hooks/useAnimatedNumber';
 import AppLayout from '@/components/AppLayout';
 import { useParams } from 'next/navigation';
@@ -31,7 +31,8 @@ export default function BudgetPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
-    const { data: budgetData = [], isLoading: loading, readyToAssign, inspectorData } = useBudgetTable(budgetId, currentMonth);
+    const { data: budgetData = [], isLoading: loading, isFetching, readyToAssign, inspectorData } = useBudgetTable(budgetId, currentMonth);
+    const [isMonthTransitioning, startMonthTransition] = useTransition();
     const animatedRTA = useAnimatedNumber(readyToAssign, 400);
     const queryClient = useQueryClient();
 
@@ -181,12 +182,13 @@ export default function BudgetPage() {
     const navigateMonth = (direction: number) => {
         const [year, month] = currentMonth.split('-').map(Number);
         const date = new Date(year, month - 1 + direction);
-        setCurrentMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+        const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        startMonthTransition(() => setCurrentMonth(newMonth));
     };
 
     const goToCurrentMonth = () => {
         const now = new Date();
-        setCurrentMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        startMonthTransition(() => setCurrentMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`));
     };
 
     if (loading) {
@@ -211,7 +213,7 @@ export default function BudgetPage() {
                     currentMonth={currentMonth}
                     onNavigateMonth={navigateMonth}
                     onGoToCurrentMonth={goToCurrentMonth}
-                    onSetCurrentMonth={setCurrentMonth}
+                    onSetCurrentMonth={(m) => startMonthTransition(() => setCurrentMonth(m))}
                     animatedRTA={animatedRTA}
                     formatCurrency={formatCurrency}
                 />
@@ -225,7 +227,7 @@ export default function BudgetPage() {
                 <div className="flex-1 flex gap-0 min-h-0">
                     <div
                         ref={tableContainerRef}
-                        className="flex-1 min-w-0 h-full overflow-auto custom-scrollbar"
+                        className={`flex-1 min-w-0 h-full overflow-auto custom-scrollbar transition-opacity duration-200 ${(isMonthTransitioning || isFetching) ? 'opacity-60' : 'opacity-100'}`}
                     >
                         <BudgetDndProvider
                             budgetData={budgetData}

@@ -106,7 +106,32 @@ export function createBudgetFunctions(
       ORDER BY cg.sort_order, c.sort_order
     `);
 
-    // For categories without a budget_months row, compute carryforward from prior months
+    // Batch carryforward: single query replaces per-row computeCarryforward (N+1 elimination)
+    const missingIds = rows
+      .filter(r => r._budgetMonthId === null && r.categoryId !== null)
+      .map(r => r.categoryId);
+
+    const carryforwardMap = new Map<number, Milliunit>();
+    if (missingIds.length > 0) {
+      const prevRows = await queryRows<{ categoryId: number; available: number; linkedAccountId: number | null }>(database, sql`
+        SELECT DISTINCT ON (bm.category_id)
+          bm.category_id as "categoryId",
+          bm.available as "available",
+          c.linked_account_id as "linkedAccountId"
+        FROM ${budgetMonths} bm
+        JOIN ${categories} c ON bm.category_id = c.id
+        JOIN ${categoryGroups} cg ON c.category_group_id = cg.id
+        WHERE bm.month < ${month}
+          AND cg.budget_id = ${budgetId}
+          AND bm.category_id IN ${sql.raw(`(${missingIds.join(',')})`)}
+        ORDER BY bm.category_id, bm.month DESC
+      `);
+      for (const pr of prevRows) {
+        const isCCPayment = !!pr.linkedAccountId;
+        carryforwardMap.set(pr.categoryId, engineCarryforward(m(pr.available), isCCPayment));
+      }
+    }
+
     const result: BudgetRow[] = [];
     for (const row of rows) {
       const r = { ...row };
@@ -114,7 +139,8 @@ export function createBudgetFunctions(
       r.assigned = m(r.assigned);
       r.activity = m(r.activity);
       if (r._budgetMonthId === null && r.categoryId !== null) {
-        r.available = await computeCarryforward(budgetId, r.categoryId, month) as Milliunit;
+        // Use batch carryforward; default to ZERO if no prior month data
+        r.available = carryforwardMap.get(r.categoryId) ?? ZERO;
       } else {
         r.available = m(r.available);
       }
@@ -775,7 +801,11 @@ export function createBudgetFunctions(
     return result;
   }
 
-  async function getBudgetInspectorData(budgetId: number, month: string) {
+  async function getBudgetInspectorData(
+    budgetId: number,
+    month: string,
+    precomputed?: { budgetRows: BudgetRow[]; rtaBreakdown: ReturnType<typeof calculateRTABreakdown> },
+  ) {
     const [yr, mo] = month.split('-').map(Number);
     const prevDate = new Date(yr, mo - 2);
     const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
@@ -784,9 +814,10 @@ export function createBudgetFunctions(
     const twelveMonthsAgo = `${twelveMonthsAgoDate.getFullYear()}-${String(twelveMonthsAgoDate.getMonth() + 1).padStart(2, '0')}`;
 
     // ── Month Summary ──
-    const breakdown = await getReadyToAssignBreakdown(budgetId, month);
+    // Use pre-computed data when available (eliminates redundant DB calls from buildBudgetResponse)
+    const breakdown = precomputed?.rtaBreakdown ?? await getReadyToAssignBreakdown(budgetId, month);
 
-    const budgetRows = await getBudgetForMonth(budgetId, month);
+    const budgetRows = precomputed?.budgetRows ?? await getBudgetForMonth(budgetId, month);
 
     let totalAvailable = 0;
     let totalActivity = 0;
