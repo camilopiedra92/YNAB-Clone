@@ -68,6 +68,7 @@ export function useBudgetTable(budgetId: number | undefined, currentMonth: strin
         ...query,
         data: query.data?.budget,
         readyToAssign: query.data?.readyToAssign ?? 0,
+        monthRange: query.data?.monthRange ?? null,
         inspectorData: query.data?.inspectorData ?? null,
     };
 }

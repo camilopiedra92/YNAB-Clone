@@ -11,6 +11,8 @@ interface BudgetHeaderProps {
     onSetCurrentMonth: (month: string) => void;
     animatedRTA: number;
     formatCurrency: (value: number) => string;
+    minMonth?: string;
+    maxMonth?: string;
 }
 
 export function BudgetHeader({
@@ -20,7 +22,11 @@ export function BudgetHeader({
     onSetCurrentMonth,
     animatedRTA,
     formatCurrency,
+    minMonth,
+    maxMonth,
 }: BudgetHeaderProps) {
+    const isAtMin = !!minMonth && currentMonth <= minMonth;
+    const isAtMax = !!maxMonth && currentMonth >= maxMonth;
     return (
         <header className="px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 bg-background"
             style={{
@@ -32,9 +38,10 @@ export function BudgetHeader({
                     <button
                         data-testid="month-prev"
                         onClick={() => onNavigateMonth(-1)}
-                        className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95"
+                        className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 ${isAtMin ? 'opacity-30 pointer-events-none' : ''}`}
                         title="Mes Anterior"
                         aria-label="Mes anterior"
+                        disabled={isAtMin}
                     >
                         <ChevronLeft className="w-5 h-5" aria-hidden="true" />
                     </button>
@@ -45,14 +52,15 @@ export function BudgetHeader({
                         Hoy
                     </button>
                     <div data-testid="month-display" className="px-4 flex flex-col items-center min-w-[140px]">
-                        <MonthPicker currentMonth={currentMonth} onChange={onSetCurrentMonth} />
+                        <MonthPicker currentMonth={currentMonth} onChange={onSetCurrentMonth} minMonth={minMonth} maxMonth={maxMonth} />
                     </div>
                     <button
                         data-testid="month-next"
                         onClick={() => onNavigateMonth(1)}
-                        className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95"
+                        className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 ${isAtMax ? 'opacity-30 pointer-events-none' : ''}`}
                         title="Mes Siguiente"
                         aria-label="Mes siguiente"
+                        disabled={isAtMax}
                     >
                         <ChevronRight className="w-5 h-5" aria-hidden="true" />
                     </button>

@@ -60,6 +60,7 @@ export interface InspectorDataDTO {
 export interface BudgetResponseDTO {
   budget: BudgetItemDTO[];
   readyToAssign: number;
+  monthRange: { minMonth: string; maxMonth: string };
   rtaBreakdown: RTABreakdown;
   overspendingTypes: Record<number, 'cash' | 'credit' | null>;
   inspectorData: InspectorDataDTO;

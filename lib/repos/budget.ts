@@ -996,6 +996,24 @@ export function createBudgetFunctions(
     };
   }
 
+  async function getMonthRange(budgetId: number): Promise<{ minMonth: string; maxMonth: string }> {
+    const rows = await queryRows<{ minMonth: string | null }>(database, sql`
+      SELECT to_char(MIN(${transactions.date}), 'YYYY-MM') as "minMonth"
+      FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
+      WHERE ${accounts.budgetId} = ${budgetId}
+    `);
+
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const maxMonth = `${now.getFullYear() + 1}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    return {
+      minMonth: rows[0]?.minMonth ?? currentMonth,
+      maxMonth,
+    };
+  }
+
   return {
     computeCarryforward,
     getBudgetForMonth,
@@ -1010,5 +1028,6 @@ export function createBudgetFunctions(
     getCashOverspendingForMonth,
     getOverspendingTypes,
     getBudgetInspectorData,
+    getMonthRange,
   };
 }

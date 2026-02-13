@@ -21,11 +21,12 @@ type RouteContext = { params: Promise<{ budgetId: string }> };
  */
 async function buildBudgetResponse(repos: TransactionRepos, budgetId: number, month: string) {
     // Phase 1: Independent queries run in parallel
-    const [rawBudget, readyToAssign, rtaBreakdown, overspendingTypes] = await Promise.all([
+    const [rawBudget, readyToAssign, rtaBreakdown, overspendingTypes, monthRange] = await Promise.all([
         repos.getBudgetForMonth(budgetId, month),
         repos.getReadyToAssign(budgetId, month),
         repos.getReadyToAssignBreakdown(budgetId, month),
         repos.getOverspendingTypes(budgetId, month),
+        repos.getMonthRange(budgetId),
     ]);
 
     // Phase 2: Inspector uses pre-computed data (no redundant getBudgetForMonth/breakdown calls)
@@ -43,7 +44,7 @@ async function buildBudgetResponse(repos: TransactionRepos, budgetId: number, mo
         return toBudgetItemDTO(enriched);
     });
 
-    return { budget, readyToAssign, rtaBreakdown, overspendingTypes, inspectorData };
+    return { budget, readyToAssign, monthRange, rtaBreakdown, overspendingTypes, inspectorData };
 }
 
 /**

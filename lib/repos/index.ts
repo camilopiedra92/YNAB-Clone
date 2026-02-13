@@ -69,6 +69,7 @@ export const {
   getCashOverspendingForMonth,
   getOverspendingTypes,
   getBudgetInspectorData,
+  getMonthRange,
   // Category repo
   getCategoryGroups,
   getCategories,

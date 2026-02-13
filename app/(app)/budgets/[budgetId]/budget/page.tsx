@@ -31,7 +31,7 @@ export default function BudgetPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
 
-    const { data: budgetData = [], isLoading: loading, isFetching, readyToAssign, inspectorData } = useBudgetTable(budgetId, currentMonth);
+    const { data: budgetData = [], isLoading: loading, isFetching, readyToAssign, monthRange, inspectorData } = useBudgetTable(budgetId, currentMonth);
     const [isMonthTransitioning, startMonthTransition] = useTransition();
     const animatedRTA = useAnimatedNumber(readyToAssign, 400);
     const queryClient = useQueryClient();
@@ -183,6 +183,10 @@ export default function BudgetPage() {
         const [year, month] = currentMonth.split('-').map(Number);
         const date = new Date(year, month - 1 + direction);
         const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        // Guard: don't navigate beyond data range
+        if (monthRange) {
+            if (newMonth < monthRange.minMonth || newMonth > monthRange.maxMonth) return;
+        }
         startMonthTransition(() => setCurrentMonth(newMonth));
     };
 
@@ -216,6 +220,8 @@ export default function BudgetPage() {
                     onSetCurrentMonth={(m) => startMonthTransition(() => setCurrentMonth(m))}
                     animatedRTA={animatedRTA}
                     formatCurrency={formatCurrency}
+                    minMonth={monthRange?.minMonth}
+                    maxMonth={monthRange?.maxMonth}
                 />
 
                 <BudgetToolbar
