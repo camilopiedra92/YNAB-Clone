@@ -8,9 +8,11 @@ import { es } from 'date-fns/locale';
 interface MonthPickerProps {
     currentMonth: string; // YYYY-MM
     onChange: (month: string) => void;
+    minMonth?: string; // YYYY-MM
+    maxMonth?: string; // YYYY-MM
 }
 
-export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
+export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: MonthPickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [viewDate, setViewDate] = useState(() => {
         const parsed = parseISO(`${currentMonth}-01`);
@@ -41,11 +43,26 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
     const months = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     const currentViewYear = getYear(viewDate);
 
+    // Derive min/max years from props
+    const minYear = minMonth ? parseInt(minMonth.split('-')[0], 10) : null;
+    const maxYear = maxMonth ? parseInt(maxMonth.split('-')[0], 10) : null;
+
+    const canGoPrevYear = minYear === null || currentViewYear > minYear;
+    const canGoNextYear = maxYear === null || currentViewYear < maxYear;
+
     const handleMonthSelect = (monthIndex: number) => {
         const newDate = setMonth(viewDate, monthIndex);
         const monthStr = format(newDate, 'yyyy-MM');
         onChange(monthStr);
         setIsOpen(false);
+    };
+
+    const isMonthDisabled = (monthIndex: number): boolean => {
+        const date = setMonth(viewDate, monthIndex);
+        const monthKey = format(date, 'yyyy-MM');
+        if (minMonth && monthKey < minMonth) return true;
+        if (maxMonth && monthKey > maxMonth) return true;
+        return false;
     };
 
     const parsedCurrent = parseISO(`${currentMonth}-01`);
@@ -78,17 +95,19 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
                 >
                     <div className="flex items-center justify-between mb-6">
                         <button
-                            onClick={() => setViewDate(subYears(viewDate, 1))}
+                            onClick={() => canGoPrevYear && setViewDate(subYears(viewDate, 1))}
                             aria-label="Año anterior"
-                            className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm"
+                            disabled={!canGoPrevYear}
+                            className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm ${!canGoPrevYear ? 'opacity-30 pointer-events-none' : ''}`}
                         >
                             <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                         </button>
                         <span className="text-sm font-black text-foreground uppercase tracking-widest">{currentViewYear}</span>
                         <button
-                            onClick={() => setViewDate(addYears(viewDate, 1))}
+                            onClick={() => canGoNextYear && setViewDate(addYears(viewDate, 1))}
                             aria-label="Año siguiente"
-                            className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm"
+                            disabled={!canGoNextYear}
+                            className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm ${!canGoNextYear ? 'opacity-30 pointer-events-none' : ''}`}
                         >
                             <ChevronRight className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -100,17 +119,21 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
                             const monthKey = format(date, 'yyyy-MM');
                             const isSelected = monthKey === currentMonth;
                             const isCurrent = monthKey === format(new Date(), 'yyyy-MM');
+                            const disabled = isMonthDisabled(mIdx);
 
                             return (
                                 <button
                                     key={mIdx}
-                                    onClick={() => handleMonthSelect(mIdx)}
+                                    onClick={() => !disabled && handleMonthSelect(mIdx)}
+                                    disabled={disabled}
                                     className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all
-                                        ${isSelected
-                                            ? 'neu-btn-primary shadow-neu-sm scale-105'
-                                            : isCurrent
-                                                ? 'neu-btn text-primary border-primary/20 bg-primary/5'
-                                                : 'neu-btn text-muted-foreground hover:text-foreground hover:bg-primary/5'
+                                        ${disabled
+                                            ? 'opacity-30 cursor-not-allowed text-muted-foreground'
+                                            : isSelected
+                                                ? 'neu-btn-primary shadow-neu-sm scale-105'
+                                                : isCurrent
+                                                    ? 'neu-btn text-primary border-primary/20 bg-primary/5'
+                                                    : 'neu-btn text-muted-foreground hover:text-foreground hover:bg-primary/5'
                                         }`}
                                 >
                                     {format(date, 'MMM', { locale: es }).replace('.', '')}
@@ -123,3 +146,4 @@ export function MonthPicker({ currentMonth, onChange }: MonthPickerProps) {
         </div>
     );
 }
+
