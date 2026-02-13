@@ -406,6 +406,116 @@ describe('refreshAllBudgetActivity', () => {
         expect(rows).toHaveLength(1);
         expect(rows[0].available).toBe(400); // 500 assigned - 100 spent = 400 carried forward
     });
+
+    it('resets negative available for regular categories at month rollover', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Assign 50 but spend 100 → available = -50 (cash overspending)
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
+        await fns.createTransaction(budgetId, {
+            accountId,
+            date: today(),
+            payee: 'Store',
+            categoryId: categoryIds[0],
+            outflow: 100,
+        });
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Verify current month has negative available
+        const currentRows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(currentRows[0].available).toBe(-50);
+
+        // Refresh next month — carryforward should reset negative to 0
+        await fns.refreshAllBudgetActivity(budgetId, next);
+
+        // Regular category: negative available MUST reset to 0 at month rollover
+        const nextRows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, next)
+            ));
+        // Should NOT exist (available=0, assigned=0, activity=0 → ghost cleanup deletes it)
+        expect(nextRows).toHaveLength(0);
+    });
+
+    it('resets credit card overspending at month rollover (does not carry into next month)', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create CC account
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+
+        // Assign 50 to category, then spend 100 on CC → credit overspending of 50
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: today(),
+            payee: 'CC Store',
+            categoryId: categoryIds[0],
+            outflow: 100,
+        });
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Verify current month: available = 50 - 100 = -50 (credit overspending)
+        const currentRows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, month)
+            ));
+        expect(currentRows[0].available).toBe(-50);
+
+        // Refresh next month
+        await fns.refreshAllBudgetActivity(budgetId, next);
+
+        // Next month: credit overspending MUST reset to 0 — it should NOT carry forward
+        const nextRows = await db.select()
+            .from(budgetMonths)
+            .where(and(
+                eq(budgetMonths.categoryId, categoryIds[0]),
+                eq(budgetMonths.month, next)
+            ));
+        // Ghost cleanup deletes the row since available=0, assigned=0, activity=0
+        expect(nextRows).toHaveLength(0);
+    });
+
+    it('preserves negative available for CC payment categories at month rollover', async () => {
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create CC account and linked payment category
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+        const ccCat = (await fns.getCreditCardPaymentCategory(ccId))!;
+
+        // Manually set negative available (representing CC debt)
+        await db.insert(budgetMonths).values({
+            budgetId,
+            categoryId: ccCat.id,
+            month,
+            assigned: ZERO,
+            activity: mu(-500),
+            available: mu(-500),
+        });
+
+        // Read next month via getBudgetForMonth — CC debt should carry forward
+        const rows = await fns.getBudgetForMonth(budgetId, next);
+        const ccRow = rows.find(r => r.categoryId === ccCat.id);
+        expect(ccRow).toBeDefined();
+        expect(ccRow!.available).toBe(-500); // CC Payment debt carries forward
+    });
 });
 
 // =====================================================================

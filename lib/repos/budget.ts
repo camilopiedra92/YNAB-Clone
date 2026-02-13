@@ -455,10 +455,13 @@ export function createBudgetFunctions(
     for (const row of existingRows) existingMap.set(row.budget_months.categoryId, row);
 
     // 3. Get carryforward (latest previous available) for ALL categories
-    const prevRows = await queryRows<{ categoryId: number; available: number }>(database, sql`
+    //    MUST include linked_account_id to apply engineCarryforward correctly:
+    //    regular categories reset negative available to 0, CC payment categories carry forward debt.
+    const prevRows = await queryRows<{ categoryId: number; available: number; linkedAccountId: number | null }>(database, sql`
       SELECT DISTINCT ON (${budgetMonths.categoryId})
         ${budgetMonths.categoryId} as "categoryId",
-        ${budgetMonths.available} as "available"
+        ${budgetMonths.available} as "available",
+        ${categories.linkedAccountId} as "linkedAccountId"
       FROM ${budgetMonths}
       JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
       JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
@@ -467,7 +470,10 @@ export function createBudgetFunctions(
       ORDER BY ${budgetMonths.categoryId}, ${budgetMonths.month} DESC
     `);
     const carryforwardMap = new Map<number, Milliunit>();
-    for (const row of prevRows) carryforwardMap.set(row.categoryId, m(row.available));
+    for (const row of prevRows) {
+      const isCCPayment = !!row.linkedAccountId;
+      carryforwardMap.set(row.categoryId, engineCarryforward(m(row.available), isCCPayment));
+    }
 
     // 4. Identify all categories that need updates
     const allCategories = await database.select({ id: categories.id, linkedAccountId: categories.linkedAccountId })
