@@ -3,9 +3,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { format, addYears, subYears, setMonth, getYear, parseISO, isValid } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { enUS } from 'date-fns/locale';
-import { useLocale } from 'next-intl';
+import { toDateFnsLocale } from '@/lib/i18n/config';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface MonthPickerProps {
     currentMonth: string; // YYYY-MM
@@ -22,7 +21,8 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
     });
     const containerRef = useRef<HTMLDivElement>(null);
     const locale = useLocale();
-    const dateFnsLocale = useMemo(() => locale === 'en' ? enUS : es, [locale]);
+    const t = useTranslations('monthPicker');
+    const dateFnsLocale = useMemo(() => toDateFnsLocale(locale), [locale]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -83,7 +83,7 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
                 aria-haspopup="dialog"
-                aria-label={`Seleccionar mes: ${displayMonth} ${displayYear}`}
+                aria-label={t('selectMonth', { month: displayMonth, year: displayYear })}
                 className="flex items-center gap-2 text-lg font-black text-foreground group tracking-tight hover:opacity-80 transition-opacity"
             >
                 {displayMonth}
@@ -100,7 +100,7 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
                     <div className="flex items-center justify-between mb-6">
                         <button
                             onClick={() => canGoPrevYear && setViewDate(subYears(viewDate, 1))}
-                            aria-label="Año anterior"
+                            aria-label={t('previousYear')}
                             disabled={!canGoPrevYear}
                             className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm ${!canGoPrevYear ? 'opacity-30 pointer-events-none' : ''}`}
                         >
@@ -109,7 +109,7 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
                         <span className="text-sm font-black text-foreground uppercase tracking-widest">{currentViewYear}</span>
                         <button
                             onClick={() => canGoNextYear && setViewDate(addYears(viewDate, 1))}
-                            aria-label="Año siguiente"
+                            aria-label={t('nextYear')}
                             disabled={!canGoNextYear}
                             className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 shadow-neu-sm ${!canGoNextYear ? 'opacity-30 pointer-events-none' : ''}`}
                         >

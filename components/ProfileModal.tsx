@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, User, Lock, Calendar } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
+import { useFormatDate } from '@/hooks/useFormatDate';
 import { useProfile } from '@/hooks/useProfile';
 import { useUpdateProfile, useChangePassword } from '@/hooks/useProfileMutations';
 
@@ -40,7 +40,7 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
     const changePassword = useChangePassword();
 
     const t = useTranslations('profile');
-    const currentLocale = useLocale();
+    const { formatDate: formatDateRaw } = useFormatDate();
 
     // State initializes from the guaranteed-available profile
     const [name, setName] = useState(profile.name ?? '');
@@ -90,11 +90,8 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
 
     const formatDate = (dateStr: string | undefined) => {
         if (!dateStr) return '—';
-        return new Date(dateStr).toLocaleDateString(currentLocale === 'en' ? 'en-US' : 'es-CO', {
-            year: 'numeric', month: 'long', day: 'numeric',
-        });
+        return formatDateRaw(dateStr, 'long');
     };
-
     return (
         <>
             {/* Header */}

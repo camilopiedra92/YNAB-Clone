@@ -5,21 +5,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Circle, Lock, Clock, Search, ArrowRightLeft } from 'lucide-react';
 import type { Transaction } from '@/hooks/useTransactions';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
-import { useLocale } from 'next-intl';
+import { useFormatDate } from '@/hooks/useFormatDate';
 import { useTranslations } from 'next-intl';
 
 const ROW_HEIGHT = 33; // px per row — matches py-1 + content
 
 
-
-const formatDate = (dateStr: string, locale: string) => {
-    const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-};
 
 // ──────────────────────────────────────────
 // Single Transaction Row (memoized)
@@ -43,7 +34,7 @@ const TransactionRow = memo(function TransactionRow({
 }) {
     const tr = useTranslations('transactions');
     const { formatCurrency } = useFormatCurrency();
-    const locale = useLocale();
+    const { formatDate } = useFormatDate();
     return (
         <tr
             data-testid={`transaction-row-${t.id}`}
@@ -71,7 +62,7 @@ const TransactionRow = memo(function TransactionRow({
                 </td>
             )}
             <td className="py-0.5 px-3 text-sm text-muted-foreground font-bold whitespace-nowrap tabular-nums">
-                {formatDate(t.date, locale)}
+                {formatDate(t.date)}
             </td>
             <td className="py-0.5 px-3">
                 <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
@@ -178,7 +169,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
 }) {
     const tr = useTranslations('transactions');
     const { formatCurrency } = useFormatCurrency();
-    const locale = useLocale();
+    const { formatDate } = useFormatDate();
     return (
         <tr
             onClick={() => onEdit(t)}
@@ -200,7 +191,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                 </td>
             )}
             <td className="py-0.5 px-3 text-sm text-amber-600 dark:text-amber-400 font-bold whitespace-nowrap tabular-nums">
-                {formatDate(t.date, locale)}
+                {formatDate(t.date)}
             </td>
             <td className="py-0.5 px-3">
                 <span className="text-sm font-medium text-foreground">{t.payee}</span>

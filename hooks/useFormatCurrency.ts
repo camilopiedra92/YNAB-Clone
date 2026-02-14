@@ -1,8 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useLocale } from 'next-intl';
 import { useBudget } from './useBudgets';
 import { formatCurrency as rawFormat, formatCurrencyOrEmpty as rawFormatOrEmpty } from '@/lib/format';
+import { toIntlLocale } from '@/lib/i18n/config';
 
 /**
  * Hook that returns a locale-aware formatCurrency function.
@@ -21,8 +23,8 @@ export function useFormatCurrency(budgetId?: number) {
   const currencyCode = budget?.currencyCode;
 
   // Map next-intl locale ('es', 'en') to Intl locale ('es-CO', 'en-US')
-  // This mapping can be extended as more locales are added
-  const intlLocale = locale === 'en' ? 'en-US' : 'es-CO';
+  // via centralized config — no more hardcoded ternaries
+  const intlLocale = useMemo(() => toIntlLocale(locale), [locale]);
 
   return {
     formatCurrency: (amount: number, fractionDigits?: number) =>

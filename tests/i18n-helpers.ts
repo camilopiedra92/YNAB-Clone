@@ -5,6 +5,9 @@
  * that resolves dot-separated i18n keys to the translated string for
  * the current TEST_LOCALE.
  *
+ * Keys are TYPE-SAFE — a typo like `t('budgt.category')` will fail at
+ * compile time. The types are derived from `en.json` via `IntlMessages`.
+ *
  * Usage in spec files:
  *   import { t } from './i18n-helpers';
  *   await page.getByLabel(t('auth.password')).fill('...');
@@ -23,6 +26,24 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const esMessages = JSON.parse(readFileSync(resolve(__dirname, '../messages/es.json'), 'utf-8'));
 const enMessages = JSON.parse(readFileSync(resolve(__dirname, '../messages/en.json'), 'utf-8'));
+
+// ─────────────────────────────────────────────────────────────────────
+// Type-Safe Key Paths (derived from IntlMessages)
+// ─────────────────────────────────────────────────────────────────────
+
+type Messages = typeof import('../messages/en.json');
+
+/**
+ * Recursively builds dot-separated key paths from a nested object type.
+ * e.g., { auth: { login: string } } → 'auth.login'
+ */
+type NestedKeyPath<T, Prefix extends string = ''> = {
+  [K in keyof T & string]: T[K] extends Record<string, unknown>
+    ? NestedKeyPath<T[K], `${Prefix}${K}.`>
+    : `${Prefix}${K}`;
+}[keyof T & string];
+
+export type MessageKey = NestedKeyPath<Messages>;
 
 // ─────────────────────────────────────────────────────────────────────
 // Test Locale Configuration
@@ -51,7 +72,7 @@ const messagesByLocale: Record<string, Record<string, unknown>> = {
  *   t('auth.login')                    // "Iniciar Sesión" (es) / "Sign In" (en)
  *   t('sidebar.editAccount', { name: 'Checking' })  // "Editar Checking"
  */
-export function t(key: string, params?: Record<string, string | number>): string {
+export function t(key: MessageKey, params?: Record<string, string | number>): string {
   const parts = key.split('.');
   let value: unknown = messagesByLocale[TEST_LOCALE];
 
@@ -91,7 +112,7 @@ export function t(key: string, params?: Record<string, string | number>): string
  */
 export function tLocale(
   locale: 'es' | 'en',
-  key: string,
+  key: MessageKey,
   params?: Record<string, string | number>,
 ): string {
   const parts = key.split('.');
@@ -121,3 +142,4 @@ export function tLocale(
 
   return value;
 }
+

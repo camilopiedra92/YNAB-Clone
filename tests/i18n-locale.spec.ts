@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { gotoBudgetPage } from './e2e-helpers';
-import { tLocale, TEST_LOCALE } from './i18n-helpers';
+import { tLocale, TEST_LOCALE, type MessageKey } from './i18n-helpers';
 
 // Determine starting and alternate locales based on TEST_LOCALE
 const startLocale = TEST_LOCALE; // 'es' or 'en'
 const altLocale = startLocale === 'es' ? 'en' : 'es';
-const start = (key: string) => tLocale(startLocale, key);
-const alt = (key: string) => tLocale(altLocale, key);
+const start = (key: MessageKey) => tLocale(startLocale, key);
+const alt = (key: MessageKey) => tLocale(altLocale, key);
 
 /**
  * i18n E2E Tests — Locale Switching

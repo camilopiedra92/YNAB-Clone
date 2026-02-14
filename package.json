@@ -33,6 +33,7 @@
     "check:future-filter": "bash scripts/check-future-date-filter.sh",
     "check:locale-strings": "bash scripts/check-locale-strings.sh",
     "check:i18n-keys": "bash scripts/check-i18n-key-parity.sh",
+    "check:api-errors": "bash scripts/check-api-errors.sh",
     "prepare": "bash scripts/install-hooks.sh"
   },
   "dependencies": {

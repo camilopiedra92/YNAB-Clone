@@ -64,7 +64,7 @@ export async function POST(
                 // Validate destination is not a credit card account
                 const destType = await repos.getAccountType(data.transferAccountId);
                 if (destType === 'credit') {
-                    return apiError('No se pueden hacer transferencias directas a cuentas de crédito. Usa la función de pago de tarjeta.', 400);
+                    return apiError('Direct transfers to credit card accounts are not allowed. Use the card payment feature.', 400);
                 }
 
                 const amount = data.outflow || data.amount || 0;
