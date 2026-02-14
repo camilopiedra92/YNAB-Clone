@@ -7,8 +7,10 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 const nextConfig: NextConfig = {
   // Standalone output for Docker — creates self-contained .next/standalone
   // with only production-required files (~150MB vs ~1GB without it).
-  // Does NOT affect `npm run dev`.
-  output: 'standalone',
+  // Disabled for test builds (NEXT_TEST_BUILD) — standalone requires
+  // `node server.js` startup, but tests use `next start` for simplicity.
+  // Production deploys (Coolify/Docker) do NOT set NEXT_TEST_BUILD.
+  output: process.env.NEXT_TEST_BUILD ? undefined : 'standalone',
 
   // Expose COMMIT_SHA to client-side code for Sentry release tracking.
   // Server-side uses COMMIT_SHA directly; client needs NEXT_PUBLIC_ prefix.
@@ -92,13 +94,18 @@ const sentryWrappedConfig = withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG || "camilo-piedrahita",
   project: process.env.SENTRY_PROJECT || "ynab-app",
 
-  // Only print logs for Sentry configuration debugging
-  silent: !process.env.CI,
+  // Explicitly provide auth token — when undefined, Sentry skips upload entirely
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Only log Sentry build output when actively uploading (token present in production builds)
+  silent: !process.env.SENTRY_AUTH_TOKEN,
 
   // ── Source Maps ──────────────────────────────────────────
   // Upload source maps during build (requires SENTRY_AUTH_TOKEN).
+  // Disabled when no token is present (E2E/local builds) — clean no-op.
   // Delete after upload so they're never served to clients.
   sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
     deleteSourcemapsAfterUpload: true,
   },
 
