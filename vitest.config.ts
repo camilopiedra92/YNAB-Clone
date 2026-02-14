@@ -21,6 +21,8 @@ export default defineConfig({
         // Exclude Playwright E2E tests (they run via `npx playwright test`)
         exclude: ['node_modules', '.agent/**', 'tests/**'],
         coverage: {
+            // text: console output | json-summary + json: CI coverage PR comment action
+            reporter: ['text', 'json-summary', 'json'],
             include: ['lib/**'],
             exclude: [
                 'lib/**/index.ts',       // Barrel re-exports — no executable logic

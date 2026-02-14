@@ -10,7 +10,7 @@
     "lint": "./scripts/with-local-tmp.sh eslint",
     "typecheck": "./scripts/with-local-tmp.sh npx tsc --noEmit",
     "test": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs run",
-    "test:coverage": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs run --coverage",
+    "test:coverage": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs run --coverage --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml",
     "test:watch": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/vitest/vitest.mjs",
     "test:e2e": "./scripts/with-local-tmp.sh node --env-file=.env node_modules/@playwright/test/cli.js test",
     "db:generate": "./scripts/with-local-tmp.sh drizzle-kit generate --config=drizzle.config.ts",
