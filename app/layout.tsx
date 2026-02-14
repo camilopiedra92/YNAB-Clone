@@ -4,6 +4,7 @@ import "./globals.css";
 import ClientShell from "@/components/ClientShell";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
+import { toIntlLocale } from '@/lib/i18n/config';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,7 +25,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={toIntlLocale(locale)}>
       <body className={inter.className} suppressHydrationWarning>
         <a href="#main-content" className="skip-to-content">
           {(messages as Record<string, Record<string, string>>).meta?.skipToContent ?? 'Skip to main content'}

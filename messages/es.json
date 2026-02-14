@@ -62,7 +62,7 @@
     },
     "editAccount": "Editar {name}",
     "reorderGroup": "Reordenar grupo",
-    "accountCount": "{group}: {count} cuentas"
+    "accountCount": "{group}: {count, plural, one {# cuenta} other {# cuentas}}"
   },
 
   "budget": {
@@ -93,6 +93,12 @@
     "expand": "Expandir {name}",
     "collapse": "Contraer {name}",
     "payment": "Pago"
+  },
+
+  "monthPicker": {
+    "selectMonth": "Seleccionar mes: {month} {year}",
+    "previousYear": "Año anterior",
+    "nextYear": "Año siguiente"
   },
 
   "inspector": {
@@ -184,7 +190,7 @@
     "uncategorized": "Sin Categoría",
     "transferTo": "Transferencia → {account}",
     "transferFrom": "Transferencia ← {account}",
-    "scheduledTransactions": "Transacciones Programadas ({count})",
+    "scheduledTransactions": "{count, plural, one {# Transacción Programada} other {# Transacciones Programadas}}",
     "noTransactions": "Sin transacciones aún",
     "noTransactionsHint": "Agrega tu primera transacción para comenzar",
     "status": "Estado",
@@ -324,6 +330,28 @@
     "title": "YNAB Clone - Gestión de Presupuesto Personal",
     "description": "Aplicación de gestión de presupuesto personal inspirada en YNAB",
     "skipToContent": "Ir al contenido principal"
+  },
+
+  "dashboard": {
+    "financialSummary": "Resumen Financiero",
+    "title": "Dashboard",
+    "filterByMonth": "Filtrar por Mes",
+    "export": "Exportar",
+    "netWorth": "Patrimonio Neto",
+    "realBalance": "Balance Real",
+    "totalCash": "Efectivo Total",
+    "yourAssets": "Tus Activos",
+    "totalDebt": "Deuda Total",
+    "yourLiabilities": "Tus Pasivos",
+    "recentActivity": "Actividad Reciente",
+    "viewHistory": "Ver Historial",
+    "date": "Fecha",
+    "detail": "Detalle",
+    "category": "Categoría",
+    "amount": "Monto",
+    "uncategorized": "SIN CATEGORÍA",
+    "mainAccounts": "Cuentas Principales",
+    "addAccount": "+ Añadir Cuenta"
   },
 
   "profile": {

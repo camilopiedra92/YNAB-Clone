@@ -28,7 +28,7 @@ export async function PATCH(request: Request) {
     // Verify current password
     const passwordMatch = await bcrypt.compare(currentPassword, user.password);
     if (!passwordMatch) {
-      return apiError('Contraseña actual incorrecta', 400);
+      return apiError('Incorrect current password', 400);
     }
 
     // Hash new password and update
@@ -38,6 +38,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('Error changing password:', error);
-    return apiError('Error al cambiar la contraseña', 500);
+    return apiError('Failed to change password', 500);
   }
 }

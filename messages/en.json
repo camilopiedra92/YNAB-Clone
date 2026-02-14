@@ -62,7 +62,7 @@
     },
     "editAccount": "Edit {name}",
     "reorderGroup": "Reorder group",
-    "accountCount": "{group}: {count} accounts"
+    "accountCount": "{group}: {count, plural, one {# account} other {# accounts}}"
   },
 
   "budget": {
@@ -93,6 +93,12 @@
     "expand": "Expand {name}",
     "collapse": "Collapse {name}",
     "payment": "Payment"
+  },
+
+  "monthPicker": {
+    "selectMonth": "Select month: {month} {year}",
+    "previousYear": "Previous year",
+    "nextYear": "Next year"
   },
 
   "inspector": {
@@ -184,7 +190,7 @@
     "uncategorized": "Uncategorized",
     "transferTo": "Transfer → {account}",
     "transferFrom": "Transfer ← {account}",
-    "scheduledTransactions": "Scheduled Transactions ({count})",
+    "scheduledTransactions": "{count, plural, one {# Scheduled Transaction} other {# Scheduled Transactions}}",
     "noTransactions": "No transactions yet",
     "noTransactionsHint": "Add your first transaction to get started",
     "status": "Status",
@@ -324,6 +330,28 @@
     "title": "YNAB Clone - Personal Budget Manager",
     "description": "Personal budget management app inspired by YNAB",
     "skipToContent": "Skip to main content"
+  },
+
+  "dashboard": {
+    "financialSummary": "Financial Summary",
+    "title": "Dashboard",
+    "filterByMonth": "Filter by Month",
+    "export": "Export",
+    "netWorth": "Net Worth",
+    "realBalance": "Real Balance",
+    "totalCash": "Total Cash",
+    "yourAssets": "Your Assets",
+    "totalDebt": "Total Debt",
+    "yourLiabilities": "Your Liabilities",
+    "recentActivity": "Recent Activity",
+    "viewHistory": "View History",
+    "date": "Date",
+    "detail": "Detail",
+    "category": "Category",
+    "amount": "Amount",
+    "uncategorized": "UNCATEGORIZED",
+    "mainAccounts": "Main Accounts",
+    "addAccount": "+ Add Account"
   },
 
   "profile": {

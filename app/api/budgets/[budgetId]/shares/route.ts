@@ -38,7 +38,7 @@ export async function POST(
   return withBudgetAccess(budgetId, async (tenant, repos) => {
     const budget = await repos.getBudget(budgetId, tenant.userId);
     if (!budget || budget.role !== 'owner') {
-      return apiError('Solo el propietario puede compartir el presupuesto', 403);
+      return apiError('Only the owner can share the budget', 403);
     }
 
     try {
@@ -50,18 +50,18 @@ export async function POST(
 
       const targetUser = await repos.getUserByEmail(email);
       if (!targetUser) {
-        return apiError('No se encontró un usuario con ese email', 404);
+        return apiError('User not found with that email', 404);
       }
 
       if (targetUser.id === tenant.userId) {
-        return apiError('No puedes compartir el presupuesto contigo mismo', 400);
+        return apiError('Cannot share budget with yourself', 400);
       }
 
       const share = await repos.addShare(budgetId, targetUser.id, role);
       return NextResponse.json(toShareDTO(share), { status: 201 });
     } catch (error: unknown) {
       if (error instanceof Error && error.message?.includes('budget_shares_budget_user')) {
-        return apiError('Este usuario ya tiene acceso al presupuesto', 409);
+        return apiError('User already has access to this budget', 409);
       }
       logger.error('Error adding share:', error);
       return apiError('Failed to add share', 500);

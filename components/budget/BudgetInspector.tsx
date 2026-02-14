@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Zap, Clock, Edit3 } from 'lucide-react';
 import { InspectorData } from '@/hooks/useBudgetTable';
-import { DEFAULT_LOCALE } from '@/lib/constants';
+import { useFormatDate } from '@/hooks/useFormatDate';
 import { useTranslations } from 'next-intl';
 
 interface BudgetInspectorProps {
@@ -12,26 +12,8 @@ interface BudgetInspectorProps {
     formatCurrency: (amount: number) => string;
 }
 
-function getMonthLabel(monthStr: string): string {
-    const [year, month] = monthStr.split('-').map(Number);
-    const date = new Date(year, month - 1);
-    return date.toLocaleDateString(DEFAULT_LOCALE, { month: 'long' });
-}
-
-function getMonthWithYear(monthStr: string): string {
-    const [year, month] = monthStr.split('-').map(Number);
-    const date = new Date(year, month - 1);
-    const label = date.toLocaleDateString(DEFAULT_LOCALE, { month: 'long' });
-    return label.charAt(0).toUpperCase() + label.slice(1) + ' ' + year;
-}
-
 function getYearFromMonth(monthStr: string): string {
     return monthStr.split('-')[0];
-}
-
-function getMonthLabelCapitalized(monthStr: string): string {
-    const label = getMonthLabel(monthStr);
-    return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 interface CollapsibleSectionProps {
@@ -125,6 +107,7 @@ function AutoAssignItem({ label, value, variant = 'default' }: AutoAssignItemPro
 
 export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetInspectorProps) {
     const t = useTranslations('inspector');
+    const { formatMonth, formatMonthYear } = useFormatDate();
 
     if (!data) {
         return (
@@ -139,7 +122,10 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
         );
     }
 
-    const monthLabel = getMonthLabelCapitalized(currentMonth);
+    const monthLabel = (() => {
+        const raw = formatMonth(currentMonth);
+        return raw.charAt(0).toUpperCase() + raw.slice(1);
+    })();
 
     return (
         <div className="w-[310px] min-w-[310px] p-3 space-y-3"
@@ -270,7 +256,7 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
                                         <div className="flex items-center gap-2">
                                             <Clock className="w-3.5 h-3.5 text-muted-foreground/40" />
                                             <span className="text-[13px] text-muted-foreground">
-                                                {getMonthWithYear(fm.month)}
+                                                {formatMonthYear(fm.month)}
                                             </span>
                                         </div>
                                         <span className="text-[13px] font-medium tabular-nums text-foreground">
@@ -291,7 +277,7 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
                                             <div className="flex items-center gap-2">
                                                 <Clock className="w-3.5 h-3.5 text-muted-foreground/40" />
                                                 <span className="text-[13px] text-muted-foreground">
-                                                    {getMonthLabelCapitalized(fm.month)}
+                                                    {(() => { const l = formatMonth(fm.month); return l.charAt(0).toUpperCase() + l.slice(1); })()}
                                                 </span>
                                             </div>
                                             <span className="text-[13px] font-medium tabular-nums text-foreground">

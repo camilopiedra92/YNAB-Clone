@@ -20,7 +20,7 @@ export async function PATCH(
   return withBudgetAccess(budgetId, async (tenant, repos) => {
     const budget = await repos.getBudget(budgetId, tenant.userId);
     if (!budget || budget.role !== 'owner') {
-      return apiError('Solo el propietario puede modificar roles', 403);
+      return apiError('Only the owner can modify roles', 403);
     }
 
     try {

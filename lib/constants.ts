@@ -27,12 +27,14 @@ export const STALE_TIME = {
 export const UPLOAD_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // ── Locale & Currency Defaults ──────────────────────────────────────
-// These are used when no per-budget locale is available.
-// The budgets table has a `currency_code` column — these defaults
-// serve as the fallback until per-budget locale is fully wired.
+// These are derived from the centralized i18n config.
+// Prefer importing from `@/lib/i18n/config` directly for new code.
+// These re-exports exist for backward compatibility.
 
-/** Default locale for number/date formatting */
-export const DEFAULT_LOCALE = 'es-CO';
+import { toIntlLocale, defaultLocale } from '@/lib/i18n/config';
+
+/** Default Intl locale for number/date formatting (derived from i18n config) */
+export const DEFAULT_LOCALE = toIntlLocale(defaultLocale);
 
 /** Default currency code (ISO 4217) */
 export const DEFAULT_CURRENCY = 'COP';
