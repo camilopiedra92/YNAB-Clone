@@ -28,6 +28,8 @@ import ProfileModal from './ProfileModal';
 import FeedbackButton from './FeedbackButton';
 import { formatCurrency } from '@/lib/format';
 import { setBudgetContext } from '@/lib/sentry-utils';
+import { useTranslations } from 'next-intl';
+import LanguageSwitcher from './LanguageSwitcher';
 
 
 
@@ -57,6 +59,9 @@ export default function Sidebar() {
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+    const t = useTranslations('sidebar');
+    const tc = useTranslations('common');
 
     const userName = session?.user?.name ?? 'Usuario';
     const userInitial = userName.charAt(0).toUpperCase();
@@ -115,7 +120,7 @@ export default function Sidebar() {
 
     return (
         <>
-            <aside aria-label="Navegación principal" className="fixed left-0 top-0 bottom-0 w-[272px] flex flex-col z-50 hidden lg:flex"
+            <aside aria-label={t('mainNav')} className="fixed left-0 top-0 bottom-0 w-[272px] flex flex-col z-50 hidden lg:flex"
                 style={{
                     background: 'hsl(222 35% 18%)',
                 }}
@@ -141,7 +146,7 @@ export default function Sidebar() {
                         </div>
                         <div className="overflow-hidden flex-1 min-w-0">
                             <h1 className="text-[13px] font-semibold text-white/95 truncate tracking-tight leading-tight">
-                                {activeBudget?.name || 'Cargando...'}
+                                {activeBudget?.name || tc('loading')}
                             </h1>
                             <p className="text-[11px] text-white/40 truncate mt-0.5 group-hover:text-white/50 transition-colors">
                                 {activeBudget?.currencyCode} ({activeBudget?.currencySymbol})
@@ -154,7 +159,7 @@ export default function Sidebar() {
                     {isBudgetSelectorOpen && (
                         <div className="absolute left-4 right-4 top-[calc(100%-8px)] z-[60] py-2 rounded-2xl bg-[#2a3042] shadow-[8px_8px_24px_rgba(0,0,0,0.5)] border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="px-2 pb-2 mb-1 border-b border-white/5">
-                                <p className="px-3 py-1 text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Seleccionar Presupuesto</p>
+                                <p className="px-3 py-1 text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">{t('selectBudget')}</p>
                                 {budgets.filter(b => b.id !== budgetId).map(budget => (
                                     <button
                                         key={budget.id}
@@ -177,17 +182,18 @@ export default function Sidebar() {
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-primary-300 font-semibold transition-all text-left"
                             >
                                 <PlusCircle className="w-4 h-4" />
-                                <span>Nuevo Presupuesto</span>
+                                <span>{t('newBudget')}</span>
                             </button>
                             <button
                                 onClick={() => {
                                     setIsBudgetSelectorOpen(false);
                                     setIsImportOpen(true);
                                 }}
+                                data-testid="sidebar-import-data"
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-emerald-300/80 font-semibold transition-all text-left"
                             >
                                 <Upload className="w-4 h-4" />
-                                <span>Importar Datos</span>
+                                <span>{t('importData')}</span>
                             </button>
                             <button
                                 onClick={() => {
@@ -197,10 +203,15 @@ export default function Sidebar() {
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-white/40 hover:text-white transition-all text-left"
                             >
                                 <Settings className="w-4 h-4" />
-                                <span>Gestionar Todos</span>
+                                <span>{t('manageAll')}</span>
                             </button>
                         </div>
                     )}
+                </div>
+
+                {/* Language Switcher */}
+                <div className="px-4 pb-3">
+                    <LanguageSwitcher />
                 </div>
 
                 {/* Divider */}
@@ -211,18 +222,18 @@ export default function Sidebar() {
                     {/* Main Navigation */}
                     <nav className="space-y-1.5 mb-6">
                         {[
-                            { name: 'Dashboard', href: `/budgets/${budgetId}/dashboard`, icon: LayoutDashboard },
-                            { name: 'Plan', href: `/budgets/${budgetId}/budget`, icon: LayoutDashboard },
-                            { name: 'Reflect', href: `/budgets/${budgetId}/reports`, icon: PieChart },
-                            { name: 'All Accounts', href: `/budgets/${budgetId}/accounts`, icon: Wallet },
+                            { id: 'dashboard', name: t('dashboard'), href: `/budgets/${budgetId}/dashboard`, icon: LayoutDashboard },
+                            { id: 'plan', name: t('plan'), href: `/budgets/${budgetId}/budget`, icon: LayoutDashboard },
+                            { id: 'reflect', name: t('reflect'), href: `/budgets/${budgetId}/reports`, icon: PieChart },
+                            { id: 'all-accounts', name: t('allAccounts'), href: `/budgets/${budgetId}/accounts`, icon: Wallet },
                         ].map((item) => {
                             const isActive = pathname === item.href;
                             const Icon = item.icon;
                             return (
                                 <Link
-                                    key={item.name}
+                                    key={item.id}
                                     href={item.href}
-                                    data-testid={`sidebar-nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+                                    data-testid={`sidebar-nav-${item.id}`}
                                     className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 group`}
                                     style={isActive ? {
                                         boxShadow: 'inset 3px 3px 6px 0 rgba(0,0,0,0.35), inset -3px -3px 6px 0 rgba(255,255,255,0.04)',
@@ -275,7 +286,7 @@ export default function Sidebar() {
                                         className="w-full flex items-center justify-between px-3 py-2 group/btn rounded-lg transition-all duration-200"
                                         onClick={() => toggleSection(group)}
                                         aria-expanded={isExpanded}
-                                        aria-label={`${group}: ${accs.length} cuentas`}
+                                        aria-label={t('accountCount', { group, count: accs.length })}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.boxShadow = '2px 2px 6px 0 rgba(0,0,0,0.2), -2px -2px 6px 0 rgba(255,255,255,0.02)';
                                         }}
@@ -289,7 +300,7 @@ export default function Sidebar() {
                                             </div>
                                             <GroupIcon className="w-3.5 h-3.5 text-white/30" />
                                             <span className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.1em] group-hover/btn:text-white/55 transition-colors">
-                                                {group}
+                                                {t(`accountGroups.${group.toLowerCase() as 'cash' | 'credit' | 'closed'}`)}
                                             </span>
                                         </div>
                                         {accs.length > 0 && (
@@ -308,7 +319,7 @@ export default function Sidebar() {
                                         <div className="space-y-px pt-0.5 pb-1">
                                             {accs.length === 0 ? (
                                                 <div className="px-9 py-2 text-[11px] text-white/25 italic">
-                                                    No accounts
+                                                    {t('noAccounts')}
                                                 </div>
                                             ) : (
                                                 accs.map((account) => {
@@ -348,8 +359,8 @@ export default function Sidebar() {
                                                                     <button
                                                                         onClick={(e) => handleEditClick(e, account)}
                                                                         className="absolute inset-0 flex items-center justify-center rounded-md opacity-0 group-hover/item:opacity-100 text-white/40 hover:text-white/80 transition-all duration-150"
-                                                                        title="Edit account"
-                                                                        aria-label={`Editar ${account.name}`}
+                                                                        title={t('editAccount', { name: account.name })}
+                                                                        aria-label={t('editAccount', { name: account.name })}
                                                                     >
                                                                         <Pencil className="w-3 h-3" aria-hidden="true" />
                                                                     </button>
@@ -403,7 +414,7 @@ export default function Sidebar() {
                         disabled={!budgetId}
                     >
                         <PlusCircle className="w-4 h-4 text-primary-300/80" />
-                        <span>Add Account</span>
+                        <span>{t('addAccount')}</span>
                     </button>
 
                     <div className="flex items-center justify-between px-2">
@@ -425,7 +436,7 @@ export default function Sidebar() {
                             <button
                                 className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
                                 title="Settings"
-                                aria-label="Configuración de perfil"
+                                aria-label={t('settings')}
                                 onClick={() => setIsProfileOpen(true)}
                                 data-testid="sidebar-settings"
                             >
@@ -433,8 +444,8 @@ export default function Sidebar() {
                             </button>
                             <button
                                 className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
-                                title="Cerrar sesión"
-                                aria-label="Cerrar sesión"
+                                title={t('signOut')}
+                                aria-label={t('signOut')}
                                 onClick={() => signOut({ callbackUrl: '/auth/login' })}
                             >
                                 <LogOut className="w-[15px] h-[15px]" aria-hidden="true" />

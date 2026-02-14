@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { gotoBudgetPage } from './e2e-helpers';
 import { TEST_BASE_URL } from './test-constants';
+import { t } from './i18n-helpers';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -45,20 +46,20 @@ test.describe('Data Import', () => {
         const budgetHeader = sidebar.locator('.cursor-pointer').first();
         await budgetHeader.click();
 
-        // Click "Importar Datos" button
-        const importBtn = sidebar.getByText('Importar Datos');
+        // Click import button from sidebar
+        const importBtn = sidebar.getByTestId('sidebar-import-data');
         await expect(importBtn).toBeVisible({ timeout: 5_000 });
         await importBtn.click();
 
         // The import modal should open
-        await expect(page.getByText('Importar Datos YNAB')).toBeVisible({ timeout: 5_000 });
+        await expect(page.getByText(t('import.title'))).toBeVisible({ timeout: 5_000 });
 
         // Verify the file inputs are present
-        await expect(page.getByText('Register CSV')).toBeVisible();
-        await expect(page.getByText('Plan CSV')).toBeVisible();
+        await expect(page.getByText(t('import.registerCsvLabel'))).toBeVisible();
+        await expect(page.getByText(t('import.planCsvLabel'))).toBeVisible();
 
         // The import button should be disabled without files
-        const submitBtn = page.getByRole('button', { name: /Importar Datos/i });
+        const submitBtn = page.getByTestId('import-submit-button');
         await expect(submitBtn).toBeDisabled();
     });
 
@@ -71,8 +72,8 @@ test.describe('Data Import', () => {
         await budgetHeader.click();
 
         // Click import
-        await sidebar.getByText('Importar Datos').click();
-        await expect(page.getByText('Importar Datos YNAB')).toBeVisible({ timeout: 5_000 });
+        await sidebar.getByTestId('sidebar-import-data').click();
+        await expect(page.getByText(t('import.title'))).toBeVisible({ timeout: 5_000 });
 
         // Upload Register CSV
         const registerInput = page.getByTestId('import-register-file');
@@ -87,19 +88,20 @@ test.describe('Data Import', () => {
         await expect(page.getByText('plan.csv')).toBeVisible();
 
         // Click import button (now enabled)
-        const submitBtn = page.getByRole('button', { name: /Importar Datos/i });
+        const submitBtn = page.getByTestId('import-submit-button');
         await expect(submitBtn).toBeEnabled();
         await submitBtn.click();
 
         // Wait for the success state
-        await expect(page.getByText('¡Importación Exitosa!')).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByTestId('import-success')).toBeVisible({ timeout: 30_000 });
 
-        // Verify stats are displayed
-        await expect(page.getByText('Cuentas')).toBeVisible();
-        await expect(page.getByText('Transacciones')).toBeVisible();
+        // Verify stats are displayed (scope to modal to avoid matching sidebar text)
+        const modal = page.locator('[role="dialog"]');
+        await expect(modal.getByText(t('import.accounts'), { exact: true })).toBeVisible();
+        await expect(modal.getByText(t('import.transactions'), { exact: true })).toBeVisible();
 
         // Close the modal
-        await page.getByRole('button', { name: 'Cerrar' }).last().click();
+        await page.getByTestId('import-close-button').click();
 
         // Wait for cache refresh
         await page.waitForTimeout(2000);

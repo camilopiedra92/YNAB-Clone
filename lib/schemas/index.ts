@@ -1,11 +1,13 @@
 export { validateBody } from './helpers';
 export {
     BudgetAssignmentSchema,
+    MoveMoneySchema,
     CreateBudgetSchema,
     UpdateBudgetSchema,
     AddShareSchema,
     UpdateShareRoleSchema,
     type BudgetAssignmentInput,
+    type MoveMoneyInput,
     type CreateBudgetInput,
     type UpdateBudgetInput,
     type AddShareInput,

@@ -1,84 +1,73 @@
 'use client';
 
-import React from 'react';
-import { Search, Undo2, Redo2, History } from 'lucide-react';
-import { CreateCategoryGroupPopover } from '@/components/budget/CreateCategoryGroupPopover';
-
-const filters = [
-    { label: 'All', active: true },
-    { label: 'Snoozed', active: false },
-    { label: 'Underfunded', active: false },
-    { label: 'Overfunded', active: false },
-    { label: 'Money Available', active: false },
-    { label: 'Guilt Free', active: false },
-    { label: 'Fixed Costs', active: false },
-    { label: 'Savings', active: false },
-];
+import React, { useState } from 'react';
+import { Undo2, Redo2, History, Search } from 'lucide-react';
+import { CreateCategoryGroupPopover } from './CreateCategoryGroupPopover';
+import { useTranslations } from 'next-intl';
 
 interface BudgetToolbarProps {
     budgetId: number;
-    onFetchBudget: () => void;
+    searchTerm?: string;
+    onSearchChange?: (value: string) => void;
 }
 
-export function BudgetToolbar({ budgetId, onFetchBudget }: BudgetToolbarProps) {
+const filters = [
+    'all', 'snoozed', 'underfunded', 'overfunded',
+    'moneyAvailable', 'guiltFree', 'fixedCosts', 'savings'
+] as const;
+
+export function BudgetToolbar({ budgetId, searchTerm: externalSearchTerm, onSearchChange: externalOnSearchChange }: BudgetToolbarProps) {
+    const [activeFilter] = useState('all');
+    const [internalSearchTerm, setInternalSearchTerm] = useState('');
+    const t = useTranslations('toolbar');
+
+    const searchTerm = externalSearchTerm ?? internalSearchTerm;
+    const onSearchChange = externalOnSearchChange ?? setInternalSearchTerm;
+
     return (
-        <>
-            {/* Sub-header Filter Section - More like a tab system */}
-            <div className="px-8 py-2.5 flex items-center justify-between bg-background overflow-x-auto no-scrollbar gap-4"
-                style={{
-                    boxShadow: '0 2px 6px 0 var(--neu-dark)',
-                }}
-            >
-                <div className="flex items-center gap-3">
-                    {filters.map((filter) => (
-                        <button
-                            key={filter.label}
-                            className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter.active
-                                ? 'neu-btn-primary'
-                                : 'neu-btn text-muted-foreground'
-                                }`}
-                        >
-                            {filter.label}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="flex items-center gap-4 ml-auto">
-                    <div className="flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-                        <button className="flex items-center gap-2 hover:opacity-70 transition-opacity opacity-40">
-                            <Undo2 className="w-4 h-4" />
-                            Undo
-                        </button>
-                        <button className="flex items-center gap-2 hover:opacity-70 transition-opacity opacity-40">
-                            <Redo2 className="w-4 h-4" />
-                            Redo
-                        </button>
-                        <div className="w-px h-4 bg-border mx-1" />
-                        <button className="flex items-center gap-2 hover:text-primary-600 transition-colors">
-                            <History className="w-4 h-4" />
-                            History
-                        </button>
-                    </div>
-                </div>
+        <div className="px-8 py-3 flex items-center gap-4 border-b border-border/30">
+            {/* Filters */}
+            <div className="flex items-center gap-1 flex-1 overflow-x-auto custom-scrollbar">
+                {filters.map((filterKey) => (
+                    <button
+                        key={filterKey}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterKey === activeFilter
+                            ? 'shadow-neu-sm text-foreground'
+                            : 'text-muted-foreground/50 hover:text-muted-foreground hover:shadow-neu-sm'
+                            }`}
+                    >
+                        {t(`filters.${filterKey}`)}
+                    </button>
+                ))}
             </div>
 
-            {/* Toolbar Section - Actions */}
-            <div className="px-8 py-2.5 flex items-center justify-between bg-background">
-                <div className="flex items-center gap-4">
-                    <CreateCategoryGroupPopover budgetId={budgetId} onSuccess={() => onFetchBudget()} />
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+                <button className="p-2 rounded-xl shadow-neu-sm text-muted-foreground hover:text-foreground transition-colors" title={t('undo')}>
+                    <Undo2 className="w-4 h-4" />
+                </button>
+                <button className="p-2 rounded-xl shadow-neu-sm text-muted-foreground hover:text-foreground transition-colors" title={t('redo')}>
+                    <Redo2 className="w-4 h-4" />
+                </button>
+                <button className="p-2 rounded-xl shadow-neu-sm text-muted-foreground hover:text-foreground transition-colors" title={t('history')}>
+                    <History className="w-4 h-4" />
+                </button>
+
+                {/* Search */}
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        placeholder={t('searchCategories')}
+                        className="pl-8 pr-3 py-1.5 w-44 rounded-xl text-xs font-bold shadow-neu-inset-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary/20 bg-background transition-all"
+                    />
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Search categories..."
-                            className="pl-10 pr-4 py-2 bg-background rounded-xl text-sm shadow-neu-inset-sm focus:outline-none focus:shadow-neu-inset transition-all w-64"
-                        />
-                    </div>
-                </div>
+                {/* Add Category Group */}
+                <CreateCategoryGroupPopover budgetId={budgetId} />
             </div>
-        </>
+        </div>
     );
 }

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { gotoBudgetPage } from './e2e-helpers';
+import { t } from './i18n-helpers';
 
 /**
  * Transaction Flow — Basic read scenarios.
@@ -28,11 +29,11 @@ test.describe('Transaction Flow', () => {
         await expect(table.first()).toBeVisible({ timeout: 10_000 });
 
         // Table should have expected column headers
-        await expect(table.first()).toContainText('Date');
-        await expect(table.first()).toContainText('Payee');
-        await expect(table.first()).toContainText('Category');
-        await expect(table.first()).toContainText('Outflow');
-        await expect(table.first()).toContainText('Inflow');
+        await expect(table.first()).toContainText(t('transactions.columnDate'));
+        await expect(table.first()).toContainText(t('transactions.columnPayee'));
+        await expect(table.first()).toContainText(t('transactions.columnCategory'));
+        await expect(table.first()).toContainText(t('transactions.columnOutflow'));
+        await expect(table.first()).toContainText(t('transactions.columnInflow'));
     });
 
     test('transaction rows show expected data columns', async ({ page, request }) => {

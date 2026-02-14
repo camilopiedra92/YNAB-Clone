@@ -52,6 +52,7 @@ export async function createTestDb() {
             password TEXT NOT NULL,
             failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
             locked_until TIMESTAMP,
+            locale TEXT NOT NULL DEFAULT 'es',
             created_at TIMESTAMP DEFAULT now()
         )
     `);

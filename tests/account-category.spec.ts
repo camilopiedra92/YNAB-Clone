@@ -1,5 +1,6 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { gotoFirstAccount as navigateToAccount, gotoBudgetPage } from './e2e-helpers';
+import { t } from './i18n-helpers';
 
 /**
  * Account & Category Management E2E Tests
@@ -42,9 +43,9 @@ test.describe('Account Page', () => {
 
         // The balance display should contain "Cleared", "Uncleared", "Working Balance"
         const header = page.locator('header');
-        await expect(header).toContainText('Cleared');
-        await expect(header).toContainText('Uncleared');
-        await expect(header).toContainText('Working Balance');
+        await expect(header).toContainText(t('accounts.clearedBalance'));
+        await expect(header).toContainText(t('accounts.unclearedBalance'));
+        await expect(header).toContainText(t('accounts.workingBalance'));
     });
 
     test('Add Transaction button opens modal', async ({ page, request }) => {
@@ -101,9 +102,9 @@ test.describe('Account Page', () => {
         await page.getByTestId('reconcile-button').click();
 
         // The reconcile modal should appear with balance info
-        await expect(page.getByText('Reconcile Account')).toBeVisible({ timeout: 5_000 });
-        await expect(page.getByText('Cleared Balance')).toBeVisible();
-        await expect(page.getByText('Verify Balance')).toBeVisible();
+        await expect(page.getByRole('heading', { name: t('accounts.reconcileTitle') })).toBeVisible({ timeout: 5_000 });
+        await expect(page.getByText(t('accounts.clearedBalanceLabel'))).toBeVisible();
+        await expect(page.getByText(t('accounts.verifyBalance'))).toBeVisible();
     });
 });
 
@@ -129,19 +130,19 @@ test.describe('Category Group Creation', () => {
         await waitForBudgetLoad(page, request);
 
         // Click the "Category Group" button in toolbar
-        const createGroupBtn = page.getByText('Category Group', { exact: false });
+        const createGroupBtn = page.getByText(t('budget.categoryGroup'), { exact: false });
         await expect(createGroupBtn).toBeVisible();
         await createGroupBtn.click();
 
         // A popover input should appear
-        const input = page.locator('input[placeholder*="Monthly Bills"]');
+        const input = page.locator(`input[placeholder*="${t('budget.groupNamePlaceholder')}"]`);
         await expect(input).toBeVisible({ timeout: 3_000 });
 
         // Type a group name
         await input.fill('E2E Test Group');
 
         // Click "Create Group"
-        await page.getByText('Create Group').click();
+        await page.getByText(t('budget.createGroup')).click();
 
         // Wait for the group to appear in the budget table
         await page.waitForTimeout(2000);
@@ -161,19 +162,15 @@ test.describe('Budget Inspector', () => {
         await firstRow.click();
 
         // The inspector panel should become visible with budget data
-        // The BudgetInspector renders "{MonthName}'s Summary" (e.g. "Febrero's Summary")
-        // and always shows "Available", "Activity", "Auto-Assign" sections
         await page.waitForTimeout(500);
 
-        // Look for inspector content that's always rendered
-        const summarySection = page.locator("text=Summary").first();
-        const availableLabel = page.locator("text=Available").first();
-        const autoAssign = page.locator("text=Auto-Assign").first();
+        // Look for inspector content that's always rendered (monthSummary has a param, use partial match)
+        const summarySection = page.locator(`text=/${t('inspector.available')}/`).first();
+        const autoAssign = page.locator(`text=${t('inspector.autoAssign')}`).first();
 
         // At least one of these should be visible
         const hasSummary = await summarySection.count();
-        const hasAvailable = await availableLabel.count();
         const hasAutoAssign = await autoAssign.count();
-        expect(hasSummary + hasAvailable + hasAutoAssign).toBeGreaterThan(0);
+        expect(hasSummary + hasAutoAssign).toBeGreaterThan(0);
     });
 });

@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
   // Standalone output for Docker — creates self-contained .next/standalone
@@ -81,7 +84,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+const sentryWrappedConfig = withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-javascript/blob/master/packages/nextjs/src/config/types.ts
 
@@ -110,3 +113,6 @@ export default withSentryConfig(nextConfig, {
   // Route Sentry requests through your server (avoids ad-blockers)
   tunnelRoute: "/monitoring",
 });
+
+// Chain: nextConfig → Sentry → next-intl
+export default withNextIntl(sentryWrappedConfig);

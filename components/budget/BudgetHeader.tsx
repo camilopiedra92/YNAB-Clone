@@ -3,6 +3,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { MonthPicker } from '@/components/budget/MonthPicker';
+import { useTranslations } from 'next-intl';
 
 interface BudgetHeaderProps {
     currentMonth: string;
@@ -25,6 +26,7 @@ export function BudgetHeader({
     minMonth,
     maxMonth,
 }: BudgetHeaderProps) {
+    const t = useTranslations('budget');
     const isAtMin = !!minMonth && currentMonth <= minMonth;
     const isAtMax = !!maxMonth && currentMonth >= maxMonth;
     return (
@@ -39,8 +41,8 @@ export function BudgetHeader({
                         data-testid="month-prev"
                         onClick={() => onNavigateMonth(-1)}
                         className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 ${isAtMin ? 'opacity-30 pointer-events-none' : ''}`}
-                        title="Mes Anterior"
-                        aria-label="Mes anterior"
+                        title={t('previousMonth')}
+                        aria-label={t('previousMonth')}
                         disabled={isAtMin}
                     >
                         <ChevronLeft className="w-5 h-5" aria-hidden="true" />
@@ -49,7 +51,7 @@ export function BudgetHeader({
                         onClick={onGoToCurrentMonth}
                         className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 transition-all active:scale-95 shadow-neu-sm border border-primary/10 ml-1"
                     >
-                        Hoy
+                        {t('today')}
                     </button>
                     <div data-testid="month-display" className="px-4 flex flex-col items-center min-w-[140px]">
                         <MonthPicker currentMonth={currentMonth} onChange={onSetCurrentMonth} minMonth={minMonth} maxMonth={maxMonth} />
@@ -58,8 +60,8 @@ export function BudgetHeader({
                         data-testid="month-next"
                         onClick={() => onNavigateMonth(1)}
                         className={`p-2 rounded-xl hover:bg-primary/10 text-primary transition-all active:scale-95 ${isAtMax ? 'opacity-30 pointer-events-none' : ''}`}
-                        title="Mes Siguiente"
-                        aria-label="Mes siguiente"
+                        title={t('nextMonth')}
+                        aria-label={t('nextMonth')}
                         disabled={isAtMax}
                     >
                         <ChevronRight className="w-5 h-5" aria-hidden="true" />
@@ -72,14 +74,14 @@ export function BudgetHeader({
                 <div
                     role="status"
                     aria-live="polite"
-                    aria-label={`Ready to Assign: ${formatCurrency(Math.round(animatedRTA))}`}
+                    aria-label={`${t('readyToAssign')}: ${formatCurrency(Math.round(animatedRTA))}`}
                     className={`bg-background px-8 py-2 rounded-[2rem] flex flex-col items-center shadow-neu-md relative group cursor-pointer hover:shadow-neu-lg transition-all duration-500 overflow-hidden min-w-[220px] ${animatedRTA < -0.5 ? 'ring-2 ring-red-400/50' : animatedRTA > 0.5 ? 'ring-2 ring-emerald-400/30' : ''
                     }`}>
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <span data-testid="rta-amount" className={`text-2xl font-black tracking-tighter leading-none relative z-10 tabular-nums ${animatedRTA < -0.5 ? 'text-red-500' : animatedRTA > 0.5 ? 'text-emerald-600' : 'text-foreground'
                         }`}>{formatCurrency(Math.round(animatedRTA))}</span>
                     <div className="flex items-center gap-2 mt-0.5 relative z-10">
-                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">Ready to Assign</span>
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">{t('readyToAssign')}</span>
                         <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${animatedRTA < -0.5 ? 'bg-red-500' : animatedRTA > 0.5 ? 'bg-emerald-500' : 'bg-emerald-500'
                             }`} />
                     </div>
@@ -88,10 +90,10 @@ export function BudgetHeader({
 
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 p-1 rounded-xl shadow-neu-inset-sm">
-                    <button className="p-2 rounded-lg shadow-neu-sm" aria-label="Vista de cuadrícula" aria-pressed="true">
+                    <button className="p-2 rounded-lg shadow-neu-sm" aria-label={t('gridView')} aria-pressed="true">
                         <LayoutGrid className="w-4 h-4 text-primary" aria-hidden="true" />
                     </button>
-                    <button className="p-2 rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors" aria-label="Vista de lista" aria-pressed="false">
+                    <button className="p-2 rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors" aria-label={t('listView')} aria-pressed="false">
                         <List className="w-4 h-4" aria-hidden="true" />
                     </button>
                 </div>

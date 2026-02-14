@@ -4,16 +4,17 @@ import { useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Circle, Lock, Clock, Search, ArrowRightLeft } from 'lucide-react';
 import type { Transaction } from '@/hooks/useTransactions';
-import { formatCurrency } from '@/lib/format';
-import { DEFAULT_LOCALE } from '@/lib/constants';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 const ROW_HEIGHT = 33; // px per row — matches py-1 + content
 
 
 
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr: string, locale: string) => {
     const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString(DEFAULT_LOCALE, {
+    return date.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-CO', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -40,6 +41,9 @@ const TransactionRow = memo(function TransactionRow({
     onToggleSelect: (id: number, e: React.MouseEvent) => void;
     accountId?: number;
 }) {
+    const tr = useTranslations('transactions');
+    const { formatCurrency } = useFormatCurrency();
+    const locale = useLocale();
     return (
         <tr
             data-testid={`transaction-row-${t.id}`}
@@ -55,7 +59,7 @@ const TransactionRow = memo(function TransactionRow({
                     checked={isSelected}
                     onChange={() => { }}
                     onClick={(e) => onToggleSelect(t.id, e)}
-                    aria-label={`Seleccionar transacción: ${t.payee}`}
+                    aria-label={tr('selectTransaction', { payee: t.payee })}
                     className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
                 />
             </td>
@@ -67,7 +71,7 @@ const TransactionRow = memo(function TransactionRow({
                 </td>
             )}
             <td className="py-0.5 px-3 text-sm text-muted-foreground font-bold whitespace-nowrap tabular-nums">
-                {formatDate(t.date)}
+                {formatDate(t.date, locale)}
             </td>
             <td className="py-0.5 px-3">
                 <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
@@ -83,13 +87,13 @@ const TransactionRow = memo(function TransactionRow({
                                 ? `${t.accountName} → ${t.transferAccountName || ''}`
                                 : `${t.transferAccountName || ''} → ${t.accountName}`
                             : t.outflow > 0
-                                ? `Transferencia → ${t.transferAccountName || ''}`
-                                : `Transferencia ← ${t.transferAccountName || ''}`
+                                ? tr('transferTo', { account: t.transferAccountName || '' })
+                                : tr('transferFrom', { account: t.transferAccountName || '' })
                         }
                     </span>
                     : (t.categoryName
                         ? <span className="text-muted-foreground">{t.categoryName}</span>
-                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-amber-600 dark:text-amber-400 text-sm font-bold italic shadow-neu-inset-sm">Uncategorized</span>
+                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-amber-600 dark:text-amber-400 text-sm font-bold italic shadow-neu-inset-sm">{tr('uncategorized')}</span>
                     )
                 }
             </td>
@@ -123,11 +127,12 @@ const ClearedIcon = memo(function ClearedIcon({
     t: Transaction;
     onToggle: (id: number, cleared: string) => void;
 }) {
+    const tr = useTranslations('transactions');
     if (t.cleared === 'Reconciled') {
         return (
-            <div className="p-1 rounded-lg cursor-default shadow-neu-inset-sm" title="Reconciliada">
+            <div className="p-1 rounded-lg cursor-default shadow-neu-inset-sm" title={tr('reconciledStatus')}>
                 <Lock className="h-3.5 w-3.5 text-violet-500" aria-hidden="true" />
-                <span className="sr-only">Reconciliada</span>
+                <span className="sr-only">{tr('reconciledStatus')}</span>
             </div>
         );
     }
@@ -136,8 +141,9 @@ const ClearedIcon = memo(function ClearedIcon({
             <button
                 onClick={(e) => { e.stopPropagation(); onToggle(t.id, t.cleared); }}
                 className="p-1 rounded-lg transition-all text-emerald-500 shadow-neu-inset-sm hover:shadow-neu-sm"
-                title="Cleared"
-                aria-label="Marcar como no verificada"
+                title={tr('clearedStatus')}
+                aria-label={tr('markUncleared')}
+                data-testid="transaction-cleared-toggle"
             >
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -147,8 +153,9 @@ const ClearedIcon = memo(function ClearedIcon({
         <button
             onClick={(e) => { e.stopPropagation(); onToggle(t.id, t.cleared); }}
             className="p-1 rounded-lg transition-all text-muted-foreground/30 hover:text-emerald-400 shadow-neu-inset-sm hover:shadow-neu-sm"
-            title="Uncleared"
-            aria-label="Marcar como verificada"
+            title={tr('unclearedStatus')}
+            aria-label={tr('markVerified')}
+            data-testid="transaction-cleared-toggle"
         >
             <Circle className="h-3.5 w-3.5 fill-current opacity-20" aria-hidden="true" />
         </button>
@@ -169,6 +176,9 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
     onEdit: (t: Transaction) => void;
     accountId?: number;
 }) {
+    const tr = useTranslations('transactions');
+    const { formatCurrency } = useFormatCurrency();
+    const locale = useLocale();
     return (
         <tr
             onClick={() => onEdit(t)}
@@ -178,7 +188,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                 <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
-                    aria-label={`Seleccionar transacción programada: ${t.payee}`}
+                    aria-label={tr('selectScheduled', { payee: t.payee })}
                     onClick={(e) => e.stopPropagation()}
                 />
             </td>
@@ -190,7 +200,7 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                 </td>
             )}
             <td className="py-0.5 px-3 text-sm text-amber-600 dark:text-amber-400 font-bold whitespace-nowrap tabular-nums">
-                {formatDate(t.date)}
+                {formatDate(t.date, locale)}
             </td>
             <td className="py-0.5 px-3">
                 <span className="text-sm font-medium text-foreground">{t.payee}</span>
@@ -204,8 +214,8 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                                 ? `${t.accountName} → ${t.transferAccountName || ''}`
                                 : `${t.transferAccountName || ''} → ${t.accountName}`
                             : t.outflow > 0
-                                ? `Transferencia → ${t.transferAccountName || ''}`
-                                : `Transferencia ← ${t.transferAccountName || ''}`
+                                ? tr('transferTo', { account: t.transferAccountName || '' })
+                                : tr('transferFrom', { account: t.transferAccountName || '' })
                         }
                     </span>
                 ) : (t.categoryName || '')}
@@ -263,6 +273,7 @@ export default function VirtualTransactionTable({
     accountId,
 }: VirtualTransactionTableProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const t = useTranslations('transactions');
 
     // Build a flat list for virtualization: [scheduled header? + scheduled rows?] + current rows
     type RowItem =
@@ -276,14 +287,14 @@ export default function VirtualTransactionTable({
     if (futureTransactions.length > 0) {
         allRows.push({ type: 'scheduled-header' });
         if (showScheduled) {
-            for (const t of futureTransactions) {
-                allRows.push({ type: 'future', transaction: t });
+            for (const ft of futureTransactions) {
+                allRows.push({ type: 'future', transaction: ft });
             }
         }
     }
 
-    for (const t of currentTransactions) {
-        allRows.push({ type: 'current', transaction: t });
+    for (const ct of currentTransactions) {
+        allRows.push({ type: 'current', transaction: ct });
     }
 
     if (totalTransactions === 0) {
@@ -326,22 +337,22 @@ export default function VirtualTransactionTable({
                                     type="checkbox"
                                     checked={selectedRows.size === currentTransactions.length && currentTransactions.length > 0}
                                     onChange={onToggleSelectAll}
-                                    aria-label="Seleccionar todas las transacciones"
+                                    aria-label={t('selectAll')}
                                     className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
                                 />
                             </div>
                         </th>
                         {showAccount && (
-                            <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">Account</th>
+                            <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">{t('account')}</th>
                         )}
-                        <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">Date</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border w-44" scope="col">Payee</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">Category</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">Memo</th>
-                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">Outflow</th>
-                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">Inflow</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">{t('columnDate')}</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border w-44" scope="col">{t('columnPayee')}</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">{t('columnCategory')}</th>
+                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">{t('columnMemo')}</th>
+                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">{t('columnOutflow')}</th>
+                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">{t('columnInflow')}</th>
                         <th className="w-12 py-1 px-3 text-center border-b border-border" scope="col">
-                            <span className="sr-only">Estado</span>
+                            <span className="sr-only">{t('status')}</span>
                         </th>
                     </tr>
                 </thead>
@@ -370,7 +381,7 @@ export default function VirtualTransactionTable({
                                             <div className="w-5 h-5 rounded-lg flex items-center justify-center shadow-neu-inset-sm">
                                                 <Clock className="w-3 h-3" />
                                             </div>
-                                            Scheduled Transactions ({futureTransactions.length})
+                                            {t('scheduledTransactions', { count: futureTransactions.length })}
                                             <svg className={`w-3 h-3 transition-transform duration-200 ${showScheduled ? '' : '-rotate-90'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
                                         </button>
                                     </td>
@@ -414,8 +425,8 @@ export default function VirtualTransactionTable({
                                             <Search className="h-7 w-7 opacity-30" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-foreground/60">No transactions yet</p>
-                                            <p className="text-xs text-muted-foreground/50 mt-1">Add your first transaction to get started</p>
+                                            <p className="text-sm font-bold text-foreground/60">{t('noTransactions')}</p>
+                                            <p className="text-xs text-muted-foreground/50 mt-1">{t('noTransactionsHint')}</p>
                                         </div>
                                     </div>
                                 </td>

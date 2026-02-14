@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import type { AccountDTO } from '@/lib/dtos';
 import { STALE_TIME } from '@/lib/constants';
 
@@ -38,9 +39,10 @@ export function useAccount(budgetId: number | undefined, id: number) {
 }
 export function useUpdateAccount(budgetId: number) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
     return useMutation({
         mutationKey: ['account-update', budgetId],
-        meta: { errorMessage: 'Error al actualizar cuenta', broadcastKeys: ['accounts'] },
+        meta: { errorMessage: t('accountUpdateError'), broadcastKeys: ['accounts'] },
         mutationFn: async ({ id, ...updates }: { id: number; name?: string; note?: string; closed?: boolean }) => {
             const res = await fetch(`/api/budgets/${budgetId}/accounts/${id}`, {
                 method: 'PATCH',
@@ -91,9 +93,10 @@ export function useUpdateAccount(budgetId: number) {
 
 export function useCreateAccount(budgetId: number) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
     return useMutation({
         mutationKey: ['account-create', budgetId],
-        meta: { errorMessage: 'Error al crear cuenta', broadcastKeys: ['accounts'] },
+        meta: { errorMessage: t('accountCreateError'), broadcastKeys: ['accounts'] },
         mutationFn: async (data: { name: string; type: string; balance: number }) => {
             const res = await fetch(`/api/budgets/${budgetId}/accounts`, {
                 method: 'POST',

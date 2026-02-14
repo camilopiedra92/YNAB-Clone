@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import type { BudgetMetadata } from '@/lib/repos/budgets';
 import type { CreateBudgetInput, UpdateBudgetInput } from '@/lib/schemas';
 
@@ -28,10 +29,11 @@ export function useBudget(id?: number) {
 
 export function useBudgetMutations() {
   const queryClient = useQueryClient();
+  const t = useTranslations('toasts');
 
   const createMutation = useMutation({
     mutationKey: ['budget-create'],
-    meta: { errorMessage: 'Error al crear presupuesto' },
+    meta: { errorMessage: t('budgetCreateError') },
     mutationFn: async (data: CreateBudgetInput) => {
       const res = await fetch('/api/budgets', {
         method: 'POST',
@@ -48,7 +50,7 @@ export function useBudgetMutations() {
 
   const updateMutation = useMutation({
     mutationKey: ['budget-update'],
-    meta: { errorMessage: 'Error al actualizar presupuesto' },
+    meta: { errorMessage: t('budgetUpdateError') },
     mutationFn: async ({ id, data }: { id: number; data: UpdateBudgetInput }) => {
       const res = await fetch(`/api/budgets/${id}`, {
         method: 'PATCH',
@@ -66,7 +68,7 @@ export function useBudgetMutations() {
 
   const deleteMutation = useMutation({
     mutationKey: ['budget-delete'],
-    meta: { errorMessage: 'Error al eliminar presupuesto' },
+    meta: { errorMessage: t('budgetDeleteError') },
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/budgets/${id}`, {
         method: 'DELETE',
@@ -113,13 +115,14 @@ export function useShares(budgetId?: number) {
 
 export function useShareMutations(budgetId: number) {
   const queryClient = useQueryClient();
+  const t = useTranslations('toasts');
 
   const addShare = useMutation({
     mutationKey: ['share-add'],
     retry: false, // 4xx errors (user not found, duplicate, etc.) are not transient
     meta: {
-      successMessage: 'Invitación enviada',
-      errorMessage: 'Error al compartir presupuesto',
+      successMessage: t('shareAddSuccess'),
+      errorMessage: t('shareAddError'),
     },
     mutationFn: async (data: { email: string; role?: string }) => {
       const res = await fetch(`/api/budgets/${budgetId}/shares`, {
@@ -141,8 +144,8 @@ export function useShareMutations(budgetId: number) {
   const updateRole = useMutation({
     mutationKey: ['share-update-role'],
     meta: {
-      successMessage: 'Rol actualizado',
-      errorMessage: 'Error al actualizar rol',
+      successMessage: t('shareUpdateSuccess'),
+      errorMessage: t('shareUpdateError'),
     },
     mutationFn: async ({ shareId, role }: { shareId: number; role: string }) => {
       const res = await fetch(`/api/budgets/${budgetId}/shares/${shareId}`, {
@@ -161,8 +164,8 @@ export function useShareMutations(budgetId: number) {
   const removeShareMutation = useMutation({
     mutationKey: ['share-remove'],
     meta: {
-      successMessage: 'Acceso revocado',
-      errorMessage: 'Error al revocar acceso',
+      successMessage: t('shareRemoveSuccess'),
+      errorMessage: t('shareRemoveError'),
     },
     mutationFn: async (shareId: number) => {
       const res = await fetch(`/api/budgets/${budgetId}/shares/${shareId}`, {

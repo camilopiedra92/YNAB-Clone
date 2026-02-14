@@ -12,6 +12,7 @@ graph TD
         UI[React UI Components]
         RQ[TanStack Query Cache]
         VTR[TanStack Virtual Table]
+        I18N["next-intl\n(i18n Messages)"]
     end
 
     subgraph Server ["Backend (Next.js App Router)"]
@@ -21,7 +22,11 @@ graph TD
             ACCT[accounts.ts]
             TXN[transactions.ts]
             BUD[budget.ts]
+            BUDRTA[budget-rta.ts]
+            BUDCC[budget-cc.ts]
             CAT[categories.ts]
+            BUDGETS[budgets.ts]
+            USERS[users.ts]
         end
         ENGINE[lib/engine/ - Pure Financial Math]
     end
@@ -31,6 +36,7 @@ graph TD
     end
 
     UI <--> RQ
+    UI <--> I18N
     RQ <--> API
     API --> WBA
     WBA <--> Repos
@@ -153,13 +159,36 @@ Write operations leverage Drizzle ORM's `db.transaction()` for batch updates (li
 - **Finite Math**: The `updateBudgetAssignment` function implements safety guards for non-finite numbers and extreme value clamping to prevent overflows in the financial logic.
 - **Transaction-per-Request**: All DB operations in a request share one connection, preventing RLS bypass through connection pooling.
 
+## 🌐 Internationalization (i18n)
+
+The application uses `next-intl` for full internationalization support.
+
+- **Locales**: Spanish (`es`, default) and English (`en`).
+- **Messages**: Structured JSON files in `messages/es.json` and `messages/en.json`.
+- **Detection**: Locale detected from `NEXT_LOCALE` cookie → browser `Accept-Language` header → default.
+- **Components**: All user-facing strings use `useTranslations()` hook — no hardcoded text.
+- **CI Guards**: `check-locale-strings.sh` (no hardcoded strings in tests) and `check-i18n-key-parity.sh` (key parity between locales).
+
 ## 🏗 Modular Repository Pattern
 
 The database layer is split into domain-specific **Repositories** (`lib/repos/*.ts`). This enforces "Separation of Concerns" and makes code easier to navigate and review.
 
 `API Route` → `withBudgetAccess(tx)` → `Repository(tx)` → `Engine (Pure Math)` → `Repository (Write)`
 
-The `createDbFunctions(db)` factory in `lib/db/client.ts` composes all domain repositories. When called with a transaction object (`tx`), all repos are automatically scoped to that transaction.
+The `createDbFunctions(db)` factory in `lib/repos/index.ts` composes all domain repositories. When called with a transaction object (`tx`), all repos are automatically scoped to that transaction.
+
+The repository layer is split into focused domain modules:
+
+| Module            | Responsibility                                         |
+| ----------------- | ------------------------------------------------------ |
+| `budget.ts`       | Mutations, activity updates, budget inspector          |
+| `budget-rta.ts`   | RTA calculation + breakdown queries                    |
+| `budget-cc.ts`    | CC payment orchestration + overspending classification |
+| `accounts.ts`     | Account CRUD, balance updates, reconciliation          |
+| `transactions.ts` | Transaction CRUD, transfers                            |
+| `categories.ts`   | Category/group CRUD, reordering                        |
+| `budgets.ts`      | Budget CRUD, sharing                                   |
+| `users.ts`        | User lookup, registration                              |
 
 ## 🔄 Type-Safe Validation Layer (Zod)
 

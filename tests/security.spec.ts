@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { TEST_BASE_URL } from './test-constants';
+import { t, TEST_LOCALE } from './i18n-helpers';
 
 /**
  * Security E2E Tests — Phase 6 Verification
@@ -14,6 +15,16 @@ import { TEST_BASE_URL } from './test-constants';
  */
 
 test.use({ storageState: { cookies: [], origins: [] } });
+
+// Pin the test locale cookie for unauthenticated flows
+test.beforeEach(async ({ page }) => {
+    await page.context().addCookies([{
+        name: 'NEXT_LOCALE',
+        value: TEST_LOCALE,
+        domain: 'localhost',
+        path: '/',
+    }]);
+});
 
 const BASE_URL = process.env.BASE_URL || TEST_BASE_URL;
 
@@ -78,12 +89,12 @@ test.describe('Account Lockout', () => {
 
         // 6th attempt — CORRECT password via UI → should still fail (account locked)
         await page.goto('/auth/login');
-        await page.getByLabel('Email').fill(lockoutEmail);
-        await page.getByLabel('Contraseña').fill(correctPassword);
-        await page.getByRole('button', { name: /Iniciar Sesión/i }).click();
+        await page.getByLabel(t('auth.email')).fill(lockoutEmail);
+        await page.getByLabel(t('auth.password')).fill(correctPassword);
+        await page.getByRole('button', { name: new RegExp(t('auth.login'), 'i') }).click();
 
         // Account is locked → error shown, stays on login page
-        await expect(page.getByText('Email o contraseña incorrectos')).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByText(t('auth.invalidCredentials'))).toBeVisible({ timeout: 10_000 });
         await expect(page).toHaveURL(/\/auth\/login/);
     });
 });

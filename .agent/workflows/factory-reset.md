@@ -56,7 +56,7 @@ npm run test
 npm run dev
 ```
 
-6. **Verify the import** by opening `http://localhost:3000/budget` and confirming balances match your YNAB export.
+6. **Verify the import** by opening `http://localhost:3000/budgets` and selecting your budget. Confirm balances match your YNAB export.
 
 ## Troubleshooting
 

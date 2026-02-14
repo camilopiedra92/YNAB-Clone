@@ -1,5 +1,6 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { TEST_USER, ISOLATION_USER, TEST_BASE_URL } from './test-constants';
+import { t, TEST_LOCALE } from './i18n-helpers';
 
 /**
  * Tenant Isolation E2E Tests — Phase 3 Verification (V3.3–V3.8)
@@ -27,9 +28,9 @@ async function loginAndGetContext(
 ): Promise<{ request: APIRequestContext; budgetId: number }> {
     // Login via UI to get a session cookie
     await page.goto('/auth/login');
-    await page.getByLabel('Email').fill(credentials.email);
-    await page.getByLabel('Contraseña').fill(credentials.password);
-    await page.getByRole('button', { name: /Iniciar Sesión/i }).click();
+    await page.getByLabel(t('auth.email')).fill(credentials.email);
+    await page.getByLabel(t('auth.password')).fill(credentials.password);
+    await page.getByRole('button', { name: new RegExp(t('auth.login'), 'i') }).click();
 
     // Wait for successful login redirect
     await expect(page).toHaveURL(/\/(budget|budgets)/, { timeout: 15_000 });
@@ -48,6 +49,16 @@ async function loginAndGetContext(
 
 // These tests do NOT use the shared auth storageState — each test manages its own auth.
 test.use({ storageState: { cookies: [], origins: [] } });
+
+// Pin the test locale cookie for unauthenticated flows
+test.beforeEach(async ({ page }) => {
+    await page.context().addCookies([{
+        name: 'NEXT_LOCALE',
+        value: TEST_LOCALE,
+        domain: 'localhost',
+        path: '/',
+    }]);
+});
 
 test.describe('Tenant Isolation (Phase 3 Verification)', () => {
     /**

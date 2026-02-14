@@ -154,6 +154,42 @@ export interface CCPaymentResult {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Move Money
+// ──────────────────────────────────────────────────────────────────────
+
+/** Input for validating a move-money operation between two categories. */
+export interface MoveMoneyInput {
+    /** Amount to move (should be > 0). */
+    amount: Milliunit;
+    /** Current available balance in the source category. */
+    sourceAvailable: Milliunit;
+    /** Source category ID. */
+    sourceCategoryId: number;
+    /** Target category ID. */
+    targetCategoryId: number;
+}
+
+/** Validation error codes for move-money operations. */
+export type MoveMoneyError =
+    | 'zero_amount'
+    | 'negative_amount'
+    | 'non_finite_amount'
+    | 'same_category'
+    | 'exceeds_available';
+
+/** Result of validating a move-money operation. */
+export interface MoveMoneyResult {
+    /** Whether the operation is valid and can proceed. */
+    valid: boolean;
+    /** Error code if invalid, undefined if valid. */
+    error?: MoveMoneyError;
+    /** Warning when amount exceeds available (operation still valid — YNAB allows this). */
+    warning?: MoveMoneyError;
+    /** The validated amount (clamped to MAX_ASSIGNED_VALUE). */
+    clampedAmount: Milliunit;
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Overspending Classification
 // ──────────────────────────────────────────────────────────────────────
 

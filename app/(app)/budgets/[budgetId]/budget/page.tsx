@@ -6,12 +6,14 @@ import AppLayout from '@/components/AppLayout';
 import { useParams } from 'next/navigation';
 import { useBudgetTable, BudgetItem } from '@/hooks/useBudgetTable';
 import { BudgetItemRow } from '@/components/budget/BudgetItemRow';
+import { MoveMoneyModal } from '@/components/budget/MoveMoneyModal';
 import { BudgetInspector } from '@/components/budget/BudgetInspector';
 import { CategoryGroupRow } from '@/components/budget/CategoryGroupRow';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUpdateAssigned, useUpdateCategoryName, useReorderCategories } from '@/hooks/useBudgetMutations';
+import { useUpdateAssigned, useUpdateCategoryName, useReorderCategories, useMoveMoney } from '@/hooks/useBudgetMutations';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import { useTranslations } from 'next-intl';
 import {
     SortableContext,
     verticalListSortingStrategy,
@@ -35,6 +37,7 @@ export default function BudgetPage() {
     const [isMonthTransitioning, startMonthTransition] = useTransition();
     const animatedRTA = useAnimatedNumber(readyToAssign, 400);
     const queryClient = useQueryClient();
+    const t = useTranslations('budget');
 
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -159,6 +162,22 @@ export default function BudgetPage() {
     const updateAssignedMutation = useUpdateAssigned(budgetId!, currentMonth);
     const updateCategoryNameMutation = useUpdateCategoryName(budgetId!);
     const reorderMutation = useReorderCategories(budgetId!);
+    const moveMoneyMutation = useMoveMoney(budgetId!, currentMonth);
+
+    // Move Money modal state
+    const [moveMoneySource, setMoveMoneySource] = useState<{ id: number; name: string; available: number } | null>(null);
+    const isMoveMoneyOpen = moveMoneySource !== null;
+
+    const handleMoveMoneyClick = useCallback((categoryId: number) => {
+        const item = budgetData.find(i => i.categoryId === categoryId);
+        if (item) {
+            setMoveMoneySource({
+                id: categoryId,
+                name: item.categoryName || '',
+                available: item.available,
+            });
+        }
+    }, [budgetData]);
 
     const handleUpdateCategoryName = (categoryId: number, newName: string) => {
         const currentName = budgetData.find(i => i.categoryId === categoryId)?.categoryName ?? null;
@@ -226,7 +245,6 @@ export default function BudgetPage() {
 
                 <BudgetToolbar
                     budgetId={budgetId!}
-                    onFetchBudget={fetchBudget}
                 />
 
                 {/* Main Table Content + Inspector */}
@@ -261,7 +279,7 @@ export default function BudgetPage() {
                                                     <input
                                                         type="checkbox"
                                                         className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
-                                                        aria-label="Seleccionar todas las categorías"
+                                                        aria-label={t('selectAll', { name: '' })}
                                                         checked={(() => {
                                                             const validCount = budgetData.filter(i => i.categoryId !== null).length;
                                                             return validCount > 0 && selectedIds.size === validCount;
@@ -276,8 +294,8 @@ export default function BudgetPage() {
                                                 <button
                                                     onClick={toggleAllGroups}
                                                     className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
-                                                    title={areAllExpanded ? "Collapse All" : "Expand All"}
-                                                    aria-label={areAllExpanded ? "Collapse All" : "Expand All"}
+                                                    title={areAllExpanded ? t('collapse', { name: '' }) : t('expand', { name: '' })}
+                                                    aria-label={areAllExpanded ? t('collapse', { name: '' }) : t('expand', { name: '' })}
                                                 >
                                                     {areAllExpanded ? (
                                                         <ChevronDown className="w-4 h-4" />
@@ -285,22 +303,22 @@ export default function BudgetPage() {
                                                         <ChevronRight className="w-4 h-4" />
                                                     )}
                                                 </button>
-                                                <span>CATEGORY</span>
+                                                <span>{t('category')}</span>
                                             </div>
                                         </th>
                                         <th className="text-right py-0.5 px-4 font-black border-b border-border w-[15%]">
                                             <div className="flex justify-end">
-                                                <div className="min-w-[110px] px-3 text-right">ASSIGNED</div>
+                                                <div className="min-w-[110px] px-3 text-right">{t('assigned')}</div>
                                             </div>
                                         </th>
                                         <th className="text-right py-1 px-4 font-black border-b border-border w-[15%]">
                                             <div className="flex justify-end">
-                                                <div className="min-w-[110px] px-3 text-right">ACTIVITY</div>
+                                                <div className="min-w-[110px] px-3 text-right">{t('activity')}</div>
                                             </div>
                                         </th>
                                         <th className="text-right py-0.5 px-4 font-black border-b border-border w-[15%]">
                                             <div className="flex justify-end">
-                                                <div className="min-w-[110px] px-3 text-right">AVAILABLE</div>
+                                                <div className="min-w-[110px] px-3 text-right">{t('available')}</div>
                                             </div>
                                         </th>
                                     </tr>
@@ -359,6 +377,7 @@ export default function BudgetPage() {
                                                                         onUpdateEditingValue={setEditValue}
                                                                         onUpdateAssignEditValue={setAssignEditValue}
                                                                         formatCurrency={formatCurrency}
+                                                                        onMoveMoneyClick={handleMoveMoneyClick}
                                                                     />
                                                                 );
                                                             })}
@@ -381,7 +400,23 @@ export default function BudgetPage() {
                         />
                     </div>
                 </div>
-            </div >
-        </AppLayout >
+
+                {/* Move Money Modal */}
+                <MoveMoneyModal
+                    isOpen={isMoveMoneyOpen}
+                    onClose={() => setMoveMoneySource(null)}
+                    onSubmit={(params) => {
+                        moveMoneyMutation.mutate({
+                            ...params,
+                            currentBudgetData: budgetData,
+                        });
+                    }}
+                    sourceCategory={moveMoneySource}
+                    budgetData={budgetData}
+                    currentMonth={currentMonth}
+                    formatCurrency={formatCurrency}
+                />
+            </div>
+        </AppLayout>
     );
 }

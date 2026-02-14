@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import type { TransactionDTO } from '@/lib/dtos';
 import { addUserActionBreadcrumb } from '@/lib/sentry-utils';
 
@@ -42,10 +43,11 @@ function useInvalidateAll() {
 export function useCreateTransaction() {
     const queryClient = useQueryClient();
     const invalidateAll = useInvalidateAll();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['transaction-create'],
-        meta: { errorMessage: 'Error al crear transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
+        meta: { errorMessage: t('transactionCreateError'), broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (payload: TransactionPayload) => {
             const res = await fetch(`/api/budgets/${payload.budgetId}/transactions`, {
@@ -128,10 +130,11 @@ export function useCreateTransaction() {
 export function useUpdateTransaction() {
     const queryClient = useQueryClient();
     const invalidateAll = useInvalidateAll();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['transaction-update'],
-        meta: { errorMessage: 'Error al actualizar transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
+        meta: { errorMessage: t('transactionUpdateError'), broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async (payload: TransactionPayload & { id: number }) => {
             const res = await fetch(`/api/budgets/${payload.budgetId}/transactions`, {
@@ -203,10 +206,11 @@ export function useUpdateTransaction() {
 export function useDeleteTransaction() {
     const queryClient = useQueryClient();
     const invalidateAll = useInvalidateAll();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['transaction-delete'],
-        meta: { errorMessage: 'Error al eliminar transacción', broadcastKeys: ['transactions', 'budget', 'accounts'] },
+        meta: { errorMessage: t('transactionDeleteError'), broadcastKeys: ['transactions', 'budget', 'accounts'] },
 
         mutationFn: async ({ budgetId, transactionId }: { budgetId: number; transactionId: number }) => {
             const res = await fetch(`/api/budgets/${budgetId}/transactions?id=${transactionId}`, {
@@ -274,10 +278,11 @@ export function useDeleteTransaction() {
 export function useToggleCleared() {
     const queryClient = useQueryClient();
     const invalidateAll = useInvalidateAll();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['transaction-toggle-cleared'],
-        meta: { errorMessage: 'Error al cambiar estado', broadcastKeys: ['transactions', 'accounts'] },
+        meta: { errorMessage: t('transactionStatusError'), broadcastKeys: ['transactions', 'accounts'] },
 
         mutationFn: async ({ budgetId, transactionId, clearedStatus }: ToggleClearedParams) => {
             if (clearedStatus === 'Reconciled') {
@@ -345,10 +350,11 @@ export function useToggleCleared() {
 // ─── Reconcile Account ───────────────────────────────────────────────
 export function useReconcileAccount() {
     const invalidateAll = useInvalidateAll();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['reconcile-account'],
-        meta: { errorMessage: 'Error al reconciliar', broadcastKeys: ['transactions', 'accounts', 'budget'] },
+        meta: { errorMessage: t('reconcileError'), broadcastKeys: ['transactions', 'accounts', 'budget'] },
 
         mutationFn: async ({ budgetId, accountId, bankBalance }: { budgetId: number; accountId: number; bankBalance: number }) => {
             const res = await fetch(`/api/budgets/${budgetId}/transactions`, {

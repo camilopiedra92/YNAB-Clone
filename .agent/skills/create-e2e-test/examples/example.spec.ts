@@ -5,12 +5,14 @@
  *
  * Key conventions:
  * - Use helpers from e2e-helpers.ts for navigation
+ * - Use t() from i18n-helpers.ts for ALL user-facing text (NEVER hardcode strings)
  * - Use data-testid selectors (not CSS)
  * - Wait for server roundtrip after mutations
  * - Auth is automatic via auth.setup.ts dependency
  */
 import { test, expect } from '@playwright/test';
 import { gotoBudgetPage } from './e2e-helpers';
+import { t as _t } from './i18n-helpers';
 
 test.describe('Goals Feature', () => {
 
@@ -18,7 +20,7 @@ test.describe('Goals Feature', () => {
     // Navigate (authenticated, waits for budget-table)
     await gotoBudgetPage(page, request);
 
-    // Interact
+    // Interact — use t() for any translated label/button text
     await page.getByTestId('goals-tab').click();
 
     // Assert
@@ -32,7 +34,7 @@ test.describe('Goals Feature', () => {
     await page.getByTestId('add-goal-button').click();
     await expect(page.getByTestId('goal-modal')).toBeVisible();
 
-    // Fill form
+    // Fill form — use t() for labels, data-testid for inputs without labels
     await page.getByTestId('goal-amount').fill('500000');
     await page.getByTestId('goal-date').fill('2026-12');
 

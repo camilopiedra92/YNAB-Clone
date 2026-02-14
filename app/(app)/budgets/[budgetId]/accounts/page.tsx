@@ -13,12 +13,13 @@ import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useToggleCleared } from '@/hooks/useTransactionMutations';
 
-import { formatCurrency } from '@/lib/format';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 
 export default function AllAccountsPage() {
     const params = useParams();
     const budgetId = params.budgetId ? parseInt(params.budgetId as string) : undefined;
     const queryClient = useQueryClient();
+    const { formatCurrency } = useFormatCurrency(budgetId);
     const { data: accounts = [], isLoading: loadingAccounts } = useAccounts(budgetId);
     const { data: transactions = [], isLoading: loadingTransactions, isFetching } = useTransactions(budgetId);
     const { data: categories = [] } = useCategories(budgetId);
@@ -82,7 +83,7 @@ export default function AllAccountsPage() {
             formatCurrency(t.inflow).toLowerCase().includes(q) ||
             formatCurrency(t.outflow).toLowerCase().includes(q)
         );
-    }, [currentTransactions, searchQuery]);
+    }, [currentTransactions, searchQuery, formatCurrency]);
 
     const filteredFuture = useMemo(() => {
         if (!searchQuery) return futureTransactions;
@@ -95,7 +96,7 @@ export default function AllAccountsPage() {
             formatCurrency(t.inflow).toLowerCase().includes(q) ||
             formatCurrency(t.outflow).toLowerCase().includes(q)
         );
-    }, [futureTransactions, searchQuery]);
+    }, [futureTransactions, searchQuery, formatCurrency]);
 
     const toggleSelectAll = useCallback(() => {
         if (selectedRows.size === currentTransactions.length && currentTransactions.length > 0) {
@@ -201,6 +202,7 @@ export default function AllAccountsPage() {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleNewTransaction}
+                            data-testid="add-transaction-button"
                             className="neu-btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
                         >
                             <Plus className="w-3.5 h-3.5" />

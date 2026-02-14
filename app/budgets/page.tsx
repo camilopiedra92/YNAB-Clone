@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import { Plus, Wallet, ChevronRight, LogOut, Share2 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import ShareBudgetModal from '@/components/ShareBudgetModal';
+import { useTranslations } from 'next-intl';
 
 export default function BudgetsPage() {
   const { data: budgets, isLoading } = useBudgets();
   const router = useRouter();
   const [shareModal, setShareModal] = useState<{ budgetId: number; budgetName: string } | null>(null);
+  const t = useTranslations('budgetList');
 
   const handleSelectBudget = (id: number) => {
     router.push(`/budgets/${id}/budget`);
@@ -20,10 +22,18 @@ export default function BudgetsPage() {
     await signOut({ callbackUrl: '/auth/login' });
   };
 
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'owner': return t('roleOwner');
+      case 'editor': return t('roleEditor');
+      default: return t('roleViewer');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground font-medium">Cargando presupuestos...</div>
+        <div className="animate-pulse text-muted-foreground font-medium">{t('loading')}</div>
       </div>
     );
   }
@@ -33,13 +43,13 @@ export default function BudgetsPage() {
       <div className="w-full max-w-2xl">
         <div className="flex justify-between items-center mb-12">
           <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-foreground mb-2">Mis Presupuestos</h1>
-            <p className="text-muted-foreground text-lg">Selecciona un presupuesto para empezar a organizar.</p>
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground mb-2">{t('title')}</h1>
+            <p className="text-muted-foreground text-lg">{t('subtitle')}</p>
           </div>
           <button
             onClick={handleLogout}
             className="p-3 rounded-2xl bg-background shadow-[6px_6px_12px_var(--neu-dark),-6px_-6px_12px_var(--neu-light)] hover:shadow-[inset_4px_4px_8px_var(--neu-dark),inset_-4px_-4px_8px_var(--neu-light)] transition-all duration-300 group"
-            title="Cerrar sesión"
+            title={t('logout')}
           >
             <LogOut className="w-6 h-6 text-muted-foreground group-hover:text-ynab-red transition-colors" />
           </button>
@@ -62,7 +72,7 @@ export default function BudgetsPage() {
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground uppercase tracking-wider">
-                        {budget.role === 'owner' ? 'Propietario' : budget.role === 'editor' ? 'Editor' : 'Viewer'}
+                        {getRoleLabel(budget.role)}
                       </span>
                       <span className="text-sm text-muted-foreground italic">
                         {budget.currencySymbol} {budget.currencyCode}
@@ -85,7 +95,7 @@ export default function BudgetsPage() {
                     hover:shadow-[inset_2px_2px_4px_var(--neu-dark),inset_-2px_-2px_4px_var(--neu-light)]
                     opacity-0 group-hover/card:opacity-100 transition-all duration-200
                     text-muted-foreground hover:text-primary z-10"
-                  title="Compartir presupuesto"
+                  title={t('shareBudget')}
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -101,7 +111,7 @@ export default function BudgetsPage() {
               <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <span className="text-lg font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-              Crear Nuevo Presupuesto
+              {t('createBudget')}
             </span>
           </button>
         </div>
@@ -120,4 +130,3 @@ export default function BudgetsPage() {
     </div>
   );
 }
-

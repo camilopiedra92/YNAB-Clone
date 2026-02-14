@@ -23,6 +23,7 @@ export function createUserFunctions(database: DrizzleDB, _deps: UserRepoDeps) {
         id: users.id,
         name: users.name,
         email: users.email,
+        locale: users.locale,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -75,5 +76,15 @@ export function createUserFunctions(database: DrizzleDB, _deps: UserRepoDeps) {
     await database.update(users).set({ password: newHash }).where(eq(users.id, id));
   }
 
-  return { getUserByEmail, getUserById, createUser, updateUser, updatePassword };
+  /** Update the user's locale preference. */
+  async function updateLocale(id: string, locale: string) {
+    const [updated] = await database
+      .update(users)
+      .set({ locale })
+      .where(eq(users.id, id))
+      .returning({ id: users.id, locale: users.locale });
+    return updated || null;
+  }
+
+  return { getUserByEmail, getUserById, createUser, updateUser, updatePassword, updateLocale };
 }

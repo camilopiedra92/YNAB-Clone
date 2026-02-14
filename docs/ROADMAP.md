@@ -1,10 +1,10 @@
 # Technical Roadmap
 
-> Last updated: 2026-02-10 | Health Score: 9.0/10 | 0 open audit findings
+> Last updated: 2026-02-13 | Health Score: 8.5/10 | See `docs/audits/` for open findings
 
 ## Current State
 
-The codebase is architecturally sound: 542 unit tests, 50 E2E tests, 98.79% coverage, 100% engine coverage, zero type safety escapes, zero circular dependencies, and consistent patterns across all layers. The SaaS multi-tenant migration (auth, budgets, sharing, RLS) is complete. What follows are **growth opportunities** — not fixes.
+The codebase is architecturally sound: 542+ unit tests, 50+ E2E tests, ~98% coverage, 100% engine coverage, zero type safety escapes, zero circular dependencies, and consistent patterns across all layers. The SaaS multi-tenant migration (auth, budgets, sharing, RLS) is complete. Internationalization (es/en) is fully implemented with `next-intl`. What follows are **growth opportunities** — not fixes.
 
 ---
 
@@ -22,16 +22,16 @@ PR-only GitHub Actions pipeline with `ci-passed` summary gate. Quality-gate runs
 - [x] Coverage thresholds enforced (100% engine, ~96% global)
 - [ ] Lighthouse CI for performance budgets (deferred — requires auth bypass)
 
-### I2. Split `budget.ts` (967 lines)
+### I2. Split `budget.ts` ✅
 
-**Priority:** 🟡 Medium | **Effort:** L (half day)
+**Priority:** 🟡 Medium | **Effort:** L (half day) | **Completed:** 2026-02-13
 
-The largest file in the codebase. Well-structured but approaching maintenance pain.
+Split the largest repo file into focused domain modules:
 
-- [ ] Extract `budget-assignment.ts` — assignment + carryforward propagation
-- [ ] Extract `budget-rta.ts` — RTA calculation + breakdown queries
-- [ ] Extract `budget-cc.ts` — CC payment orchestration
-- [ ] Keep `budget.ts` as barrel re-export for backward compat
+- [x] Extract `budget-rta.ts` — RTA calculation + breakdown queries
+- [x] Extract `budget-cc.ts` — CC payment orchestration + overspending
+- [x] Slim `budget.ts` — mutations, activity, inspector only
+- [x] All consumers and tests updated — zero regressions
 
 ### I3. CHANGELOG
 
@@ -42,14 +42,13 @@ Mentioned in 4 consecutive audits. Track releases for shared budget collaborator
 - [ ] Create `CHANGELOG.md` with retroactive entries for major milestones
 - [ ] Adopt [Keep a Changelog](https://keepachangelog.com/) format
 
-### I4. Resolve npm Cache Permissions
+### I4. Resolve npm Cache Permissions ✅
 
-**Priority:** 🟢 Low | **Effort:** S (<15min)
+**Priority:** 🟢 Low | **Effort:** S (<15min) | **Completed:** 2026-02-13
 
-The `~/.npm` permissions issue prevents `npx` tools (`depcheck`, `license-checker`, `madge`) from running natively. Workaround exists (`--cache /tmp/npm-cache`) but is fragile.
-
-- [ ] Run `sudo chown -R $(whoami) ~/.npm` outside sandbox
-- [ ] Verify `npm outdated`, `npx depcheck`, `npx license-checker` work natively
+- [x] Updated `with-local-tmp.sh` to redirect npm cache to local `.tmp/npm-cache`
+- [x] All npm/npx commands use the wrapper — no more `EPERM` errors
+- [x] Updated rules, workflows, and skills to document the pattern
 
 ---
 
@@ -65,16 +64,17 @@ The `~/.npm` permissions issue prevents `npx` tools (`depcheck`, `license-checke
 - [ ] Request-scoped correlation IDs via middleware
 - [ ] Log rotation / shipping strategy (stdout for Docker, or file + logrotate)
 
-### O2. Error Tracking (Sentry)
+### O2. Error Tracking (Sentry) ✅ Partial
 
-**Priority:** 🟡 Medium | **Effort:** M (1–3h)
+**Priority:** 🟡 Medium | **Effort:** M (1–3h) | **Partially completed:** 2026-02-13
 
-No error tracking beyond browser console. Production bugs would be invisible.
+Sentry is integrated with budget context tagging (`setBudgetContext` in Sidebar).
 
-- [ ] Install `@sentry/nextjs`
-- [ ] Configure server + client error boundaries
+- [x] Install `@sentry/nextjs`
+- [x] Basic client + server error boundaries
+- [x] Custom context: `budgetId`, `budgetName`
 - [ ] Source maps upload on build
-- [ ] Custom context: `userId`, `budgetId`
+- [ ] Full server-side instrumentation
 
 ### O3. Performance Monitoring
 
@@ -91,9 +91,9 @@ No benchmarks or performance budgets beyond the 2MB bundle check.
 
 ## ♿ Quality & Accessibility
 
-### Q1. Accessibility Audit
+### Q1. Accessibility Audit ✅
 
-**Priority:** 🟡 Medium | **Effort:** M (1–3h) ✅ **DONE**
+**Priority:** 🟡 Medium | **Effort:** M (1–3h) | **Completed**
 
 axe-core E2E tests run on every PR to main. All WCAG 2.1 AA violations resolved (6/6 tests pass).
 
@@ -204,10 +204,10 @@ Budget sharing works via direct link. No email notifications or password reset.
 
 ## Suggested Execution Order
 
-| Phase           | Items                                               | Rationale                                |
-| --------------- | --------------------------------------------------- | ---------------------------------------- |
-| **Next**        | I2 (Split budget.ts), I3 (CHANGELOG)                | Reduce maintenance pain + track releases |
-| **Soon**        | F3 (Search), Q1 (A11y), O2 (Sentry)                 | Usability + production readiness         |
-| **Mid-term**    | F1 (Goals), F2 (Reports), I2 (Split budget.ts)      | Core product features                    |
-| **Later**       | F4 (Currency), O1 (Logging), Q2 (API docs)          | Polish                                   |
-| **When needed** | S1 (Billing), S2 (GDPR), S3 (Audit log), F5 (Email) | Triggered by going public/paid           |
+| Phase           | Items                                               | Rationale                      |
+| --------------- | --------------------------------------------------- | ------------------------------ |
+| **Next**        | I3 (CHANGELOG), F3 (Search)                         | Track releases + usability     |
+| **Soon**        | F1 (Goals), F2 (Reports)                            | Core product features          |
+| **Mid-term**    | O1 (Logging), O2 (Sentry completion), F4 (Currency) | Production readiness + polish  |
+| **Later**       | O3 (Performance), F5 (Email)                        | Observability + notifications  |
+| **When needed** | S1 (Billing), S2 (GDPR), S3 (Audit log)             | Triggered by going public/paid |

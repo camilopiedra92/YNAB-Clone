@@ -93,6 +93,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.base_ref == 'main'
+    strategy:
+      fail-fast: false
+      matrix:
+        locale: [es, en]
+    name: e2e-tests (${{ matrix.locale }})
     services:
       postgres:
         image: postgres:16
@@ -112,6 +117,7 @@ jobs:
       AUTH_SECRET: e2e-test-secret-at-least-32-characters-long
       AUTH_TRUST_HOST: "true"
       CI: "true"
+      TEST_LOCALE: ${{ matrix.locale }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,14 +151,16 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      - name: Run E2E Tests
+      - name: Run E2E Tests (${{ matrix.locale }})
         run: npm run test:e2e
+        env:
+          TEST_LOCALE: ${{ matrix.locale }}
 
       - name: Upload Playwright Report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.locale }}
           path: playwright-report/
           retention-days: 7
 
@@ -160,7 +168,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ matrix.locale }}
           path: test-results/
           retention-days: 7
 

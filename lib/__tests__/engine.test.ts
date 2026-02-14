@@ -20,6 +20,7 @@ import {
     calculateCashOverspending,
     classifyOverspending,
     calculateBudgetAvailable,
+    validateMoveMoney,
     type Milliunit,
 } from '../engine';
 
@@ -393,5 +394,94 @@ describe('calculateBudgetAvailable', () => {
 
     it('handles negative carryforward (should not happen for regular, but engine is agnostic)', () => {
         expect(calculateBudgetAvailable(m(-200), m(500), m(-100))).toBe(200);
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// Move Money
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('validateMoveMoney', () => {
+    it('rejects zero amount', () => {
+        const result = validateMoveMoney({
+            amount: m(0), sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(false);
+        expect(result.error).toBe('zero_amount');
+    });
+
+    it('rejects negative amount', () => {
+        const result = validateMoveMoney({
+            amount: m(-100), sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(false);
+        expect(result.error).toBe('negative_amount');
+    });
+
+    it('rejects NaN', () => {
+        const result = validateMoveMoney({
+            amount: NaN as Milliunit, sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(false);
+        expect(result.error).toBe('non_finite_amount');
+    });
+
+    it('rejects Infinity', () => {
+        const result = validateMoveMoney({
+            amount: Infinity as Milliunit, sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(false);
+        expect(result.error).toBe('non_finite_amount');
+    });
+
+    it('rejects same source and target', () => {
+        const result = validateMoveMoney({
+            amount: m(100), sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 1,
+        });
+        expect(result.valid).toBe(false);
+        expect(result.error).toBe('same_category');
+    });
+
+    it('allows valid move within available', () => {
+        const result = validateMoveMoney({
+            amount: m(300), sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(true);
+        expect(result.error).toBeUndefined();
+        expect(result.warning).toBeUndefined();
+        expect(result.clampedAmount).toBe(300);
+    });
+
+    it('allows exact available amount', () => {
+        const result = validateMoveMoney({
+            amount: m(500), sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(true);
+        expect(result.warning).toBeUndefined();
+    });
+
+    it('allows exceeding available with warning (YNAB behavior)', () => {
+        const result = validateMoveMoney({
+            amount: m(800), sourceAvailable: m(500), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(true);
+        expect(result.warning).toBe('exceeds_available');
+        expect(result.clampedAmount).toBe(800);
+    });
+
+    it('allows moving from zero-available source with warning', () => {
+        const result = validateMoveMoney({
+            amount: m(100), sourceAvailable: m(0), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(true);
+        expect(result.warning).toBe('exceeds_available');
+    });
+
+    it('clamps to MAX_ASSIGNED_VALUE', () => {
+        const result = validateMoveMoney({
+            amount: m(MAX_ASSIGNED_VALUE * 2), sourceAvailable: m(MAX_ASSIGNED_VALUE * 3), sourceCategoryId: 1, targetCategoryId: 2,
+        });
+        expect(result.valid).toBe(true);
+        expect(result.clampedAmount).toBe(MAX_ASSIGNED_VALUE);
     });
 });

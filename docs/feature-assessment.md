@@ -10,7 +10,7 @@
 | Domain                     | Completeness | Features Done | Features Total |  Priority   |
 | -------------------------- | :----------: | :-----------: | :------------: | :---------: |
 | Credit Cards               |     90%      |      8/9      |       9        |   ✅ Done   |
-| Budgeting Core             |     75%      |     14/19     |       19       |   🔴 High   |
+| Budgeting Core             |     79%      |     15/19     |       19       |   🔴 High   |
 | Accounts                   |     65%      |     6/10      |       10       |   🟡 Med    |
 | Multi-User & Collaboration |     60%      |     7/10      |       10       |   🟡 Med    |
 | Transactions               |     50%      |     11/21     |       21       |   🔴 High   |
@@ -21,7 +21,7 @@
 | Goals / Targets            |      0%      |      0/6      |       6        |   🔴 High   |
 | Scheduled Transactions     |      0%      |      0/5      |       5        |   🔴 High   |
 | Bank Sync                  |      0%      |      0/4      |       4        |  🟢 Low\*   |
-| **TOTAL**                  |   **~35%**   |  **55/120**   |    **120**     |      —      |
+| **TOTAL**                  |   **~37%**   |  **56/120**   |    **120**     |      —      |
 
 _\*Bank sync requires paid third-party APIs (Plaid). Deprioritized for self-hosted clone._
 
@@ -53,7 +53,7 @@ However, the project is currently focused on the **core budgeting loop** and lac
 
 ## 1. Budgeting Core — The "Give Every Dollar a Job" Loop
 
-**Domain Completeness: ~75% · 14/19 features**
+**Domain Completeness: ~79% · 15/19 features**
 
 - [x] Ready to Assign (RTA) calculation — Per-month formula with cash balance, positive CC, SumAvailable, future assigned, credit overspending correction. Matches YNAB exactly.
 - [x] RTA Breakdown popup — Left over, inflow, positive CC, cash overspending, assigned current, assigned future. Back-calculated.
@@ -69,7 +69,7 @@ However, the project is currently focused on the **core budgeting loop** and lac
 - [x] Overspending colors (red = cash, yellow = credit) — `AvailabilityBubble.tsx` with correct color logic.
 - [x] Budget Inspector (sidebar panel) — Month Summary, Spending by month with year groups, Quick Budget tools.
 - [x] Ghost entry prevention — Deletes zero rows, `HAVING COUNT(*) >= 10` safety net.
-- [ ] "Move Money" between categories — YNAB modal to move money from one category to another. Users must manually adjust two assignments.
+- [x] "Move Money" between categories — Full modal with direction toggle, searchable category picker, optimistic updates. Engine validation, API route, repo orchestration, 16 tests.
 - [ ] "Cover Overspending" flow — YNAB's yellow bubble links to a "cover" flow that moves money from other categories.
 - [ ] Underfunded / Quick Budget per category — Inspector has Quick Budget UI but limited; missing "Underfunded", "Average Spent", "Spent Last Month" quick-assign options.
 - [ ] Category hiding/unhiding UI — `hidden` column exists in schema (🏗️) but no UI to toggle.
@@ -271,7 +271,7 @@ However, the project is currently focused on the **core budgeting loop** and lac
 
 - [ ] **3.1 Multi-select Bulk Actions** — Bulk categorize, clear, delete.
 - [ ] **3.2 Running Balance** — Per-transaction cumulative balance.
-- [ ] **3.3 Move Money / Cover Overspending** — Guided flow to fix yellow/red categories.
+- [x] **3.3 Move Money** — ✅ Done. Cover Overspending flow still pending.
 - [ ] **3.4 Payee Rules (auto-categorization)** — Remembers category per payee.
 
 ### Phase 4 — Platform Maturity
@@ -308,6 +308,7 @@ However, the project is currently focused on the **core budgeting loop** and lac
 
 ## Changelog
 
-| Date       | Update                                                     |
-| ---------- | ---------------------------------------------------------- |
-| 2026-02-13 | Initial assessment created. Full codebase audit completed. |
+| Date       | Update                                                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| 2026-02-13 | **Move Money** feature complete (engine + API + repo + frontend modal). 16 tests. Budgeting → 79%. |
+| 2026-02-13 | Initial assessment created. Full codebase audit completed.                                         |
