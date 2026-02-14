@@ -52,7 +52,7 @@ export default async function globalSetup() {
   );
 
   // 2. Connect to the new test DB
-  const client = postgres(TEST_DB_URL, { max: 1 });
+  const client = postgres(TEST_DB_URL, { max: 1, onnotice: () => {} });
 
   try {
     const testDb = drizzle(client, { schema });
