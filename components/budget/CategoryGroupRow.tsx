@@ -5,6 +5,7 @@ import { ChevronDown, GripVertical, CreditCard } from 'lucide-react';
 import { SortableRow } from './SortableRow';
 import { CreateCategoryPopover } from './CreateCategoryPopover';
 import { BudgetItem } from '@/hooks/useBudgetTable';
+import { useTranslations } from 'next-intl';
 
 interface CategoryGroupRowProps {
     group: {
@@ -31,6 +32,7 @@ export const CategoryGroupRow = React.memo(({
     onFetchBudget,
     formatCurrency,
 }: CategoryGroupRowProps) => {
+    const t = useTranslations('budget');
     const isCreditCardGroup = group.name === 'Credit Card Payments';
     const groupTotals = group.items.reduce((acc, item) => ({
         assigned: acc.assigned + item.assigned,
@@ -52,7 +54,7 @@ export const CategoryGroupRow = React.memo(({
                                 {isCreditCardGroup ? (
                                     <div className="w-8" />
                                 ) : (
-                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-muted/60 transition-colors opacity-0 group-hover:opacity-100" aria-label="Reordenar grupo">
+                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-muted/60 transition-colors opacity-0 group-hover:opacity-100" aria-label={t('reorderGroup')}>
                                         <GripVertical className="w-4 h-4 text-muted-foreground/40" aria-hidden="true" />
                                     </div>
                                 )}
@@ -61,12 +63,12 @@ export const CategoryGroupRow = React.memo(({
                                     className="w-4 h-4 rounded-md border-border accent-primary cursor-pointer transition-all hover:scale-110"
                                     checked={allSelected}
                                     onChange={() => onToggleSelection(group.items)}
-                                    aria-label={`Seleccionar todas en ${group.name}`}
+                                    aria-label={t('selectAll', { name: group.name })}
                                 />
                             </div>
                         </div>
                     </td>
-                    <td className="py-0.5 px-2 cursor-pointer" onClick={() => onToggleGroup(group.name)} aria-expanded={isExpanded} aria-label={`${isExpanded ? 'Contraer' : 'Expandir'} ${group.name}`}>
+                    <td className="py-0.5 px-2 cursor-pointer" onClick={() => onToggleGroup(group.name)} aria-expanded={isExpanded} aria-label={isExpanded ? t('collapse', { name: group.name }) : t('expand', { name: group.name })}>
                             <div className="flex items-center gap-3">
                             <div className={`p-1 rounded-lg transition-all duration-300 ${isExpanded ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}>
                                 <ChevronDown className={`w-4 h-4 transition-transform duration-500 ${!isExpanded ? '-rotate-90' : ''}`} aria-hidden="true" />

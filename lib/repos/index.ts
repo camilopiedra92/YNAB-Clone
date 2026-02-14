@@ -95,5 +95,6 @@ export const {
   createUser,
   updateUser,
   updatePassword,
+  updateLocale,
 } = fns;
 

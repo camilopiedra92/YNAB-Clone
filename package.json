@@ -31,6 +31,8 @@
     "git:prune": "bash scripts/prune-branches.sh",
     "git:install-hooks": "bash scripts/install-hooks.sh",
     "check:future-filter": "bash scripts/check-future-date-filter.sh",
+    "check:locale-strings": "bash scripts/check-locale-strings.sh",
+    "check:i18n-keys": "bash scripts/check-i18n-key-parity.sh",
     "prepare": "bash scripts/install-hooks.sh"
   },
   "dependencies": {
@@ -54,6 +56,7 @@
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
+    "next-intl": "^4.8.2",
     "postgres": "^3.4.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

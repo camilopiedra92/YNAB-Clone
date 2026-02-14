@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { useCreateCategoryGroup } from '@/hooks/useBudgetMutations';
+import { useTranslations } from 'next-intl';
 
 interface CreateCategoryGroupPopoverProps {
     budgetId: number;
-    onSuccess: () => void;
+    onSuccess?: () => void;
 }
 
 export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCategoryGroupPopoverProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [name, setName] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
+    const t = useTranslations('budget');
+    const tc = useTranslations('common');
     const createMutation = useCreateCategoryGroup(budgetId);
 
     // Close on click outside
@@ -33,7 +36,7 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
             onSuccess: () => {
                 setName('');
                 setIsOpen(false);
-                onSuccess();
+                onSuccess?.();
             },
         });
     };
@@ -48,7 +51,7 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
                     }`}
             >
                 <PlusCircle className="w-4 h-4" />
-                Category Group
+                {t('categoryGroup')}
             </button>
 
             {isOpen && (
@@ -59,11 +62,11 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
                 >
                     <div className="relative space-y-5">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Group Name</label>
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">{t('groupNameLabel')}</label>
                             <input
                                 autoFocus
                                 type="text"
-                                placeholder="e.g., Monthly Bills"
+                                placeholder={t('groupNamePlaceholder')}
                                 className="w-full px-4 py-3 bg-background rounded-xl text-sm font-bold text-foreground shadow-neu-inset focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)] transition-all placeholder:text-muted-foreground/30"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
@@ -78,14 +81,14 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
                                 onClick={() => setIsOpen(false)}
                                 className="neu-btn px-5 py-2.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground rounded-xl transition-all"
                             >
-                                Cancel
+                                {tc('cancel')}
                             </button>
                             <button
                                 onClick={handleCreate}
                                 disabled={createMutation.isPending}
                                 className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest bg-emerald-500 rounded-xl shadow-neu-sm hover:shadow-neu-md active:scale-95 transition-all disabled:opacity-50"
                             >
-                                {createMutation.isPending ? 'Creating...' : 'Create Group'}
+                                {createMutation.isPending ? tc('creating') : t('createGroup')}
                             </button>
                         </div>
                     </div>

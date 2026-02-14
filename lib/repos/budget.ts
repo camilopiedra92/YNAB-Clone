@@ -608,6 +608,50 @@ export function createBudgetFunctions(
     };
   }
 
+  /**
+   * Move money between two categories by adjusting their assigned amounts.
+   *
+   * Orchestration: queries current assigned → updateBudgetAssignment(source) →
+   * updateBudgetAssignment(target) → refreshAllBudgetActivity.
+   *
+   * All financial logic (carryforward, delta propagation, ghost entries)
+   * is handled by updateBudgetAssignment.
+   */
+  async function moveMoney(
+    budgetId: number,
+    sourceCategoryId: number,
+    targetCategoryId: number,
+    month: string,
+    amount: Milliunit,
+  ) {
+    return Sentry.startSpan({ op: 'db.query', name: 'moveMoney', attributes: { budgetId, sourceCategoryId, targetCategoryId, month } }, async () => {
+      // Query current assigned values for both categories
+      const [sourceRows, targetRows] = await Promise.all([
+        database.select({ assigned: budgetMonths.assigned })
+          .from(budgetMonths)
+          .where(and(eq(budgetMonths.categoryId, sourceCategoryId), eq(budgetMonths.month, month))),
+        database.select({ assigned: budgetMonths.assigned })
+          .from(budgetMonths)
+          .where(and(eq(budgetMonths.categoryId, targetCategoryId), eq(budgetMonths.month, month))),
+      ]);
+
+      const sourceAssigned = sourceRows[0] ? m(sourceRows[0].assigned) : ZERO;
+      const targetAssigned = targetRows[0] ? m(targetRows[0].assigned) : ZERO;
+
+      // Adjust: source loses amount, target gains amount
+      const newSourceAssigned = (sourceAssigned - amount) as Milliunit;
+      const newTargetAssigned = (targetAssigned + amount) as Milliunit;
+
+      // Reuse existing updateBudgetAssignment for each — handles carryforward,
+      // delta propagation, ghost entry prevention, and validation
+      await updateBudgetAssignment(budgetId, sourceCategoryId, month, newSourceAssigned);
+      await updateBudgetAssignment(budgetId, targetCategoryId, month, newTargetAssigned);
+
+      // Refresh CC payments and activity
+      await refreshAllBudgetActivity(budgetId, month);
+    });
+  }
+
   // ── Compose sub-factories ──
   const cc = createBudgetCCFunctions(database, { createCategory: deps.createCategory });
   const rta = createBudgetRTAFunctions(database, {
@@ -620,6 +664,7 @@ export function createBudgetFunctions(
     getBudgetForMonth,
     ...rta,
     updateBudgetAssignment,
+    moveMoney,
     updateBudgetActivity,
     refreshAllBudgetActivity,
     ...cc,

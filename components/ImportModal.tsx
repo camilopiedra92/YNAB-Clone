@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useImportBudgetMutation, type ImportStats } from '@/hooks/useImportMutations';
+import { useTranslations } from 'next-intl';
 import Modal from './ui/Modal';
 
 interface ImportModalProps {
@@ -18,7 +19,8 @@ type ImportState = 'idle' | 'uploading' | 'success' | 'error';
 export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
     const params = useParams();
     const budgetId = params.budgetId as string;
-
+    const t = useTranslations('import');
+    const tc = useTranslations('common');
 
     const [registerFile, setRegisterFile] = useState<File | null>(null);
     const [planFile, setPlanFile] = useState<File | null>(null);
@@ -58,10 +60,10 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Importar Datos YNAB" size="md">
+        <Modal isOpen={isOpen} onClose={handleClose} title={t('title')} size="md">
             <div className="space-y-6 pb-4">
                 {state === 'success' && stats ? (
-                    <div className="text-center space-y-4 py-4">
+                    <div className="text-center space-y-4 py-4" data-testid="import-success">
                         <div
                             className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
                             style={{
@@ -71,15 +73,15 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                             <CheckCircle2 className="w-9 h-9 text-emerald-500" />
                         </div>
                         <h3 className="text-xl font-bold text-foreground">
-                            ¡Importación Exitosa!
+                            {t('success')}
                         </h3>
                         <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto text-left">
                             {[
-                                ['Cuentas', stats.accounts],
-                                ['Grupos', stats.categoryGroups],
-                                ['Transacciones', stats.transactions],
-                                ['Transferencias', stats.transfers],
-                                ['Entradas presupuesto', stats.budgetEntries],
+                                [t('accounts'), stats.accounts],
+                                [t('groups'), stats.categoryGroups],
+                                [t('transactions'), stats.transactions],
+                                [t('transfers'), stats.transfers],
+                                [t('budgetEntries'), stats.budgetEntries],
                             ].map(([label, value]) => (
                                 <div key={label as string} className="flex justify-between items-center px-3 py-2 rounded-xl"
                                     style={{
@@ -93,17 +95,16 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                         </div>
                         <button
                             onClick={handleClose}
+                            data-testid="import-close-button"
                             className="mt-4 px-8 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all"
                         >
-                            Cerrar
+                            {tc('close')}
                         </button>
                     </div>
                 ) : (
                     <>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Sube los archivos CSV exportados desde YNAB. Necesitas el archivo{' '}
-                            <strong>Register</strong> (transacciones) y el archivo{' '}
-                            <strong>Plan</strong> (presupuesto).
+                            {t('descriptionPlain')}
                         </p>
 
                         {state === 'error' && (
@@ -115,24 +116,27 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
                         <div className="grid grid-cols-2 gap-4">
                             <FileDropZone
-                                label="Register CSV"
+                                label={t('registerCsvLabel')}
                                 file={registerFile}
                                 onFileChange={setRegisterFile}
                                 testId="import-register-file"
                                 disabled={state === 'uploading'}
+                                selectText={t('selectCsv')}
                             />
                             <FileDropZone
-                                label="Plan CSV"
+                                label={t('planCsvLabel')}
                                 file={planFile}
                                 onFileChange={setPlanFile}
                                 testId="import-plan-file"
                                 disabled={state === 'uploading'}
+                                selectText={t('selectCsv')}
                             />
                         </div>
 
                         <button
                             onClick={handleImport}
                             disabled={!registerFile || !planFile || state === 'uploading'}
+                            data-testid="import-submit-button"
                             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                             style={{
                                 boxShadow: registerFile && planFile
@@ -143,18 +147,18 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                             {state === 'uploading' ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Importando datos...</span>
+                                    <span>{t('uploading')}</span>
                                 </>
                             ) : (
                                 <>
                                     <Upload className="w-5 h-5" />
-                                    <span>Importar Datos</span>
+                                    <span>{t('importButton')}</span>
                                 </>
                             )}
                         </button>
 
                         <p className="text-[11px] text-muted-foreground/60 text-center italic">
-                            ⚠️ Esto reemplazará todos los datos existentes en este presupuesto.
+                            {t('warning')}
                         </p>
                     </>
                 )}
@@ -169,12 +173,14 @@ const FileDropZone = ({
     onFileChange,
     testId,
     disabled,
+    selectText,
 }: {
     label: string;
     file: File | null;
     onFileChange: (f: File | null) => void;
     testId: string;
     disabled: boolean;
+    selectText: string;
 }) => (
     <div className="space-y-2">
         <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">
@@ -216,7 +222,7 @@ const FileDropZone = ({
                 <>
                     <Upload className="w-8 h-8 text-muted-foreground/50 mb-2" />
                     <span className="text-sm text-muted-foreground">
-                        Click para seleccionar CSV
+                        {selectText}
                     </span>
                 </>
             )}

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Zap, Clock, Edit3 } from 'lucide-react';
 import { InspectorData } from '@/hooks/useBudgetTable';
 import { DEFAULT_LOCALE } from '@/lib/constants';
+import { useTranslations } from 'next-intl';
 
 interface BudgetInspectorProps {
     data: InspectorData | null;
@@ -123,6 +124,8 @@ function AutoAssignItem({ label, value, variant = 'default' }: AutoAssignItemPro
 }
 
 export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetInspectorProps) {
+    const t = useTranslations('inspector');
+
     if (!data) {
         return (
             <div className="w-[310px] min-w-[310px] p-4 space-y-4">
@@ -143,27 +146,27 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
         >
             {/* ── Month Summary ── */}
             <CollapsibleSection
-                title={`${monthLabel}'s Summary`}
+                title={t('monthSummary', { month: monthLabel })}
                 defaultExpanded={true}
             >
                 <div className="px-5 space-y-1.5">
                     <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-muted-foreground">Left Over from Last Month</span>
+                        <span className="text-[13px] text-muted-foreground">{t('leftOverFromLastMonth')}</span>
                         <span className="text-[13px] font-semibold tabular-nums text-foreground ml-4">{formatCurrency(data.summary.leftOverFromLastMonth)}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-muted-foreground">Assigned in {monthLabel}</span>
+                        <span className="text-[13px] text-muted-foreground">{t('assignedInMonth', { month: monthLabel })}</span>
                         <span className="text-[13px] font-semibold tabular-nums text-foreground ml-4">{formatCurrency(data.summary.assignedThisMonth)}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] text-muted-foreground">Activity</span>
+                        <span className="text-[13px] text-muted-foreground">{t('activity')}</span>
                         <span className={`text-[13px] font-semibold tabular-nums ml-4 ${data.summary.activity < 0 ? 'text-foreground' : 'text-foreground'}`}>
                             {formatCurrency(data.summary.activity)}
                         </span>
                     </div>
                     <div className="border-t border-border/30 my-2" />
                     <div className="flex justify-between items-baseline">
-                        <span className="text-[13px] font-semibold text-foreground">Available</span>
+                        <span className="text-[13px] font-semibold text-foreground">{t('available')}</span>
                         <span className="text-[13px] font-bold tabular-nums text-foreground ml-4">{formatCurrency(data.summary.available)}</span>
                     </div>
                 </div>
@@ -171,12 +174,12 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
 
             {/* ── Cost to Be Me ── */}
             <div className="bg-background rounded-2xl shadow-neu-sm overflow-hidden px-5 py-4">
-                <h3 className="text-[13px] font-bold text-foreground tracking-tight mb-3">Cost to Be Me</h3>
+                <h3 className="text-[13px] font-bold text-foreground tracking-tight mb-3">{t('costToBeMe')}</h3>
 
                 {/* Targets Row */}
                 <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                        <span className="text-[13px] text-muted-foreground">{monthLabel}&apos;s Targets</span>
+                        <span className="text-[13px] text-muted-foreground">{t('monthTargets', { month: monthLabel })}</span>
                         <span className="text-[13px] font-bold tabular-nums text-foreground">
                             {formatCurrency(data.costToBeMe.targets)}
                         </span>
@@ -189,7 +192,7 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
                 {/* Expected Income */}
                 <div className="space-y-1.5 mt-3">
                     <div className="flex items-center justify-between">
-                        <span className="text-[13px] text-muted-foreground">Expected Income</span>
+                        <span className="text-[13px] text-muted-foreground">{t('expectedIncome')}</span>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[13px] font-bold tabular-nums text-foreground">
                                 {formatCurrency(data.costToBeMe.expectedIncome)}
@@ -205,14 +208,14 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
 
             {/* ── Auto-Assign ── */}
             <CollapsibleSection
-                title="Auto-Assign"
+                title={t('autoAssign')}
                 icon={<Zap className="w-4 h-4 text-primary" />}
                 defaultExpanded={true}
             >
                 <div className="px-3 space-y-1.5">
                     {/* Primary auto-assign option */}
                     <AutoAssignItem
-                        label="Underfunded"
+                        label={t('underfunded')}
                         value={formatCurrency(data.autoAssign.underfunded)}
                         variant="primary"
                     />
@@ -220,30 +223,30 @@ export function BudgetInspector({ data, currentMonth, formatCurrency }: BudgetIn
                     <div className="mx-2 border-t border-border/20 my-1" />
 
                     {/* Secondary options */}
-                    <AutoAssignItem label="Assigned Last Month" value={formatCurrency(data.autoAssign.assignedLastMonth)} />
-                    <AutoAssignItem label="Spent Last Month" value={formatCurrency(data.autoAssign.spentLastMonth)} />
-                    <AutoAssignItem label="Average Assigned" value={formatCurrency(data.autoAssign.averageAssigned)} />
-                    <AutoAssignItem label="Average Spent" value={formatCurrency(data.autoAssign.averageSpent)} />
+                    <AutoAssignItem label={t('assignedLastMonth')} value={formatCurrency(data.autoAssign.assignedLastMonth)} />
+                    <AutoAssignItem label={t('spentLastMonth')} value={formatCurrency(data.autoAssign.spentLastMonth)} />
+                    <AutoAssignItem label={t('averageAssigned')} value={formatCurrency(data.autoAssign.averageAssigned)} />
+                    <AutoAssignItem label={t('averageSpent')} value={formatCurrency(data.autoAssign.averageSpent)} />
 
                     <div className="mx-2 border-t border-border/20 my-1" />
 
                     {/* Tertiary options */}
-                    <AutoAssignItem label="Reduce Overfunding" value={formatCurrency(data.autoAssign.reduceOverfunding)} />
-                    <AutoAssignItem label="Reset Available Amounts" value={formatCurrency(data.autoAssign.resetAvailableAmounts)} />
-                    <AutoAssignItem label="Reset Assigned Amounts" value={formatCurrency(data.autoAssign.resetAssignedAmounts)} />
+                    <AutoAssignItem label={t('reduceOverfunding')} value={formatCurrency(data.autoAssign.reduceOverfunding)} />
+                    <AutoAssignItem label={t('resetAvailable')} value={formatCurrency(data.autoAssign.resetAvailableAmounts)} />
+                    <AutoAssignItem label={t('resetAssigned')} value={formatCurrency(data.autoAssign.resetAssignedAmounts)} />
                 </div>
             </CollapsibleSection>
 
             {/* ── Assigned in Future Months ── */}
             <CollapsibleSection
-                title="Assigned in Future Months"
+                title={t('futureAssignments')}
                 defaultExpanded={true}
                 rightContent={formatCurrency(data.futureAssignments.total)}
             >
                 <div className="px-5 space-y-0.5">
                     {data.futureAssignments.months.length === 0 ? (
                         <div className="py-1">
-                            <span className="text-[13px] text-muted-foreground/50 italic">No future assignments</span>
+                            <span className="text-[13px] text-muted-foreground/50 italic">{t('noFutureAssignments')}</span>
                         </div>
                     ) : (
                         (() => {

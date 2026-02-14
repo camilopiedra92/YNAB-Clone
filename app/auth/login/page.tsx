@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const t = useTranslations('auth');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +28,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError('Email o contraseña incorrectos');
+        setError(t('invalidCredentials'));
         setLoading(false);
         return;
       }
@@ -34,7 +36,7 @@ export default function LoginPage() {
       router.push('/budgets');
       router.refresh();
     } catch {
-      setError('Error al iniciar sesión');
+      setError(t('loginError'));
       setLoading(false);
     }
   }
@@ -47,10 +49,10 @@ export default function LoginPage() {
           <LogIn className="w-7 h-7 text-primary" strokeWidth={2.5} />
         </div>
         <h1 className="text-3xl font-black tracking-tight text-foreground">
-          Bienvenido
+          {t('welcome')}
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Inicia sesión en tu presupuesto
+          {t('loginTitle')}
         </p>
       </div>
 
@@ -68,7 +70,7 @@ export default function LoginPage() {
           {/* Email */}
           <div className="space-y-2">
             <label htmlFor="email" className="text-meta">
-              Email
+              {t('email')}
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -77,7 +79,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@email.com"
+                placeholder={t('emailPlaceholder')}
                 required
                 autoComplete="email"
                 className="w-full pl-10 pr-4 py-3 rounded-xl neu-inset-sm text-sm font-medium
@@ -91,7 +93,7 @@ export default function LoginPage() {
           {/* Password */}
           <div className="space-y-2">
             <label htmlFor="password" className="text-meta">
-              Contraseña
+              {t('password')}
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -100,7 +102,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder={t('passwordPlaceholder')}
                 required
                 autoComplete="current-password"
                 className="w-full pl-10 pr-4 py-3 rounded-xl neu-inset-sm text-sm font-medium
@@ -124,7 +126,7 @@ export default function LoginPage() {
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                Iniciar Sesión
+                {t('login')}
               </>
             )}
           </button>
@@ -133,12 +135,12 @@ export default function LoginPage() {
         {/* Register Link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            ¿No tienes cuenta?{' '}
+            {t('noAccount')}{' '}
             <Link
               href="/auth/register"
               className="text-primary font-semibold hover:underline transition-colors"
             >
-              Regístrate
+              {t('register')}
             </Link>
           </p>
         </div>

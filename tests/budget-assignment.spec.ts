@@ -20,15 +20,25 @@ async function waitForBudgetLoad(page: Page, request: APIRequestContext) {
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 }
 
-// Helper: parse currency text to a number (handles COP format like "$ 1.234.567")
+// Helper: parse currency text to a number (handles any locale format)
+// COP/es-CO: "$ 1.234.567" or "$ 1.234,56"
+// USD/en-US: "$1,234.56" or "$1,500"
 function parseCurrency(text: string | null): number {
     if (!text) return 0;
-    // Remove everything except digits, minus, and decimal separators
-    // COP format uses dots as thousands sep and commas as decimal (or vice versa)
+    // Remove everything except digits, minus, dots, and commas
     const cleaned = text.replace(/[^0-9\-.,]/g, '');
-    // For COP with no decimals: "1.234.567" → replace all dots with nothing
-    const noThousands = cleaned.replace(/\./g, '').replace(/,/g, '.');
-    return parseFloat(noThousands) || 0;
+    if (!cleaned) return 0;
+    // Detect format by last separator position:
+    //   If last comma comes after last dot → comma is decimal (es format: 1.234,56)
+    //   Otherwise → dot is decimal or thousands-only (en format: 1,234.56 or es: 1.500)
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    if (lastComma > lastDot) {
+        // Comma is decimal separator (es-CO: 1.234,56)
+        return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+    // Dot is decimal separator OR thousands-only (en-US: 1,234.56 or es-CO: 1.500)
+    return parseFloat(cleaned.replace(/,/g, '')) || 0;
 }
 
 test.describe('Budget Assignment', () => {

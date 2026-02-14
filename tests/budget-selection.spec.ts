@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { TEST_BASE_URL } from './test-constants';
+import { t } from './i18n-helpers';
 
 /**
  * Budget Selection E2E Tests — Phase 4.4.4
@@ -23,8 +24,8 @@ test.describe('Budget Selection', () => {
         // Wait for budgets to load
         await page.waitForTimeout(2000);
 
-        // The page should show "Mis Presupuestos" title
-        await expect(page.getByText('Mis Presupuestos')).toBeVisible({ timeout: 10_000 });
+        // The page should show the budgets title
+        await expect(page.getByText(t('budgetList.title'))).toBeVisible({ timeout: 10_000 });
 
         // At least the test budget should be listed (created in global-setup)
         await expect(page.getByText('Test Budget')).toBeVisible({ timeout: 10_000 });
@@ -34,19 +35,19 @@ test.describe('Budget Selection', () => {
         await page.goto('/budgets');
         await page.waitForTimeout(2000);
 
-        // Click "Crear Nuevo Presupuesto"
-        await page.getByText('Crear Nuevo Presupuesto').click();
+        // Click "Create New Budget"
+        await page.getByText(t('budgetList.createBudget')).click();
 
         // Should navigate to /budgets/new
         await expect(page).toHaveURL(/\/budgets\/new/, { timeout: 10_000 });
 
         // Fill in budget name
-        const nameInput = page.getByPlaceholder('Ej. Gastos Casa, Ahorros 2026...');
+        const nameInput = page.getByPlaceholder(t('budgetList.budgetNamePlaceholder'));
         await expect(nameInput).toBeVisible({ timeout: 5_000 });
         await nameInput.fill('E2E Test Budget');
 
         // Submit
-        await page.getByRole('button', { name: /Crear Presupuesto/i }).click();
+        await page.getByRole('button', { name: new RegExp(t('budgetList.submitCreate'), 'i') }).click();
 
         // Should redirect after creation (to budget page or budget list)
         await expect(page).toHaveURL(/\/(budget|budgets)/, { timeout: 15_000 });

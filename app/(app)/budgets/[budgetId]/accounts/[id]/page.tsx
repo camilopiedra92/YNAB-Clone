@@ -15,9 +15,10 @@ import { useAccount, useAccounts } from '@/hooks/useAccounts';
 import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useToggleCleared } from '@/hooks/useTransactionMutations';
+import { useTranslations } from 'next-intl';
 
 
-import { formatCurrency } from '@/lib/format';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 
 
 
@@ -33,6 +34,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const accountId = parseInt(resolvedParams.id, 10);
     const budgetId = parseInt(resolvedParams.budgetId, 10);
     const queryClient = useQueryClient();
+    const { formatCurrency } = useFormatCurrency(budgetId);
+    const t = useTranslations('accounts');
     const { data: account, isLoading: loadingAccount } = useAccount(budgetId, accountId);
     const { data: allAccountsData = [] } = useAccounts(budgetId);
     const { data: transactions = [], isLoading: loadingTransactions, isFetching: isFetchingTransactions } = useTransactions(budgetId, accountId);
@@ -190,14 +193,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
                             <div className="flex flex-col items-center">
                                     <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.clearedBalance, 2)}</span>
-                                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.15em]">Cleared</span>
+                                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.15em]">{t('clearedBalance')}</span>
                                 </div>
                             </div>
                             <span className="text-xs font-black text-muted-foreground/40">+</span>
                             <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
                                 <div className="flex flex-col items-center">
                                     <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.unclearedBalance, 2)}</span>
-                                    <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Uncleared</span>
+                                    <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">{t('unclearedBalance')}</span>
                                 </div>
                             </div>
                             <span className="text-xs font-black text-muted-foreground/40">=</span>
@@ -206,7 +209,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                                 <div className="flex flex-col items-center relative z-10">
                                     <span data-testid="account-working-balance" className="text-lg font-black text-foreground tracking-tighter leading-none">{formatCurrency(account.balance, 2)}</span>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">Working Balance</span>
+                                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">{t('workingBalance')}</span>
                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                 </div>
                             </div>
@@ -226,7 +229,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                             backgroundColor: 'hsl(142 70% 45%)',
                         }}
                     >
-                        Reconcile
+                        {t('reconcileTitle')}
                     </button>
                 </div>
             </header>

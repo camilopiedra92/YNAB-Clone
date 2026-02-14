@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, User, Lock, Calendar } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import { useProfile } from '@/hooks/useProfile';
 import { useUpdateProfile, useChangePassword } from '@/hooks/useProfileMutations';
 
@@ -37,6 +39,9 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
     const updateProfile = useUpdateProfile();
     const changePassword = useChangePassword();
 
+    const t = useTranslations('profile');
+    const currentLocale = useLocale();
+
     // State initializes from the guaranteed-available profile
     const [name, setName] = useState(profile.name ?? '');
     const [email, setEmail] = useState(profile.email ?? '');
@@ -64,7 +69,7 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
         setPasswordError('');
 
         if (newPassword !== confirmPassword) {
-            setPasswordError('Las contraseñas no coinciden');
+            setPasswordError(t('passwordMismatch'));
             return;
         }
 
@@ -85,7 +90,7 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
 
     const formatDate = (dateStr: string | undefined) => {
         if (!dateStr) return '—';
-        return new Date(dateStr).toLocaleDateString('es-CO', {
+        return new Date(dateStr).toLocaleDateString(currentLocale === 'en' ? 'en-US' : 'es-CO', {
             year: 'numeric', month: 'long', day: 'numeric',
         });
     };
@@ -103,7 +108,7 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                         {profile.name?.charAt(0).toUpperCase() || '?'}
                     </div>
                     <h2 className="text-[15px] font-semibold text-white/90 tracking-tight">
-                        Mi Perfil
+                        {t('title')}
                     </h2>
                 </div>
                 <button
@@ -120,14 +125,14 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                 <div className="flex items-center gap-2 mb-1">
                     <User className="w-3.5 h-3.5 text-primary-300/70" />
                     <span className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.12em]">
-                        Información Personal
+                        {t('personalInfo')}
                     </span>
                 </div>
 
                 {/* Name */}
                 <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                        Nombre
+                        {t('name')}
                     </label>
                     <input
                         ref={nameInputRef}
@@ -139,7 +144,8 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                         style={INPUT_STYLE}
                         onFocus={(e) => { e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                         onBlur={(e) => { e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
-                        placeholder="Tu nombre..."
+                        placeholder={t('namePlaceholder')}
+                        data-testid="profile-name-input"
                     />
                 </div>
 
@@ -157,14 +163,15 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                         style={INPUT_STYLE}
                         onFocus={(e) => { e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                         onBlur={(e) => { e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
-                        placeholder="tu@email.com"
+                        placeholder={t('emailPlaceholder')}
+                        data-testid="profile-email-input"
                     />
                 </div>
 
                 {/* Member Since */}
                 <div className="flex items-center gap-2 pt-1 text-[11px] text-white/25">
                     <Calendar className="w-3 h-3" />
-                    <span>Miembro desde {formatDate(profile.createdAt)}</span>
+                    <span>{t('memberSince')} {formatDate(profile.createdAt)}</span>
                 </div>
 
                 {/* Save Button */}
@@ -183,7 +190,7 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                             e.currentTarget.style.boxShadow = '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.03)';
                         }}
                     >
-                        {updateProfile.isPending ? 'Guardando...' : 'Guardar Cambios'}
+                        {updateProfile.isPending ? t('saving') : t('saveProfile')}
                     </button>
                 </div>
             </div>
@@ -196,14 +203,14 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                 <div className="flex items-center gap-2 mb-1">
                     <Lock className="w-3.5 h-3.5 text-amber-300/70" />
                     <span className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.12em]">
-                        Cambiar Contraseña
+                        {t('changePassword')}
                     </span>
                 </div>
 
                 {/* Current Password */}
                 <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                        Contraseña Actual
+                        {t('currentPassword')}
                     </label>
                     <input
                         type="password"
@@ -214,13 +221,14 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                         onFocus={(e) => { e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                         onBlur={(e) => { e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
                         placeholder="••••••••"
+                        data-testid="profile-current-password-input"
                     />
                 </div>
 
                 {/* New Password */}
                 <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                        Nueva Contraseña
+                        {t('newPassword')}
                     </label>
                     <input
                         type="password"
@@ -230,14 +238,15 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                         style={INPUT_STYLE}
                         onFocus={(e) => { e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                         onBlur={(e) => { e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
-                        placeholder="Mínimo 8 caracteres"
+                        placeholder={t('newPasswordPlaceholder')}
+                        data-testid="profile-new-password-input"
                     />
                 </div>
 
                 {/* Confirm Password */}
                 <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                        Confirmar Contraseña
+                        {t('confirmNewPassword')}
                     </label>
                     <input
                         type="password"
@@ -248,7 +257,8 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                         style={INPUT_STYLE}
                         onFocus={(e) => { e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                         onBlur={(e) => { e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
-                        placeholder="Repetir nueva contraseña"
+                        placeholder={t('confirmPasswordPlaceholder')}
+                        data-testid="profile-confirm-password-input"
                     />
                 </div>
 
@@ -276,10 +286,11 @@ function ProfileForm({ profile, onClose }: { profile: ProfileData; onClose: () =
                             e.currentTarget.style.boxShadow = '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.03)';
                         }}
                     >
-                        {changePassword.isPending ? 'Cambiando...' : 'Cambiar Contraseña'}
+                        {changePassword.isPending ? t('changingPassword') : t('changePassword')}
                     </button>
                 </div>
             </div>
+
         </>
     );
 }
@@ -311,7 +322,7 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
                 onClick={handleOverlayClick}
                 style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
             >
-                <div className="text-white/50 text-[13px]">Cargando...</div>
+                <div className="text-white/50 text-[13px]">{/* loading state - no i18n context available here */}...</div>
             </div>
         );
     }

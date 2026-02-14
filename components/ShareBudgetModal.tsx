@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useShares, useShareMutations, type ShareInfo } from '@/hooks/useBudgets';
 import { UserPlus, Trash2, Users, Crown, Loader2, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface ShareBudgetModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function ShareBudgetModal({
 }: ShareBudgetModalProps) {
   const { data: shares, isLoading } = useShares(isOpen ? budgetId : undefined);
   const mutations = useShareMutations(budgetId);
+  const t = useTranslations('share');
 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
@@ -41,7 +43,7 @@ export default function ShareBudgetModal({
           setErrorMsg(null);
         },
         onError: (err) => {
-          setErrorMsg(err.message || 'Error al compartir presupuesto');
+          setErrorMsg(err.message || t('errorDefault'));
         },
       },
     );
@@ -56,7 +58,7 @@ export default function ShareBudgetModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Compartir Presupuesto" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('title')} size="md">
       <div className="space-y-6">
         {/* Budget name */}
         <div className="flex items-center gap-3 p-4 rounded-2xl bg-secondary/30">
@@ -68,7 +70,7 @@ export default function ShareBudgetModal({
         {isOwner && (
           <form onSubmit={handleInvite} className="space-y-3">
             <label htmlFor="invite-email" className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Invitar por email
+              {t('inviteLabel')}
             </label>
             <div className="flex gap-2">
               <input
@@ -76,7 +78,7 @@ export default function ShareBudgetModal({
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setErrorMsg(null); }}
-                placeholder="usuario@email.com"
+                placeholder={t('emailPlaceholder')}
                 className={`flex-1 px-4 py-3 rounded-xl bg-background text-foreground placeholder:text-muted-foreground/50 font-medium
                   shadow-[inset_3px_3px_6px_var(--neu-dark),inset_-3px_-3px_6px_var(--neu-light)]
                   focus:outline-none focus:ring-2 transition-all
@@ -96,7 +98,7 @@ export default function ShareBudgetModal({
               <button
                 type="submit"
                 disabled={mutations.addShare.isPending || !email.trim()}
-                aria-label="Invitar"
+                aria-label={t('inviteButton')}
                 className="neu-btn px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm
                   hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
                   active:scale-95 transition-all flex items-center gap-2"
@@ -121,7 +123,7 @@ export default function ShareBudgetModal({
         {/* Members list */}
         <div className="space-y-3">
           <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Miembros{shares ? ` (${shares.length + 1})` : ''}
+            {t('membersLabel')}{shares ? ` (${shares.length + 1})` : ''}
           </label>
 
           {/* Owner row (always first) */}
@@ -132,7 +134,7 @@ export default function ShareBudgetModal({
                 <Crown className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <p className="font-bold text-foreground truncate">Tú (Propietario)</p>
+                <p className="font-bold text-foreground truncate">{t('ownerYou')}</p>
               </div>
             </div>
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-600 uppercase tracking-wider flex-shrink-0">
@@ -184,7 +186,7 @@ export default function ShareBudgetModal({
                       disabled={mutations.removeShare.isPending}
                       className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10
                         transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                      title="Revocar acceso"
+                      title={t('revokeAccess')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -206,8 +208,8 @@ export default function ShareBudgetModal({
           {!isLoading && shares?.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Aún no has compartido este presupuesto</p>
-              <p className="text-sm mt-1">Invita a alguien por email para colaborar</p>
+              <p className="font-medium">{t('emptyTitle')}</p>
+              <p className="text-sm mt-1">{t('emptySubtitle')}</p>
             </div>
           )}
         </div>

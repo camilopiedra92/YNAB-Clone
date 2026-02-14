@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { BudgetItem } from './useBudgetTable';
 import {
     parseLocaleNumber,
@@ -40,11 +41,12 @@ interface ReorderParams {
 
 export function useUpdateAssigned(budgetId: number, currentMonth: string) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
 
     return useMutation({
         // Per-category mutationKey prevents rapid edits on different categories from colliding
         mutationKey: ['budget-update-assigned', budgetId],
-        meta: { errorMessage: 'Error al guardar la asignación', broadcastKeys: ['budget', 'accounts'] },
+        meta: { errorMessage: t('assignmentError'), broadcastKeys: ['budget', 'accounts'] },
         mutationFn: async ({ categoryId, value, currentBudgetData }: UpdateAssignedParams) => {
             const parsed = parseLocaleNumber(value);
             let numericValue = toMilliunits(parsed);
@@ -200,10 +202,11 @@ export function useUpdateAssigned(budgetId: number, currentMonth: string) {
 
 export function useUpdateCategoryName(budgetId: number) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['budget-update-category-name', budgetId],
-        meta: { errorMessage: 'Error al renombrar categoría', broadcastKeys: ['budget', 'categories'] },
+        meta: { errorMessage: t('renameError'), broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ categoryId, newName, currentName }: UpdateCategoryNameParams) => {
             addUserActionBreadcrumb('category.rename', { categoryId, newName });
             if (!newName.trim() || newName === currentName) {
@@ -234,10 +237,11 @@ export function useUpdateCategoryName(budgetId: number) {
 
 export function useReorderCategories(budgetId: number) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['budget-reorder', budgetId],
-        meta: { errorMessage: 'Error al reordenar', broadcastKeys: ['budget', 'categories'] },
+        meta: { errorMessage: t('reorderError'), broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ type, items }: ReorderParams) => {
             const res = await fetch(`/api/budgets/${budgetId}/categories/reorder`, {
                 method: 'POST',
@@ -261,10 +265,11 @@ export function useReorderCategories(budgetId: number) {
 // ─── Create Category Group ───────────────────────────────────────────
 export function useCreateCategoryGroup(budgetId: number) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['budget-create-category-group', budgetId],
-        meta: { errorMessage: 'Error al crear grupo de categorías', broadcastKeys: ['budget', 'categories', 'category-groups'] },
+        meta: { errorMessage: t('createGroupError'), broadcastKeys: ['budget', 'categories', 'category-groups'] },
         mutationFn: async (name: string) => {
             addUserActionBreadcrumb('categoryGroup.create', { name });
             const res = await fetch(`/api/budgets/${budgetId}/category-groups`, {
@@ -296,10 +301,11 @@ export function useCreateCategoryGroup(budgetId: number) {
 // ─── Create Category ─────────────────────────────────────────────────
 export function useCreateCategory(budgetId: number) {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['budget-create-category', budgetId],
-        meta: { errorMessage: 'Error al crear categoría', broadcastKeys: ['budget', 'categories'] },
+        meta: { errorMessage: t('createCategoryError'), broadcastKeys: ['budget', 'categories'] },
         mutationFn: async ({ name, categoryGroupId }: { name: string; categoryGroupId: number }) => {
             addUserActionBreadcrumb('category.create', { name, categoryGroupId });
             const res = await fetch(`/api/budgets/${budgetId}/categories`, {
@@ -324,6 +330,114 @@ export function useCreateCategory(budgetId: number) {
 
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['budget'] });
+        },
+    });
+}
+
+// ─── Move Money Between Categories ──────────────────────────────────
+
+interface MoveMoneyParams {
+    sourceCategoryId: number;
+    targetCategoryId: number;
+    month: string;
+    amount: number; // milliunits
+    currentBudgetData: BudgetItem[];
+}
+
+export function useMoveMoney(budgetId: number, currentMonth: string) {
+    const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
+
+    return useMutation({
+        mutationKey: ['budget-move-money', budgetId],
+        meta: { successMessage: t('moveMoneySuccess'), errorMessage: t('moveMoneyError'), broadcastKeys: ['budget', 'accounts'] },
+        mutationFn: async ({ sourceCategoryId, targetCategoryId, month, amount }: MoveMoneyParams) => {
+            const res = await fetch(`/api/budgets/${budgetId}/budget/move`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    budgetId,
+                    sourceCategoryId,
+                    targetCategoryId,
+                    month,
+                    amount,
+                }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Error al mover dinero');
+            }
+
+            return res.json();
+        },
+
+        retry: 1,
+
+        onMutate: async ({ sourceCategoryId, targetCategoryId, amount }) => {
+            addUserActionBreadcrumb('budget.moveMoney', { sourceCategoryId, targetCategoryId, amount, month: currentMonth });
+            await queryClient.cancelQueries({ queryKey: ['budget', budgetId, currentMonth] });
+
+            const previous = queryClient.getQueryData(['budget', budgetId, currentMonth]);
+
+            // Optimistic update: adjust assigned and available for both categories
+            queryClient.setQueryData<BudgetResponseDTO>(['budget', budgetId, currentMonth], (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    budget: old.budget.map((item: BudgetItem) => {
+                        if (item.categoryId === sourceCategoryId) {
+                            return {
+                                ...item,
+                                assigned: item.assigned - amount,
+                                available: item.available - amount,
+                            };
+                        }
+                        if (item.categoryId === targetCategoryId) {
+                            return {
+                                ...item,
+                                assigned: item.assigned + amount,
+                                available: item.available + amount,
+                            };
+                        }
+                        return item;
+                    }),
+                    // RTA unchanged — total assigned is constant
+                };
+            });
+
+            return { previous };
+        },
+
+        onSuccess: (data) => {
+            // Replace optimistic cache with authoritative server data
+            if (data?.budget && data?.readyToAssign !== undefined) {
+                queryClient.setQueryData<BudgetResponseDTO>(['budget', budgetId, currentMonth], (old) => {
+                    if (!old) return old;
+                    return {
+                        ...old,
+                        budget: data.budget,
+                        readyToAssign: data.readyToAssign,
+                        rtaBreakdown: data.rtaBreakdown,
+                        overspendingTypes: data.overspendingTypes,
+                        inspectorData: data.inspectorData,
+                    };
+                });
+            }
+        },
+
+        onError: (_error, _variables, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(['budget', budgetId, currentMonth], context.previous);
+            }
+        },
+
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
+            queryClient.removeQueries({
+                queryKey: ['budget', budgetId],
+                predicate: (query) => query.queryKey[2] !== currentMonth,
+            });
         },
     });
 }

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { TEST_USER, TEST_BASE_URL } from './test-constants';
+import { t, TEST_LOCALE } from './i18n-helpers';
 
 /**
  * Auth E2E Tests — Phase 4.4.3
@@ -19,13 +20,23 @@ const BASE_URL = TEST_BASE_URL;
 // Clear cookies so each test starts unauthenticated
 test.use({ storageState: { cookies: [], origins: [] } });
 
+// Pin the test locale cookie for unauthenticated flows (no shared storageState)
+test.beforeEach(async ({ page }) => {
+    await page.context().addCookies([{
+        name: 'NEXT_LOCALE',
+        value: TEST_LOCALE,
+        domain: 'localhost',
+        path: '/',
+    }]);
+});
+
 test.describe('Authentication Flows', () => {
     test('login with valid credentials redirects to budgets', async ({ page }) => {
         await page.goto('/auth/login');
 
-        await page.getByLabel('Email').fill(TEST_USER.email);
-        await page.getByLabel('Contraseña').fill(TEST_USER.password);
-        await page.getByRole('button', { name: /Iniciar Sesión/i }).click();
+        await page.getByLabel(t('auth.email')).fill(TEST_USER.email);
+        await page.getByLabel(t('auth.password')).fill(TEST_USER.password);
+        await page.getByRole('button', { name: new RegExp(t('auth.login'), 'i') }).click();
 
         // Should redirect to budget area (budgets list or budget page)
         await expect(page).toHaveURL(/\/(budget|budgets)/, { timeout: 15_000 });
@@ -34,12 +45,12 @@ test.describe('Authentication Flows', () => {
     test('login with invalid credentials shows error', async ({ page }) => {
         await page.goto('/auth/login');
 
-        await page.getByLabel('Email').fill(TEST_USER.email);
-        await page.getByLabel('Contraseña').fill('wrongpassword');
-        await page.getByRole('button', { name: /Iniciar Sesión/i }).click();
+        await page.getByLabel(t('auth.email')).fill(TEST_USER.email);
+        await page.getByLabel(t('auth.password')).fill('wrongpassword');
+        await page.getByRole('button', { name: new RegExp(t('auth.login'), 'i') }).click();
 
         // Error message should appear
-        await expect(page.getByText('Email o contraseña incorrectos')).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByText(t('auth.invalidCredentials'))).toBeVisible({ timeout: 10_000 });
 
         // Should stay on login page
         await expect(page).toHaveURL(/\/auth\/login/);
@@ -50,14 +61,14 @@ test.describe('Authentication Flows', () => {
 
         await page.goto('/auth/register');
 
-        await page.getByLabel('Nombre').fill('E2E Register Test');
-        await page.getByLabel('Email').fill(uniqueEmail);
-        // Fill both password fields (Contraseña and Confirmar Contraseña)
+        await page.getByLabel(t('auth.name')).fill('E2E Register Test');
+        await page.getByLabel(t('auth.email')).fill(uniqueEmail);
+        // Fill both password fields
         const passwordFields = page.locator('input[type="password"]');
         await passwordFields.nth(0).fill('password123');
         await passwordFields.nth(1).fill('password123');
 
-        await page.getByRole('button', { name: /Crear Cuenta/i }).click();
+        await page.getByRole('button', { name: new RegExp(t('auth.createAccount'), 'i') }).click();
 
         // Should auto-login and redirect
         await expect(page).toHaveURL(/\/(budget|budgets)/, { timeout: 15_000 });
@@ -66,9 +77,9 @@ test.describe('Authentication Flows', () => {
     test('logout redirects to login page', async ({ page }) => {
         // First, login
         await page.goto('/auth/login');
-        await page.getByLabel('Email').fill(TEST_USER.email);
-        await page.getByLabel('Contraseña').fill(TEST_USER.password);
-        await page.getByRole('button', { name: /Iniciar Sesión/i }).click();
+        await page.getByLabel(t('auth.email')).fill(TEST_USER.email);
+        await page.getByLabel(t('auth.password')).fill(TEST_USER.password);
+        await page.getByRole('button', { name: new RegExp(t('auth.login'), 'i') }).click();
         await expect(page).toHaveURL(/\/(budget|budgets)/, { timeout: 15_000 });
 
         // Navigate to a budget page so the sidebar is visible
@@ -78,8 +89,8 @@ test.describe('Authentication Flows', () => {
             await page.goto(`/budgets/${budgetList[0].id}/budget`);
         }
 
-        // Click the logout button (title="Cerrar sesión")
-        const logoutButton = page.locator('button[title="Cerrar sesión"]');
+        // Click the logout button
+        const logoutButton = page.locator(`button[title="${t('sidebar.signOut')}"]`);
         await expect(logoutButton).toBeVisible({ timeout: 10_000 });
         await logoutButton.click();
 

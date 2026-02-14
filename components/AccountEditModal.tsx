@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle, FileText } from 'lucide-react';
 import { type Account, useUpdateAccount, useCreateAccount } from '@/hooks/useAccounts';
+import { useTranslations } from 'next-intl';
 
 interface AccountEditModalProps {
     account?: Account;
@@ -11,6 +12,8 @@ interface AccountEditModalProps {
 }
 
 export default function AccountEditModal({ account, budgetId, onClose }: AccountEditModalProps) {
+    const t = useTranslations('accounts');
+    const tc = useTranslations('common');
     const isEditing = !!account;
     const [name, setName] = useState(account?.name || '');
     const [note, setNote] = useState(account?.note || '');
@@ -110,7 +113,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                     }}
                 >
                     <h2 className="text-[15px] font-semibold text-white/90 tracking-tight">
-                        {isEditing ? 'Edit Account' : 'Add Account'}
+                        {isEditing ? t('editTitle') : t('addTitle')}
                     </h2>
                     <button
                         onClick={onClose}
@@ -128,7 +131,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                     {/* Account Name */}
                     <div className="space-y-2">
                         <label htmlFor="account-name" className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                            Account Name
+                            {t('nameLabel')}
                         </label>
                         <input
                             id="account-name"
@@ -148,7 +151,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                             onBlur={(e) => {
                                 e.currentTarget.style.boxShadow = 'inset 3px 3px 6px 0 rgba(0,0,0,0.35), inset -3px -3px 6px 0 rgba(255,255,255,0.03)';
                             }}
-                            placeholder="Account name..."
+                            placeholder={t('namePlaceholder')}
                         />
                     </div>
 
@@ -157,7 +160,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                             {/* Account Type */}
                             <div className="space-y-2">
                                 <label htmlFor="account-type" className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                                    Account Type
+                                    {t('typeLabel')}
                                 </label>
                                 <select
                                     id="account-type"
@@ -168,17 +171,17 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                                         boxShadow: 'inset 3px 3px 6px 0 rgba(0,0,0,0.35), inset -3px -3px 6px 0 rgba(255,255,255,0.03)',
                                     }}
                                 >
-                                    <option value="checking">Checking</option>
-                                    <option value="savings">Savings</option>
-                                    <option value="credit">Credit Card</option>
-                                    <option value="cash">Cash</option>
+                                    <option value="checking">{t('typeChecking')}</option>
+                                    <option value="savings">{t('typeSavings')}</option>
+                                    <option value="credit">{t('typeCredit')}</option>
+                                    <option value="cash">{t('typeCash')}</option>
                                 </select>
                             </div>
 
                             {/* Starting Balance */}
                             <div className="space-y-2">
                                 <label htmlFor="account-balance" className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
-                                    Starting Balance
+                                    {t('startingBalanceLabel')}
                                 </label>
                                 <input
                                     id="account-balance"
@@ -209,7 +212,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                     <div className="space-y-2">
                         <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-[0.08em]">
                             <FileText className="w-3 h-3" />
-                            Notes
+                            {t('notesLabel')}
                         </label>
                         <textarea
                             value={note}
@@ -226,7 +229,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                             onBlur={(e) => {
                                 e.currentTarget.style.boxShadow = 'inset 3px 3px 6px 0 rgba(0,0,0,0.35), inset -3px -3px 6px 0 rgba(255,255,255,0.03)';
                             }}
-                            placeholder="Add notes about this account..."
+                            placeholder={t('notesPlaceholder')}
                         />
                     </div>
 
@@ -251,7 +254,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                                     }}
                                 >
                                     <AlertTriangle className="w-3.5 h-3.5" />
-                                    {isClosed ? 'Reopen Account' : 'Close Account'}
+                                    {isClosed ? t('reopenAccount') : t('closeAccount')}
                                 </button>
                             ) : (
                                 <div className="space-y-3 p-3 rounded-xl"
@@ -259,10 +262,9 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                                         boxShadow: 'inset 3px 3px 6px 0 rgba(0,0,0,0.3), inset -3px -3px 6px 0 rgba(255,255,255,0.02)',
                                     }}
                                 >
-                                    <p className="text-[12px] text-white/60 leading-relaxed">
-                                        Closing this account will move it to the <strong className="text-white/80">Closed</strong> section.
-                                        You can reopen it at any time.
-                                    </p>
+                                    <p className="text-[12px] text-white/60 leading-relaxed"
+                                        dangerouslySetInnerHTML={{ __html: t('closeConfirm') }}
+                                    />
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={handleCloseAccount}
@@ -277,13 +279,13 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                                                 e.currentTarget.style.boxShadow = '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.02)';
                                             }}
                                         >
-                                            Close Account
+                                            {t('closeAccount')}
                                         </button>
                                         <button
                                             onClick={() => setShowCloseConfirm(false)}
                                             className="px-3.5 py-2 rounded-lg text-[12px] font-medium text-white/50 hover:text-white/80 transition-all duration-200"
                                         >
-                                            Cancel
+                                            {tc('cancel')}
                                         </button>
                                     </div>
                                 </div>
@@ -305,7 +307,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                             boxShadow: '2px 2px 5px 0 rgba(0,0,0,0.2), -2px -2px 5px 0 rgba(255,255,255,0.02)',
                         }}
                     >
-                        Cancel
+                        {tc('cancel')}
                     </button>
                     <button
                         onClick={handleSave}
@@ -323,7 +325,7 @@ export default function AccountEditModal({ account, budgetId, onClose }: Account
                             e.currentTarget.style.boxShadow = '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.03)';
                         }}
                     >
-                        {isPending ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Account')}
+                        {isPending ? t('saving') : (isEditing ? t('submitSave') : t('submitCreate'))}
                     </button>
                 </div>
             </div>

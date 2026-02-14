@@ -17,6 +17,24 @@ export const BudgetAssignmentSchema = z.object({
 
 export type BudgetAssignmentInput = z.infer<typeof BudgetAssignmentSchema>;
 
+export const MoveMoneySchema = z.object({
+    budgetId: z.number().int().positive('budgetId must be a positive integer'),
+    month: z.string().regex(MONTH_REGEX, 'month must be in YYYY-MM format'),
+    sourceCategoryId: z.number().int().positive('sourceCategoryId must be a positive integer'),
+    targetCategoryId: z.number().int().positive('targetCategoryId must be a positive integer'),
+    amount: z
+        .number({ message: 'amount is required and must be a number' })
+        .positive('amount must be positive')
+        .finite('amount must be a finite number')
+        .refine((v) => v <= MAX_ASSIGNED, {
+            message: `amount exceeds maximum allowed (${MAX_ASSIGNED})`,
+        }),
+}).refine((d) => d.sourceCategoryId !== d.targetCategoryId, {
+    message: 'Source and target categories must be different',
+});
+
+export type MoveMoneyInput = z.infer<typeof MoveMoneySchema>;
+
 export const CreateBudgetSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100, 'Name is too long'),
   currencyCode: z.string().min(1).max(10).default('COP'),

@@ -1,5 +1,6 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { gotoFirstAccount as navigateToAccount } from './e2e-helpers';
+import { t } from './i18n-helpers';
 
 /**
  * Transaction CRUD E2E Tests
@@ -37,7 +38,7 @@ async function createTransaction(page: Page, opts: { payee: string; amount: stri
     await openNewTransactionModal(page);
 
     if (opts.type === 'inflow') {
-        await page.getByText('Entrada').click();
+        await page.getByRole('button', { name: t('transactions.inflow') }).click();
     }
 
     await page.getByTestId('transaction-payee').fill(opts.payee);
@@ -177,7 +178,7 @@ test.describe('Transaction CRUD', () => {
         // Find the first cleared icon button (in the last column)
         // The cleared icon button has a title attribute
         const firstRow = page.locator('[data-testid^="transaction-row-"]').first();
-        const clearBtn = firstRow.locator('button[title="Uncleared"], button[title="Cleared"]').first();
+        const clearBtn = firstRow.getByTestId('transaction-cleared-toggle');
 
         if (await clearBtn.count() > 0) {
             const titleBefore = await clearBtn.getAttribute('title');

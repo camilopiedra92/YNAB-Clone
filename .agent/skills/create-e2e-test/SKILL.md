@@ -16,6 +16,7 @@ Use this skill when adding a **new Playwright E2E test spec**. See `examples/` f
 | `tests/auth.setup.ts`     | Logs in as `TEST_USER`, saves session to `.auth/user.json` |
 | `tests/test-constants.ts` | Credentials, URLs, DB names                                |
 | `tests/e2e-helpers.ts`    | Navigation helpers                                         |
+| `tests/i18n-helpers.ts`   | Locale-aware `t()` translation helper                      |
 
 ## Steps
 
@@ -27,7 +28,30 @@ tests/<feature-name>.spec.ts
 
 Use the template from [examples/example.spec.ts](examples/example.spec.ts).
 
-### 2. Use navigation helpers (mandatory)
+### 2. Import i18n helpers (mandatory)
+
+All E2E tests **MUST** use the `t()` helper for any user-facing text. Never hardcode strings.
+
+```typescript
+import { t, TEST_LOCALE } from "./i18n-helpers";
+```
+
+For specs that manage their own auth (no storageState), pin the test locale cookie:
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  await page.context().addCookies([
+    {
+      name: "NEXT_LOCALE",
+      value: TEST_LOCALE,
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
+});
+```
+
+### 3. Use navigation helpers (mandatory)
 
 ```typescript
 import {
@@ -48,15 +72,21 @@ import {
 
 **Never hardcode URLs** — SaaS routes use `/budgets/[id]/budget`, not `/budget`.
 
-### 3. Use `data-testid` selectors
+### 4. Use `data-testid` and `t()` selectors
 
 ```typescript
+// ✅ CORRECT — locale-independent
+page.getByLabel(t("auth.email")).fill("user@test.com");
+page.getByRole("button", { name: t("auth.login") }).click();
 page.getByTestId("rta-amount");
-page.locator('[data-testid^="category-row-"]'); // prefix match
-page.locator('[data-testid^="sidebar-account-"]');
+page.locator('[data-testid^="category-row-"]');
+
+// ❌ WRONG — hardcoded strings break when locale changes
+page.getByLabel("Email").fill("user@test.com");
+page.getByRole("button", { name: /Iniciar Sesión/i }).click();
 ```
 
-### 4. Wait for server roundtrips after mutations
+### 5. Wait for server roundtrips after mutations
 
 ```typescript
 await page.getByTestId("save-button").click();
@@ -66,7 +96,7 @@ await page.waitForResponse(
 await expect(page.getByTestId("value")).toHaveText("Updated");
 ```
 
-### 5. Run
+### 6. Run
 
 ```bash
 npm run test:e2e                              # full suite
@@ -77,22 +107,28 @@ npm run test:e2e -- --ui                      # debug UI
 ## Special Patterns
 
 - **Animated values (RTA):** Poll for stability — see [examples/example.spec.ts](examples/example.spec.ts)
-- **Tenant isolation:** Login as `ISOLATION_USER` manually — see [examples/isolation.spec.ts](examples/isolation.spec.ts)
+- **Tenant isolation:** Login manually with locale cookie — see [examples/isolation.spec.ts](examples/isolation.spec.ts)
 - **Auth is automatic:** `auth.setup.ts` runs first, all specs use `TEST_USER` session
+- **Locale override:** Set `TEST_LOCALE=en npx playwright test` to run tests in English
 
 ## Common Pitfalls
 
 | Pitfall                        | Fix                                                                          |
 | ------------------------------ | ---------------------------------------------------------------------------- |
+| Hardcoded UI strings           | Use `t('key')` from `i18n-helpers.ts` — never hardcode labels or button text |
 | Wrong URL                      | Use helpers, not `page.goto('/budget')`                                      |
 | Intermittent assertion failure | Wait for server roundtrip before asserting                                   |
 | RTA shows `$ 0,00`             | Poll for animated value stability                                            |
-| Login fails                    | UI labels are in Spanish (`Contraseña`, `Iniciar Sesión`)                    |
+| Login fails                    | Ensure locale cookie is set; use `t('auth.*')` for selectors                 |
 | `storageState` not found       | `auth-setup` project runs as dependency (configured in playwright.config.ts) |
+
+## CI Guard
+
+The `check-locale-strings.sh` CI guard script scans all `tests/*.spec.ts` files for hardcoded Spanish strings and fails the build if found. Always use `t()`.
 
 ## Examples Directory
 
 | File                                            | Pattern                                                  |
 | ----------------------------------------------- | -------------------------------------------------------- |
 | [example.spec.ts](examples/example.spec.ts)     | Standard test with navigation, mutation, animated values |
-| [isolation.spec.ts](examples/isolation.spec.ts) | Tenant isolation with manual login                       |
+| [isolation.spec.ts](examples/isolation.spec.ts) | Tenant isolation with manual login + locale cookie       |

@@ -40,6 +40,9 @@ export type {
     CCPaymentInput,
     CCPaymentResult,
     OverspendingType,
+    MoveMoneyInput,
+    MoveMoneyResult,
+    MoveMoneyError,
 } from './types';
 
 // Carryforward
@@ -74,6 +77,9 @@ export {
 
 // Activity
 export { calculateBudgetAvailable } from './activity';
+
+// Move Money
+export { validateMoveMoney } from './move-money';
 
 // Clock
 export {

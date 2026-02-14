@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 
 export interface ImportStats {
     accounts: number;
@@ -23,10 +24,11 @@ export interface ImportBudgetParams {
 
 export function useImportBudgetMutation() {
     const queryClient = useQueryClient();
+    const t = useTranslations('toasts');
 
     return useMutation({
         mutationKey: ['import-budget'],
-        meta: { errorMessage: 'No se pudo importar el presupuesto' },
+        meta: { errorMessage: t('importError') },
         mutationFn: async ({ budgetId, registerFile, planFile }: ImportBudgetParams) => {
             const formData = new FormData();
             formData.append('register', registerFile);

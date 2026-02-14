@@ -5,6 +5,7 @@ import { Check, Lock, Shield, AlertTriangle, X } from 'lucide-react';
 import { useReconciliationInfo } from '@/hooks/useReconciliationInfo';
 import { useReconcileAccount } from '@/hooks/useTransactionMutations';
 import { formatCurrency } from '@/lib/format';
+import { useTranslations } from 'next-intl';
 
 type ReconcileStep = 'input' | 'confirm' | 'mismatch' | 'success';
 
@@ -23,6 +24,7 @@ export default function ReconciliationModal({
     accountId,
     accountName,
 }: ReconciliationModalProps) {
+    const t = useTranslations('accounts');
     const [reconcileStep, setReconcileStep] = useState<ReconcileStep>('input');
     const [bankBalanceInput, setBankBalanceInput] = useState('');
     const [reconcileDifference, setReconcileDifference] = useState(0);
@@ -99,7 +101,7 @@ export default function ReconciliationModal({
                                     <Shield className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-bold text-foreground">Reconcile Account</h2>
+                                    <h2 className="text-lg font-bold text-foreground">{t('reconcileTitle')}</h2>
                                     <p className="text-xs text-muted-foreground">{accountName}</p>
                                 </div>
                             </div>
@@ -117,7 +119,7 @@ export default function ReconciliationModal({
                         <div className="p-6 space-y-5">
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center p-3 rounded-xl shadow-neu-inset-sm">
-                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cleared Balance</span>
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('clearedBalanceLabel')}</span>
                                     <span className="text-base font-bold text-foreground">
                                         {reconciliationInfo ? formatCurrency(reconciliationInfo.clearedBalance) : '—'}
                                     </span>
@@ -157,7 +159,7 @@ export default function ReconciliationModal({
                                           shadow-neu-sm hover:shadow-neu-md transition-all
                                           disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98]"
                             >
-                                Verify Balance
+                                {t('verifyBalance')}
                             </button>
                         </div>
                     )}

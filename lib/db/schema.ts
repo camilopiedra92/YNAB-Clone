@@ -84,6 +84,7 @@ export const users = pgTable('users', {
   password: text().notNull(), // bcrypt hash
   failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
   lockedUntil: timestamp('locked_until'),
+  locale: text().notNull().default('es'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

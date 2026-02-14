@@ -36,10 +36,11 @@ The application uses a **PostgreSQL** database. Connection details are defined i
 If you need a clean start with fresh test data, use the reset workflow:
 
 ```bash
-/reset-db
+/db-reset     # wipe and reimport only
+/factory-reset  # wipe, reimport, run tests, restart dev server
 ```
 
-This script will clear all existing data in the database and re-import the standard YNAB export data for testing.
+These scripts will clear all existing data in the database and re-import the standard YNAB export data for testing.
 
 ### Manual Schema Initialization
 
@@ -97,7 +98,32 @@ The project includes specialized workflows for common tasks:
 
 - **`/start`**: Installs dependencies and launches the Next.js dev server.
 - **`/cleanup`**: Stops all running application processes.
-- **`/reset-db`**: Performs a full database reset and data re-import.
+- **`/db-reset`**: Wipes and reimports the database.
+- **`/factory-reset`**: Full reset — wipe DB, reimport, run tests, restart dev server.
+
+## Internationalization (i18n)
+
+The app uses `next-intl` for multi-language support. Currently supports Spanish (`es`) and English (`en`).
+
+### Message Files
+
+- `messages/es.json` — Spanish translations (default)
+- `messages/en.json` — English translations
+
+### Adding a New Translation Key
+
+1. Add the key to **both** `messages/es.json` and `messages/en.json` under the appropriate namespace.
+2. Use the key in components via `useTranslations(namespace)`:
+   ```typescript
+   const t = useTranslations('sidebar');
+   return <span>{t('myNewKey')}</span>;
+   ```
+3. In E2E tests, use `t('namespace.key')` from `tests/i18n-helpers.ts`.
+4. Run `npm run check:i18n` to verify key parity between locales.
+
+### Locale Detection
+
+Locale is determined by: `NEXT_LOCALE` cookie → browser `Accept-Language` header → default (`es`).
 
 ## Directory Structure
 

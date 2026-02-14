@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { format, addYears, subYears, setMonth, getYear, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
+import { useLocale } from 'next-intl';
 
 interface MonthPickerProps {
     currentMonth: string; // YYYY-MM
@@ -19,6 +21,8 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
         return isValid(parsed) ? parsed : new Date();
     });
     const containerRef = useRef<HTMLDivElement>(null);
+    const locale = useLocale();
+    const dateFnsLocale = useMemo(() => locale === 'en' ? enUS : es, [locale]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -67,7 +71,7 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
 
     const parsedCurrent = parseISO(`${currentMonth}-01`);
     const displayMonth = isValid(parsedCurrent)
-        ? format(parsedCurrent, 'MMM', { locale: es }).toUpperCase().replace('.', '')
+        ? format(parsedCurrent, 'MMM', { locale: dateFnsLocale }).toUpperCase().replace('.', '')
         : '---';
     const displayYear = isValid(parsedCurrent)
         ? format(parsedCurrent, 'yyyy')
@@ -136,7 +140,7 @@ export function MonthPicker({ currentMonth, onChange, minMonth, maxMonth }: Mont
                                                     : 'neu-btn text-muted-foreground hover:text-foreground hover:bg-primary/5'
                                         }`}
                                 >
-                                    {format(date, 'MMM', { locale: es }).replace('.', '')}
+                                    {format(date, 'MMM', { locale: dateFnsLocale }).replace('.', '')}
                                 </button>
                             );
                         })}

@@ -12,11 +12,11 @@ Every financial calculation MUST be implemented as a **pure function** in `lib/e
 
 ## 2. Architecture (3-Layer Pattern)
 
-| Layer                                  | Location                 | Responsibility                                                                                                               |
-| -------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Engine** (pure logic)                | `lib/engine/*.ts`        | All financial formulas. Zero dependencies on DB, HTTP, React, or environment. Receives plain data, returns computed results. |
-| **Orchestration** (query→engine→write) | `lib/repos/*.ts`         | Queries data from PostgreSQL, passes it to engine functions, writes results back. No inline math.                            |
-| **UI** (optimistic updates)            | `hooks/use*Mutations.ts` | Imports engine functions to compute exact optimistic cache values. No inline math.                                           |
+| Layer                                  | Location                 | Responsibility                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Engine** (pure logic)                | `lib/engine/*.ts`        | All financial formulas. Zero dependencies on DB, HTTP, React, or environment. Receives plain data, returns computed results.                                                                                                                                                                                                       |
+| **Orchestration** (query→engine→write) | `lib/repos/*.ts`         | Queries data from PostgreSQL, passes it to engine functions, writes results back. No inline math. Split into domain modules: `budget.ts` (mutations, activity, inspector), `budget-rta.ts` (RTA queries), `budget-cc.ts` (CC payments, overspending), `accounts.ts`, `transactions.ts`, `categories.ts`, `budgets.ts`, `users.ts`. |
+| **UI** (optimistic updates)            | `hooks/use*Mutations.ts` | Imports engine functions to compute exact optimistic cache values. No inline math.                                                                                                                                                                                                                                                 |
 
 ## 3. Strict Monetary Typing: Milliunits
 
@@ -57,15 +57,18 @@ const rta = calculateRTA({ cashBalance, totalAvailable, ... });
 
 ## 6. Engine Modules Reference
 
-| Module             | Functions                                                                              | Domain                            |
-| ------------------ | -------------------------------------------------------------------------------------- | --------------------------------- |
-| `carryforward.ts`  | `computeCarryforward`                                                                  | Month rollover logic              |
-| `rta.ts`           | `calculateRTA`                                                                         | Ready to Assign formula           |
-| `rta-breakdown.ts` | `calculateRTABreakdown`                                                                | RTA popup breakdown               |
-| `assignment.ts`    | `parseLocaleNumber`, `validateAssignment`, `calculateAssignment`                       | Budget assignment + input parsing |
-| `cc-payment.ts`    | `calculateFundedAmount`, `calculateTotalFundedSpending`, `calculateCCPaymentAvailable` | CC payment available              |
-| `overspending.ts`  | `calculateCashOverspending`, `classifyOverspending`                                    | Cash vs. credit overspending      |
-| `activity.ts`      | `calculateBudgetAvailable`                                                             | Budget available formula          |
+| Module             | Functions                                                                                | Domain                              |
+| ------------------ | ---------------------------------------------------------------------------------------- | ----------------------------------- |
+| `primitives.ts`    | `milliunit`, `ZERO`, `add`, `sub`, `mul`, `neg`, `abs`, `min`, `max`, `sum`, `toDisplay` | Branded Milliunit type + arithmetic |
+| `clock.ts`         | `currentDate`, `currentMonth`, `isCurrentOrFutureMonth`                                  | Date/time helpers (mockable)        |
+| `carryforward.ts`  | `computeCarryforward`                                                                    | Month rollover logic                |
+| `rta.ts`           | `calculateRTA`                                                                           | Ready to Assign formula             |
+| `rta-breakdown.ts` | `calculateRTABreakdown`                                                                  | RTA popup breakdown                 |
+| `assignment.ts`    | `parseLocaleNumber`, `validateAssignment`, `calculateAssignment`                         | Budget assignment + input parsing   |
+| `cc-payment.ts`    | `calculateFundedAmount`, `calculateTotalFundedSpending`, `calculateCCPaymentAvailable`   | CC payment available                |
+| `overspending.ts`  | `calculateCashOverspending`, `classifyOverspending`                                      | Cash vs. credit overspending        |
+| `activity.ts`      | `calculateBudgetAvailable`                                                               | Budget available formula            |
+| `move-money.ts`    | `validateMoveMoney`, `calculateMoveMoney`                                                | Move money between categories       |
 
 ## 7. Protecting the Engine Boundary
 

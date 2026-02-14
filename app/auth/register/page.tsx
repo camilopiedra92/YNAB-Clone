@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { useRegisterMutation } from '@/hooks/useAuthMutations';
+import { useTranslations } from 'next-intl';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,18 +16,19 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const { mutateAsync: register, isPending } = useRegisterMutation();
+  const t = useTranslations('auth');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      setError(t('passwordMismatch'));
       return;
     }
 
     if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres');
+      setError(t('passwordTooShort'));
       return;
     }
 
@@ -42,14 +44,14 @@ export default function RegisterPage() {
       });
 
       if (loginResult?.error) {
-        setError('Cuenta creada. Por favor inicia sesión manualmente.');
+        setError(t('accountCreatedLoginManually'));
         return;
       }
 
       router.push('/budgets');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
+      setError(err instanceof Error ? err.message : t('createAccountError'));
     }
   }
 
@@ -61,10 +63,10 @@ export default function RegisterPage() {
           <UserPlus className="w-7 h-7 text-primary" strokeWidth={2.5} />
         </div>
         <h1 className="text-3xl font-black tracking-tight text-foreground">
-          Crear Cuenta
+          {t('createAccount')}
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Empieza a controlar tu presupuesto
+          {t('createAccountSubtitle')}
         </p>
       </div>
 
@@ -82,7 +84,7 @@ export default function RegisterPage() {
           {/* Name */}
           <div className="space-y-2">
             <label htmlFor="name" className="text-meta">
-              Nombre
+              {t('name')}
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -91,7 +93,7 @@ export default function RegisterPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Tu nombre"
+                placeholder={t('namePlaceholder')}
                 required
                 autoComplete="name"
                 className="w-full pl-10 pr-4 py-3 rounded-xl neu-inset-sm text-sm font-medium
@@ -105,7 +107,7 @@ export default function RegisterPage() {
           {/* Email */}
           <div className="space-y-2">
             <label htmlFor="email" className="text-meta">
-              Email
+              {t('email')}
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -114,7 +116,7 @@ export default function RegisterPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@email.com"
+                placeholder={t('emailPlaceholder')}
                 required
                 autoComplete="email"
                 className="w-full pl-10 pr-4 py-3 rounded-xl neu-inset-sm text-sm font-medium
@@ -128,7 +130,7 @@ export default function RegisterPage() {
           {/* Password */}
           <div className="space-y-2">
             <label htmlFor="password" className="text-meta">
-              Contraseña
+              {t('password')}
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -137,7 +139,7 @@ export default function RegisterPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
+                placeholder={t('passwordPlaceholder')}
                 required
                 autoComplete="new-password"
                 className="w-full pl-10 pr-4 py-3 rounded-xl neu-inset-sm text-sm font-medium
@@ -151,7 +153,7 @@ export default function RegisterPage() {
           {/* Confirm Password */}
           <div className="space-y-2">
             <label htmlFor="confirmPassword" className="text-meta">
-              Confirmar Contraseña
+              {t('confirmPassword')}
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -160,7 +162,7 @@ export default function RegisterPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repite tu contraseña"
+                placeholder={t('confirmPasswordPlaceholder')}
                 required
                 autoComplete="new-password"
                 className="w-full pl-10 pr-4 py-3 rounded-xl neu-inset-sm text-sm font-medium
@@ -184,7 +186,7 @@ export default function RegisterPage() {
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />
-                Crear Cuenta
+                {t('createAccount')}
               </>
             )}
           </button>
@@ -193,12 +195,12 @@ export default function RegisterPage() {
         {/* Login Link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            ¿Ya tienes cuenta?{' '}
+            {t('haveAccount')}{' '}
             <Link
               href="/auth/login"
               className="text-primary font-semibold hover:underline transition-colors"
             >
-              Inicia Sesión
+              {t('login')}
             </Link>
           </p>
         </div>

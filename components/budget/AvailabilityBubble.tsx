@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { OverspendingType } from '@/lib/engine';
+import { useTranslations } from 'next-intl';
 
 interface AvailabilityBubbleProps {
     amount: number;
     isCreditCardPayment: boolean;
     overspendingType?: OverspendingType;
     formatCurrency: (amount: number) => string;
+    onClick?: () => void;
     'data-testid'?: string;
 }
 
@@ -16,8 +18,10 @@ export const AvailabilityBubble = ({
     isCreditCardPayment,
     overspendingType,
     formatCurrency,
+    onClick,
     'data-testid': dataTestId,
 }: AvailabilityBubbleProps) => {
+    const t = useTranslations('budget');
     let colorClasses = '';
 
     if (isCreditCardPayment) {
@@ -46,11 +50,12 @@ export const AvailabilityBubble = ({
         <div className="flex items-center gap-2 text-sm">
             {isCreditCardPayment && amount > 0 && (
                 <span className="text-[9px] font-black uppercase tracking-widest text-primary/50 whitespace-nowrap">
-                    Payment
+                    {t('payment')}
                 </span>
             )}
             <button
                 data-testid={dataTestId}
+                onClick={onClick}
                 className={`min-w-[100px] py-1 px-3 rounded-lg text-sm font-bold text-right tabular-nums transition-[background-color,color,box-shadow,transform] duration-200 ${colorClasses}`}
             >
                 {formatCurrency(amount)}
@@ -58,3 +63,4 @@ export const AvailabilityBubble = ({
         </div>
     );
 };
+

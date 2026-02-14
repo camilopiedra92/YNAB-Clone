@@ -5,6 +5,7 @@ import { GripVertical, CreditCard } from 'lucide-react';
 import { SortableRow } from './SortableRow';
 import { BudgetItem } from '@/hooks/useBudgetTable';
 import { AvailabilityBubble } from './AvailabilityBubble';
+import { useTranslations } from 'next-intl';
 
 interface BudgetItemRowProps {
     item: BudgetItem;
@@ -24,6 +25,7 @@ interface BudgetItemRowProps {
     onUpdateEditingValue: (value: string) => void;
     onUpdateAssignEditValue: (value: string) => void;
     formatCurrency: (amount: number) => string;
+    onMoveMoneyClick?: (categoryId: number) => void;
 }
 
 export const BudgetItemRow = React.memo(({
@@ -44,7 +46,9 @@ export const BudgetItemRow = React.memo(({
     onUpdateEditingValue,
     onUpdateAssignEditValue,
     formatCurrency,
+    onMoveMoneyClick,
 }: BudgetItemRowProps) => {
+    const t = useTranslations('budget');
     const isCreditCardPayment = !!item.linkedAccountId;
     const isCreditCardGroup = item.groupName === 'Credit Card Payments';
 
@@ -66,7 +70,7 @@ export const BudgetItemRow = React.memo(({
                                 {isCreditCardGroup ? (
                                     <div className="w-8" />
                                 ) : (
-                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100" aria-label="Reordenar">
+                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100" aria-label={t('reorder')}>
                                         <GripVertical className="w-3.5 h-3.5 text-muted-foreground/30" aria-hidden="true" />
                                     </div>
                                 )}
@@ -75,7 +79,7 @@ export const BudgetItemRow = React.memo(({
                                     className="w-4 h-4 rounded border-border accent-primary cursor-pointer transition-all hover:scale-110"
                                     checked={isSelected}
                                     onChange={() => onToggleSelection(item.categoryId!)}
-                                    aria-label={`Seleccionar ${item.categoryName}`}
+                                    aria-label={t('selectItem', { name: item.categoryName || '' })}
                                 />
                             </div>
                         </div>
@@ -175,6 +179,7 @@ export const BudgetItemRow = React.memo(({
                                 isCreditCardPayment={isCreditCardPayment}
                                 overspendingType={item.overspendingType}
                                 formatCurrency={formatCurrency}
+                                onClick={onMoveMoneyClick && item.categoryId ? () => onMoveMoneyClick(item.categoryId!) : undefined}
                                 data-testid={`category-available-${item.categoryId}`}
                             />
                         </div>

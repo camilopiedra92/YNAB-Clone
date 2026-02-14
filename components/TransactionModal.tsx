@@ -6,6 +6,7 @@ import DatePicker from './ui/DatePicker';
 import CurrencyInput from './ui/CurrencyInput';
 import Select from './ui/Select';
 import { ArrowRightLeft } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function TransactionModal(props: UseTransactionFormProps) {
     const {
@@ -30,6 +31,8 @@ export default function TransactionModal(props: UseTransactionFormProps) {
     } = useTransactionForm(props);
 
     const { isOpen, onClose, transaction } = props;
+    const t = useTranslations('transactions');
+    const tc = useTranslations('common');
 
     return (
         <Modal
@@ -37,10 +40,10 @@ export default function TransactionModal(props: UseTransactionFormProps) {
             onClose={onClose}
             title={
                 isEditingTransfer
-                    ? 'Editar Transferencia'
+                    ? t('editTransfer')
                     : transaction?.id
-                        ? 'Editar Transacción'
-                        : 'Nueva Transacción'
+                        ? t('editTransaction')
+                        : t('newTransaction')
             }
             size="lg"
         >
@@ -49,7 +52,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                     {/* Account */}
                     <div className="md:col-span-2">
                         <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">
-                            {transactionType === 'transfer' ? 'Cuenta origen' : 'Cuenta de origen'}
+                            {transactionType === 'transfer' ? t('transferSourceAccount') : t('sourceAccount')}
                         </label>
                         <Select
                             value={formData.accountId}
@@ -61,7 +64,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
 
                     {/* Date */}
                     <div>
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Fecha</label>
+                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">{t('date')}</label>
                         <DatePicker
                             value={formData.date}
                             onChange={(value) => setFormData({ ...formData, date: value })}
@@ -71,7 +74,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                     {/* Payee — hidden for transfers */}
                     {transactionType !== 'transfer' && (
                         <div>
-                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Beneficiario</label>
+                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">{t('payee')}</label>
                             <div className="relative group">
                                 <input
                                     type="text"
@@ -84,7 +87,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                              shadow-neu-inset
                                              focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)]
                                              transition-all duration-300 placeholder:opacity-30"
-                                    placeholder="¿A quién le pagaste?"
+                                    placeholder={t('payeePlaceholder')}
                                 />
                                 <datalist id="payees-list">
                                     {payees.map((p) => (
@@ -99,13 +102,13 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                     {transactionType === 'transfer' && (
                         <div>
                             <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">
-                                Cuenta destino
+                                {t('destAccount')}
                             </label>
                             <Select
                                 value={transferAccountId}
                                 onChange={(value) => setTransferAccountId(value as number)}
                                 options={transferAccountOptions}
-                                placeholder="Selecciona cuenta destino..."
+                                placeholder={t('destAccountPlaceholder')}
                                 disabled={isEditingTransfer}
                             />
                         </div>
@@ -114,20 +117,20 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                     {/* Category — hidden for transfers */}
                     {transactionType !== 'transfer' && (
                         <div className="md:col-span-2">
-                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Categoría del presupuesto</label>
+                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">{t('budgetCategory')}</label>
                             <Select
                                 value={formData.categoryId || ''}
                                 onChange={(value) => setFormData({ ...formData, categoryId: value ? value as number : null })}
                                 options={categoryOptions}
                                 searchable
-                                placeholder="Selecciona una categoría..."
+                                placeholder={t('categoryPlaceholder')}
                             />
                         </div>
                     )}
 
                     {/* Transaction Type */}
                     <div>
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Tipo de movimiento</label>
+                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">{t('transactionType')}</label>
                         <div className="flex gap-2 p-1.5 rounded-[1.25rem] shadow-neu-inset">
                             <button
                                 type="button"
@@ -138,7 +141,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                     : 'text-muted-foreground hover:text-foreground'
                                     } ${isEditingTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}
                             >
-                                Salida
+                                {t('outflow')}
                             </button>
                             <button
                                 type="button"
@@ -149,7 +152,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                     : 'text-muted-foreground hover:text-foreground'
                                     } ${isEditingTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}
                             >
-                                Entrada
+                                {t('inflow')}
                             </button>
                             <button
                                 type="button"
@@ -161,14 +164,14 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                     } ${isEditingTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}
                             >
                                 <ArrowRightLeft className="w-3 h-3" />
-                                Transfer
+                                {t('transfer')}
                             </button>
                         </div>
                     </div>
 
                     {/* Amount */}
                     <div>
-                        <label htmlFor="amount-input" className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">Monto total</label>
+                        <label htmlFor="amount-input" className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3 block">{t('totalAmount')}</label>
                         <CurrencyInput
                             id="amount-input"
                             value={amount}
@@ -178,7 +181,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
 
                     {/* Memo */}
                     <div className="md:col-span-2">
-                        <label htmlFor="memo-input" className="text-meta mb-3 block opacity-60">Descripción o notas</label>
+                        <label htmlFor="memo-input" className="text-meta mb-3 block opacity-60">{t('memo')}</label>
                         <textarea
                             id="memo-input"
                             data-testid="transaction-memo"
@@ -189,7 +192,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                      shadow-neu-inset
                                      focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)]
                                      transition-all duration-300 placeholder:opacity-30 resize-none"
-                            placeholder="Añade detalles adicionales aquí..."
+                            placeholder={t('memoPlaceholder')}
                         />
                     </div>
                 </div>
@@ -201,9 +204,9 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                             <ArrowRightLeft className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <p className="text-sm font-black text-foreground">Transferencia vinculada</p>
+                            <p className="text-sm font-black text-foreground">{t('linkedTransfer')}</p>
                             <p className="text-[11px] font-bold text-blue-500">
-                                Los cambios se aplican a ambas cuentas
+                                {t('linkedTransferHint')}
                             </p>
                         </div>
                     </div>
@@ -220,8 +223,8 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-black text-foreground">Transacción Reconciliada</p>
-                                    <p className="text-[11px] font-bold text-violet-500">No se puede modificar el estado</p>
+                                    <p className="text-sm font-black text-foreground">{t('reconciled')}</p>
+                                    <p className="text-[11px] font-bold text-violet-500">{t('reconciledHint')}</p>
                                 </div>
                             </div>
                             <div className="w-14 h-8 rounded-full relative p-1 bg-violet-500 opacity-60 cursor-not-allowed">
@@ -244,8 +247,8 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-black text-foreground">Marcar como Cleared</p>
-                                    <p className="text-[11px] font-bold text-muted-foreground">Ya apareció en la app del banco</p>
+                                    <p className="text-sm font-black text-foreground">{t('markCleared')}</p>
+                                    <p className="text-[11px] font-bold text-muted-foreground">{t('markClearedHint')}</p>
                                 </div>
                             </div>
                             <button
@@ -272,7 +275,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                             className="w-full sm:w-auto px-8 py-4 rounded-2xl text-destructive font-black text-[10px] uppercase tracking-widest
                                      hover:bg-destructive/10 transition-all duration-300 disabled:opacity-50"
                         >
-                            {isEditingTransfer ? 'Eliminar transferencia' : 'Eliminar definitivamente'}
+                            {isEditingTransfer ? t('deleteTransfer') : t('deletePermanently')}
                         </button>
                     )}
                     <div className="flex-1" />
@@ -285,7 +288,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                  font-black text-[10px] uppercase tracking-widest hover:text-foreground
                                  transition-all duration-300 disabled:opacity-50"
                     >
-                        Cancelar
+                        {tc('cancel')}
                     </button>
                     <button
                         type="submit"
@@ -295,7 +298,7 @@ export default function TransactionModal(props: UseTransactionFormProps) {
                                  transition-all duration-300
                                  disabled:opacity-50 active:scale-95"
                     >
-                        {loading ? 'Sincronizando...' : 'Guardar Cambios'}
+                        {loading ? tc('syncing') : t('saveChanges')}
                     </button>
                 </div>
             </form>

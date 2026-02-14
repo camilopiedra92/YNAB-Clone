@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq } from 'drizzle-orm';
 import * as schema from '../lib/db/schema';
 import { importData } from '../lib/data-import';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -93,7 +94,16 @@ export default async function globalSetup() {
       name: 'Isolation Budget',
     }).returning();
 
-    console.log('E2E setup:', TEST_DB_NAME, 'ready!');
+    // 7. Pin test locale for both users (ensures server render matches cookie)
+    const testLocale = process.env.TEST_LOCALE || 'es';
+    await testDb.update(schema.users)
+      .set({ locale: testLocale })
+      .where(eq(schema.users.email, TEST_USER.email));
+    await testDb.update(schema.users)
+      .set({ locale: testLocale })
+      .where(eq(schema.users.email, ISOLATION_USER.email));
+
+    console.log('E2E setup:', TEST_DB_NAME, `ready! (locale: ${testLocale})`);
   } catch (error) {
     console.error('E2E setup failed:', error);
     throw error;
