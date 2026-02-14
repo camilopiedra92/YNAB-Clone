@@ -1,9 +1,11 @@
 /**
- * Next.js 16 Proxy — i18n locale detection + Edge JWT auth.
+ * Next.js 16 Proxy — i18n locale header + Edge JWT auth.
  *
  * Composes two concerns into a single proxy handler:
- *  1. Locale detection — `next-intl` sets the NEXT_LOCALE cookie from
- *     Accept-Language on first visit, respects the cookie on subsequent visits.
+ *  1. Locale detection — reads the NEXT_LOCALE cookie (set by user
+ *     preference in ProfileModal) and sets the X-NEXT-INTL-LOCALE header
+ *     so `next-intl` Server Components can read the locale. No URL
+ *     rewrites — this app uses the "without i18n routing" pattern.
  *  2. Auth protection — NextAuth validates the JWT; unauthenticated users
  *     are redirected to /auth/login.
  *
@@ -15,20 +17,10 @@
  * In Next.js 16, middleware.ts was replaced by proxy.ts.
  * The exported function is called `proxy` (not `middleware`).
  */
-import createIntlMiddleware from 'next-intl/middleware';
 import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authConfig } from '@/lib/auth.config';
-import { locales, defaultLocale } from '@/lib/i18n/config';
-
-// ── i18n middleware ─────────────────────────────────────────────
-// Sets/reads the NEXT_LOCALE cookie. No URL prefixes (/en/, /es/).
-const intlMiddleware = createIntlMiddleware({
-  locales,
-  defaultLocale,
-  localeDetection: true,
-  localePrefix: 'never',
-});
+import { defaultLocale, isValidLocale } from '@/lib/i18n/config';
 
 // ── Auth ────────────────────────────────────────────────────────
 const { auth } = NextAuth(authConfig);
@@ -37,18 +29,29 @@ const { auth } = NextAuth(authConfig);
 const PUBLIC_ROUTES = ['/auth/login', '/auth/register'];
 
 /**
- * Proxy handler — runs i18n detection on every request, then
+ * Resolve the user's locale from the NEXT_LOCALE cookie.
+ * Falls back to the default locale if the cookie is missing or invalid.
+ */
+function resolveLocale(req: Parameters<Parameters<typeof auth>[0]>[0]): string {
+  const cookieLocale = req.cookies.get('NEXT_LOCALE')?.value;
+  return cookieLocale && isValidLocale(cookieLocale) ? cookieLocale : defaultLocale;
+}
+
+/**
+ * Proxy handler — sets the i18n locale header on every request, then
  * checks the JWT session for protected routes.
  */
 export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
+  const locale = resolveLocale(req);
 
-  // Always run i18n (sets NEXT_LOCALE cookie on every request)
-  const intlResponse = intlMiddleware(req);
-
-  // Skip auth for public routes
+  // Skip auth for public routes — still set locale header
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
-  if (isPublic) return intlResponse;
+  if (isPublic) {
+    return NextResponse.next({
+      request: { headers: new Headers({ ...Object.fromEntries(req.headers), 'X-NEXT-INTL-LOCALE': locale }) },
+    });
+  }
 
   // Redirect unauthenticated users to login
   if (!req.auth) {
@@ -56,7 +59,10 @@ export const proxy = auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  return intlResponse;
+  // Authenticated — pass through with locale header
+  return NextResponse.next({
+    request: { headers: new Headers({ ...Object.fromEntries(req.headers), 'X-NEXT-INTL-LOCALE': locale }) },
+  });
 });
 
 /**
