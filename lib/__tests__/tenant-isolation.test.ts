@@ -9,7 +9,7 @@
  * This is the unit-level complement to the E2E tenant-isolation.spec.ts.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, seedCompleteMonth, today, currentMonth, mu } from './test-helpers';
+import { createTestDb, seedBasicBudget, today, currentMonth, mu } from './test-helpers';
 import type { createDbFunctions } from '../repos';
 import type { DrizzleDB } from '../db/helpers';
 import * as schema from '../db/schema';
@@ -163,10 +163,10 @@ describe('Tenant Isolation — Budget Queries', () => {
         const month = currentMonth();
 
         // Seed budget A with categories + assignments
-        const { groupId: gA, categoryIds: catsA } = await seedBasicBudget(fns, {
+        const { groupId: _gA, categoryIds: catsA } = await seedBasicBudget(fns, {
             budgetId: budgetA, db, categoryCount: 3,
         });
-        await seedCompleteMonth(fns, db, month, gA, budgetA);
+
         await fns.updateBudgetAssignment(budgetA, catsA[0], month, mu(1000));
 
         // Seed budget B with categories + assignments
@@ -178,7 +178,7 @@ describe('Tenant Isolation — Budget Queries', () => {
         const budgetDataA = await fns.getBudgetForMonth(budgetA, month);
         const budgetDataB = await fns.getBudgetForMonth(budgetB, month);
 
-        // Budget A should have its 3 categories + the 12 fill categories from seedCompleteMonth
+        // Budget A should have its 3 categories
         // Budget B should have its 2 categories only
         const catIdsA = new Set(budgetDataA.map((r) => r.categoryId));
         const catIdsB = new Set(budgetDataB.map((r) => r.categoryId));
@@ -199,21 +199,21 @@ describe('Tenant Isolation — Budget Queries', () => {
         const month = currentMonth();
 
         // Budget A: $5000 income, $1000 assigned
-        const { accountId: acctA, groupId: gA, categoryIds: catsA } = await seedBasicBudget(fns, {
+        const { accountId: acctA, groupId: _gA, categoryIds: catsA } = await seedBasicBudget(fns, {
             budgetId: budgetA, db, categoryCount: 2,
         });
         await fns.createTransaction(budgetA, { accountId: acctA, date: today(), inflow: 5000 });
         await fns.updateAccountBalances(budgetA, acctA);
-        await seedCompleteMonth(fns, db, month, gA, budgetA);
+
         await fns.updateBudgetAssignment(budgetA, catsA[0], month, mu(1000));
 
         // Budget B: $10000 income, $3000 assigned
-        const { accountId: acctB, groupId: gB, categoryIds: catsB } = await seedBasicBudget(fns, {
+        const { accountId: acctB, groupId: _gB, categoryIds: catsB } = await seedBasicBudget(fns, {
             budgetId: budgetB, db, categoryCount: 2, accountName: 'B Checking',
         });
         await fns.createTransaction(budgetB, { accountId: acctB, date: today(), inflow: 10000 });
         await fns.updateAccountBalances(budgetB, acctB);
-        await seedCompleteMonth(fns, db, month, gB, budgetB);
+
         await fns.updateBudgetAssignment(budgetB, catsB[0], month, mu(3000));
 
         const rtaA = (await fns.getReadyToAssign(budgetA, month)).rta;

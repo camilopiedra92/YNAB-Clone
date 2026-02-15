@@ -68,16 +68,20 @@ For each overspent category (available < 0, non-CC-payment, non-income):
 
 ## 3. Ghost Entry Prevention in `budget_months` (Critical)
 
-Ghost entries are `budget_months` rows with `assigned=0, activity=0, available=0`. They corrupt the RTA calculation by making `MAX(month)` select a sparse future month where `SumAvailable ≈ 0`.
+Ghost entries are `budget_months` rows with `assigned=0, activity=0, available=0`. They would corrupt the RTA calculation by making `MAX(month)` select a sparse future month where `SumAvailable ≈ 0`.
 
 ### Rules for `updateBudgetAssignment()`
 
 1. When setting assigned=0, check if the resulting entry has `assigned=0 AND activity=0 AND available=0`. If so, **DELETE the row**.
 2. **MUST NOT** create new `budget_months` rows when `assigned=0` (skip INSERT if value is zero and no row exists).
 
-**Why:** A ghost row in `2026-03` with 1 entry causes the latest-month query to pick it. With only 1 category, `SumAvailable ≈ 0`, so RTA = full cash balance (e.g., $55M instead of $0).
+### Rules for `updateBudgetActivity()` and `refreshAllBudgetActivity()`
 
-**Mitigation in RTA formula:** The latest month query uses `HAVING COUNT(*) >= 10` to skip sparse months. Ghost entry prevention is the first line of defense; the HAVING clause is the safety net.
+3. After recalculating activity, if the row has `assigned=0 AND activity=0 AND available=0`, **DELETE the row**.
+
+**Why:** A ghost row in `2026-03` with 1 entry causes `MAX(month)` to pick it. With only 1 category, `SumAvailable ≈ 0`, so RTA = full cash balance (e.g., $55M instead of $0).
+
+**Defense:** Ghost entry prevention at the source (deletion logic in `updateBudgetAssignment`, `updateBudgetActivity`, `refreshAllBudgetActivity`) is the **sole** defense against ghost entries. There is no query-level threshold — the latest month is simply `MAX(month)` from `budget_months`.
 
 ## 4. Cumulative Available — Implementation Guards
 

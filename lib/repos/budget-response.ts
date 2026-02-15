@@ -23,17 +23,17 @@ export async function buildBudgetResponse(repos: TransactionRepos, budgetId: num
     const readyToAssign = rtaResult.rta;
     const { overspendingTypes } = overspendingData;
 
-    // Phase 2: Breakdown reuses pre-computed RTA + CC balances (eliminates duplicate queries)
-    const rtaBreakdown = await repos.getReadyToAssignBreakdown(budgetId, month, {
-        rta: readyToAssign,
-        positiveCCBalances: rtaResult.positiveCCBalances,
-    });
-
-    // Phase 3: Inspector uses pre-computed data (no redundant getBudgetForMonth/breakdown calls)
-    const inspectorData = await repos.getBudgetInspectorData(budgetId, month, {
-        budgetRows: rawBudget,
-        rtaBreakdown,
-    });
+    // Phase 2+3: Breakdown and Inspector run in parallel (inspector no longer depends on breakdown)
+    const [rtaBreakdown, inspectorData] = await Promise.all([
+        repos.getReadyToAssignBreakdown(budgetId, month, {
+            rta: readyToAssign,
+            positiveCCBalances: rtaResult.positiveCCBalances,
+            assignedInFuture: rtaResult.assignedInFuture,
+        }),
+        repos.getBudgetInspectorData(budgetId, month, {
+            budgetRows: rawBudget,
+        }),
+    ]);
 
     // Merge overspending types into rows before DTO conversion
     const budget = rawBudget.map((row) => {

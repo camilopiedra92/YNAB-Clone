@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, seedCompleteMonth, currentMonth, prevMonth, nextMonth, today, mu, ZERO } from './test-helpers';
+import { createTestDb, seedBasicBudget, currentMonth, prevMonth, nextMonth, today, mu, ZERO } from './test-helpers';
 import type { createDbFunctions } from '../repos';
 import type { DrizzleDB } from '../db/helpers';
 import { categoryGroups, budgetMonths } from '../db/schema';
@@ -37,8 +37,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
         await fns.updateAccountBalances(budgetId, accountId);
 
-        // Seed enough categories to make the month "complete" (>= 10 entries)
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Now assign budget
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -56,8 +55,7 @@ describe('Ready to Assign (RTA)', () => {
         // Add income
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -89,7 +87,7 @@ describe('Ready to Assign (RTA)', () => {
         expect(rta).toBe(5100); // 5000 cash + 100 positive CC
     });
 
-    it('ghost month prevention: sparse month is NOT selected as latest', async () => {
+    it('ghost entries are prevented at the source (zero rows are deleted)', async () => {
         const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { db });
         const month = currentMonth();
         const next = nextMonth(month);
@@ -97,33 +95,88 @@ describe('Ready to Assign (RTA)', () => {
         // Add income
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
-        // Seed complete month for current
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
-
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
 
-        // Create a sparse "ghost" entry in a future month (only 1 entry)
-        const ghostCatResult = await fns.createCategory({ name: 'Ghost', category_group_id: groupId });
-        const ghostCatId = ghostCatResult.id;
-        await db.insert(budgetMonths).values({
-            budgetId,
-            categoryId: ghostCatId,
-            month: next,
-            assigned: ZERO,
-            activity: ZERO,
-            available: ZERO,
-        });
+        // Assign and then unassign in future month — ghost entry should be deleted
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], next, mu(100));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], next, mu(0));
 
-        // RTA should still use the current month as the "latest complete" month
-        // If it used the ghost month, RTA would be ~5000 instead of ~3000
+        // RTA should use the current month — no ghost entry in future
         const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rta).toBe(3000); // 5000 - 2000
     });
 
-    it('includes carryforward for categories missing in future complete month', async () => {
-        // Regression: if a future month is "complete" (>=10 entries) but missing some
-        // categories, their carryforward values must still be included in totalAvailable.
+    it('regression: small budget (< 10 categories) computes RTA correctly', async () => {
+        // This was the exact production bug: budget "fgdfg" had 1 category.
+        // Now works correctly since the threshold was removed.
+        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { categoryCount: 1, db });
+        const month = currentMonth();
+
+        // Add $5000 income
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
+        await fns.updateAccountBalances(budgetId, accountId);
+
+        // Assign $8000 (more than available) to the single category
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(8000));
+
+        // RTA should be NEGATIVE: 5000 - 8000 = -3000
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
+        expect(rta).toBe(-3000);
+    });
+
+    it('regression: budget with no accounts shows negative RTA when assigning', async () => {
+        // Exact reproduction of the "fgdfg" bug:
+        // No accounts (cash=0), 1 category, assign 50M → RTA should be -50M, not 0.
+        const month = currentMonth();
+
+        const groupResult = await fns.createCategoryGroup('Test Group', budgetId);
+        const groupId = groupResult.id;
+        const catResult = await fns.createCategory({ name: 'Test Cat', category_group_id: groupId });
+        const categoryId = catResult.id;
+
+        // Assign 50000 to the category (no income at all)
+        await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(50000));
+
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
+        expect(rta).toBe(-50000);
+    });
+
+    it('small budget (3 categories) works correctly with ghost prevention via deletion', async () => {
+        // Ghost entries are prevented at the source: updateBudgetAssignment
+        // deletes rows where assigned=0, activity=0, available=0.
+        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { categoryCount: 3, db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Add income
+        await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
+        await fns.updateAccountBalances(budgetId, accountId);
+
+        // Assign in current month (all 3 categories get entries)
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[2], month, mu(200));
+
+        // Current RTA
+        const rtaCurrent = (await fns.getReadyToAssign(budgetId, month)).rta;
+        expect(rtaCurrent).toBe(3300); // 5000 - 1700
+
+        // Assign in next month
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], next, mu(100));
+
+        // Current month RTA should NOT include next month's assignment
+        const rtaCurrentAgain = (await fns.getReadyToAssign(budgetId, month)).rta;
+        expect(rtaCurrentAgain).toBe(3300); // unchanged
+
+        // Next month should include both
+        const rtaNext = (await fns.getReadyToAssign(budgetId, next)).rta;
+        expect(rtaNext).toBe(3200); // 5000 - 1700 - 100
+    });
+
+    it('includes carryforward for categories missing in latest month', async () => {
+        // Regression: if the latest month is missing some categories,
+        // their carryforward values must still be included in totalAvailable.
         const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { categoryCount: 2, db });
         const month = currentMonth();
         const next = nextMonth(month);
@@ -131,8 +184,7 @@ describe('Ready to Assign (RTA)', () => {
         // Add income
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
-        // Seed complete month for current (12 filler categories)
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign to BOTH categories in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
@@ -142,16 +194,12 @@ describe('Ready to Assign (RTA)', () => {
         const rtaCurrent = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rtaCurrent).toBe(0);
 
-        // Assign to only ONE category in next month, making next month have
-        // 13+ entries total (12 fillers propagated + 1 explicit assignment)
+        // Assign to only ONE category in next month
         // but categoryIds[1] won't have a budget_months row in next month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], next, mu(100));
 
-        // Seed complete month for next too (ensures >=10 entries)
-        await seedCompleteMonth(fns, db, next, groupId, budgetId);
-
         // Current month RTA should STILL be 0 — categoryIds[1]'s available=3000
-        // must be included via carryforward even though it has no row in next month
+        // must be included via carryforward even though it has no row in the latest month
         const rtaCurrentAgain = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rtaCurrentAgain).toBe(0);
     });
@@ -209,8 +257,6 @@ describe('Ready to Assign (RTA)', () => {
         // Add $1000 income on checking
         await fns.createTransaction(budgetId, { accountId: checkingId, date: today(), inflow: mu(1000) });
 
-        // Seed complete month (>=10 entries)
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign $100 to the category
         await fns.updateBudgetAssignment(budgetId, categoryId, month, mu(100));
@@ -271,8 +317,7 @@ describe('RTA Breakdown', () => {
             inflow: 5000,
         });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign budget
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -301,7 +346,7 @@ describe('RTA Breakdown', () => {
 
         await fns.createTransaction(budgetId, { accountId, date: today(), categoryId: incomeCatId, inflow: 3000 });
 
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
 
         const breakdown = await fns.getReadyToAssignBreakdown(budgetId, month);

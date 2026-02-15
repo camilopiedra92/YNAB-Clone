@@ -12,7 +12,6 @@ import { sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { createDbFunctions } from '../repos';
 import type { DrizzleDB } from '../db/helpers';
-import { budgetMonths } from '../db/schema';
 import { milliunit, ZERO, type Milliunit } from '../engine/primitives';
 
 /** Shorthand for creating a branded Milliunit from a number in tests */
@@ -305,44 +304,6 @@ export async function seedBasicBudget(fns: ReturnType<typeof createDbFunctions>,
     }
 
     return { accountId, groupId, categoryIds, budgetId };
-}
-
-/**
- * Seeds enough categories to pass the "complete month" threshold (>=10 entries)
- * used by getReadyToAssign's latest-month detection.
- */
-export async function seedCompleteMonth(
-    fns: ReturnType<typeof createDbFunctions>,
-    db: DrizzleDB,
-    month: string,
-    groupId: number,
-    budgetId: number,
-    options?: { categoryCount?: number }
-) {
-    const count = options?.categoryCount ?? 12;
-    const categoryIds: number[] = [];
-
-    for (let i = 0; i < count; i++) {
-        const catResult = await fns.createCategory({
-            name: `Fill Cat ${i + 1}`,
-            category_group_id: groupId,
-        });
-        const catId = catResult.id;
-        categoryIds.push(catId);
-
-        // Insert a budget_months row with assigned=0, activity=0, available=0
-        // just to make the month "complete" for RTA calculation
-        await db.insert(budgetMonths).values({
-            budgetId,
-            categoryId: catId,
-            month,
-            assigned: ZERO,
-            activity: ZERO,
-            available: ZERO,
-        });
-    }
-
-    return categoryIds;
 }
 
 /** Today as YYYY-MM-DD */

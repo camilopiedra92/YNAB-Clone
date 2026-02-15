@@ -264,12 +264,56 @@ export function createBudgetFunctions(
 
     // ── Write phase ──
     if (existing) {
-      return database.update(budgetMonths)
+      await database.update(budgetMonths)
         .set({ activity, available })
         .where(and(eq(budgetMonths.categoryId, categoryId), eq(budgetMonths.month, month)));
     } else {
-      return database.insert(budgetMonths)
+      await database.insert(budgetMonths)
         .values({ budgetId, categoryId, month, assigned: ZERO, activity, available });
+    }
+
+    // ── Propagate available to subsequent months ──
+    // If future months have existing budget_months rows, their carryforward may be stale.
+    const futureRows = await queryRows<{
+      month: string; assigned: number; activity: number;
+      available: number; linkedAccountId: number | null;
+    }>(database, sql`
+      SELECT bm.month, bm.assigned, bm.activity, bm.available,
+             c.linked_account_id as "linkedAccountId"
+      FROM ${budgetMonths} bm
+      JOIN ${categories} c ON bm.category_id = c.id
+      WHERE bm.category_id = ${categoryId} AND bm.month > ${month}
+      ORDER BY bm.month ASC
+    `);
+
+    if (futureRows.length > 0) {
+      let prevAvailable = available;
+      const categoryLinkedAccountId = futureRows[0].linkedAccountId;
+      const isCCPayment = !!categoryLinkedAccountId;
+
+      for (const row of futureRows) {
+        const cf = engineCarryforward(prevAvailable, isCCPayment);
+        const newAvailable = calculateBudgetAvailable(cf, m(row.assigned), m(row.activity));
+
+        if (newAvailable !== Number(row.available)) {
+          if (Number(row.assigned) === 0 && Number(row.activity) === 0 && newAvailable === 0) {
+            await database.execute(sql`
+              DELETE FROM ${budgetMonths}
+              WHERE ${budgetMonths.categoryId} = ${categoryId}
+                AND ${budgetMonths.month} = ${row.month}
+            `);
+          } else {
+            await database.execute(sql`
+              UPDATE ${budgetMonths}
+              SET available = ${newAvailable}
+              WHERE ${budgetMonths.categoryId} = ${categoryId}
+                AND ${budgetMonths.month} = ${row.month}
+            `);
+          }
+        }
+
+        prevAvailable = newAvailable;
+      }
     }
   }
 
@@ -389,12 +433,107 @@ export function createBudgetFunctions(
 
     // 6. Handle CC Payment Categories (batch — single operation for all CC accounts)
     await cc.batchUpdateAllCCPayments(budgetId, month);
+
+    // 7. Propagate available changes to subsequent months (ALL categories).
+    // After steps 5+6 updated the current month, subsequent months that have
+    // existing budget_months rows may have stale carryforward values.
+    // This covers BOTH regular categories AND CC payment categories.
+    const currentMonthRows = await queryRows<{
+      categoryId: number; available: number; linkedAccountId: number | null;
+    }>(database, sql`
+      SELECT bm.category_id as "categoryId", bm.available,
+             c.linked_account_id as "linkedAccountId"
+      FROM ${budgetMonths} bm
+      JOIN ${categories} c ON bm.category_id = c.id
+      JOIN ${categoryGroups} cg ON c.category_group_id = cg.id
+      WHERE bm.month = ${month} AND cg.budget_id = ${budgetId}
+    `);
+
+    if (currentMonthRows.length > 0) {
+      const currentAvailableMap = new Map<number, Milliunit>();
+      const linkedMap = new Map<number, boolean>();
+      const allCatIds: number[] = [];
+      for (const row of currentMonthRows) {
+        currentAvailableMap.set(row.categoryId, m(row.available));
+        linkedMap.set(row.categoryId, !!row.linkedAccountId);
+        allCatIds.push(row.categoryId);
+      }
+
+      // Get all subsequent months that have budget_months rows for these categories
+      const futureRows = await queryRows<{
+        categoryId: number; month: string; assigned: number; activity: number;
+        available: number; linkedAccountId: number | null;
+      }>(database, sql`
+        SELECT bm.category_id as "categoryId", bm.month, bm.assigned, bm.activity,
+               bm.available, c.linked_account_id as "linkedAccountId"
+        FROM ${budgetMonths} bm
+        JOIN ${categories} c ON bm.category_id = c.id
+        JOIN ${categoryGroups} cg ON c.category_group_id = cg.id
+        WHERE bm.month > ${month}
+          AND cg.budget_id = ${budgetId}
+          AND bm.category_id IN ${sql.raw(`(${allCatIds.join(',')})`)}
+        ORDER BY bm.category_id, bm.month ASC
+      `);
+
+      if (futureRows.length > 0) {
+        // Group by category, process each month sequentially (carryforward chains)
+        const byCat = new Map<number, typeof futureRows>();
+        for (const row of futureRows) {
+          if (!byCat.has(row.categoryId)) byCat.set(row.categoryId, []);
+          byCat.get(row.categoryId)!.push(row);
+        }
+
+        const futureUpdates: { categoryId: number; month: string; available: Milliunit }[] = [];
+        const futureDeletes: { categoryId: number; month: string }[] = [];
+
+        for (const [catId, rows] of byCat) {
+          let prevAvailable = currentAvailableMap.get(catId) ?? ZERO;
+          const isCCPayment = linkedMap.get(catId) ?? false;
+
+          for (const row of rows) {
+            const cf = engineCarryforward(prevAvailable, isCCPayment);
+            const newAvailable = calculateBudgetAvailable(cf, m(row.assigned), m(row.activity));
+
+            if (newAvailable !== Number(row.available)) {
+              if (Number(row.assigned) === 0 && Number(row.activity) === 0 && newAvailable === 0) {
+                futureDeletes.push({ categoryId: catId, month: row.month });
+              } else {
+                futureUpdates.push({ categoryId: catId, month: row.month, available: newAvailable });
+              }
+            }
+
+            prevAvailable = newAvailable;
+          }
+        }
+
+        // Bulk-write propagated changes
+        if (futureUpdates.length > 0 || futureDeletes.length > 0) {
+          await database.transaction(async (tx) => {
+            for (const upd of futureUpdates) {
+              await tx.execute(sql`
+                UPDATE ${budgetMonths}
+                SET available = ${upd.available}
+                WHERE ${budgetMonths.categoryId} = ${upd.categoryId}
+                  AND ${budgetMonths.month} = ${upd.month}
+              `);
+            }
+            for (const del of futureDeletes) {
+              await tx.execute(sql`
+                DELETE FROM ${budgetMonths}
+                WHERE ${budgetMonths.categoryId} = ${del.categoryId}
+                  AND ${budgetMonths.month} = ${del.month}
+              `);
+            }
+          });
+        }
+      }
+    }
   }
 
   async function getBudgetInspectorData(
     budgetId: number,
     month: string,
-    precomputed?: { budgetRows: BudgetRow[]; rtaBreakdown: ReturnType<typeof calculateRTABreakdown> },
+    precomputed?: { budgetRows?: BudgetRow[]; rtaBreakdown?: ReturnType<typeof calculateRTABreakdown>; assignedThisMonth?: number },
   ) {
     const [yr, mo] = month.split('-').map(Number);
     const prevDate = new Date(yr, mo - 2);
@@ -405,53 +544,67 @@ export function createBudgetFunctions(
 
     // ── Month Summary ──
     // Use pre-computed data when available (eliminates redundant DB calls from buildBudgetResponse)
-    const breakdown = precomputed?.rtaBreakdown ?? await rta.getReadyToAssignBreakdown(budgetId, month);
-
     const budgetRows = precomputed?.budgetRows ?? await getBudgetForMonth(budgetId, month);
 
     let totalAvailable = 0;
     let totalActivity = 0;
+    let computedAssigned = 0;
     for (const row of budgetRows) {
       if (row.categoryId !== null) {
         totalAvailable += row.available || 0;
         totalActivity += row.activity || 0;
+        computedAssigned += row.assigned || 0;
       }
     }
 
-    const totalAssigned = breakdown.assignedThisMonth || 0;
+    // Use precomputed assignedThisMonth (from rtaBreakdown or direct), or compute from rows
+    const totalAssigned = precomputed?.assignedThisMonth ?? precomputed?.rtaBreakdown?.assignedThisMonth ?? computedAssigned;
     const leftOverFromLastMonth = totalAvailable - totalAssigned - totalActivity;
 
     // ── Cost to Be Me ── + ── Auto-Assign ── + ── Future ──
-    // Consolidated: 10 sequential queries → 6 parallel queries via conditional aggregation
+    // Consolidated: current + previous month budget_months aggregates in 1 query via conditional FILTER
     const [
-      currentMonthAggs,
+      budgetAggs,
       ccShortfallRows,
-      prevMonthAggs,
       avgRows,
       expectedIncomeRows,
       futureMonths,
     ] = await Promise.all([
-      // 1. Current month aggregates: underfunded + reduceOverfunding + resetAvailable
-      queryRows<{ underfunded: number; reduceOverfunding: number; resetAvailable: number }>(database, sql`
+      // 1. Current + previous month aggregates (merged — same base tables)
+      queryRows<{
+        underfunded: number; reduceOverfunding: number; resetAvailable: number;
+        assignedLastMonth: number; spentLastMonth: number;
+      }>(database, sql`
         SELECT
           COALESCE(SUM(ABS(${budgetMonths.available})) FILTER (
-            WHERE ${budgetMonths.available} < 0 AND ${categories.linkedAccountId} IS NULL
+            WHERE ${budgetMonths.month} = ${month}
+              AND ${budgetMonths.available} < 0 AND ${categories.linkedAccountId} IS NULL
           ), 0) AS "underfunded",
           COALESCE(SUM(${budgetMonths.available} - ${budgetMonths.assigned}) FILTER (
-            WHERE ${budgetMonths.available} > ${budgetMonths.assigned}
+            WHERE ${budgetMonths.month} = ${month}
+              AND ${budgetMonths.available} > ${budgetMonths.assigned}
               AND ${budgetMonths.assigned} > 0 AND ${budgetMonths.activity} >= 0
               AND ${categories.linkedAccountId} IS NULL
           ), 0) AS "reduceOverfunding",
           COALESCE(SUM(${budgetMonths.available}) FILTER (
-            WHERE ${budgetMonths.available} > 0
+            WHERE ${budgetMonths.month} = ${month}
+              AND ${budgetMonths.available} > 0
               AND ${budgetMonths.assigned} = 0 AND ${budgetMonths.activity} = 0
               AND ${categories.linkedAccountId} IS NULL
-          ), 0) AS "resetAvailable"
+          ), 0) AS "resetAvailable",
+          COALESCE(SUM(${budgetMonths.assigned}) FILTER (
+            WHERE ${budgetMonths.month} = ${prevMonthStr}
+              AND ${categories.linkedAccountId} IS NULL
+          ), 0) AS "assignedLastMonth",
+          COALESCE(SUM(ABS(CASE WHEN ${budgetMonths.activity} < 0 THEN ${budgetMonths.activity} ELSE 0 END)) FILTER (
+            WHERE ${budgetMonths.month} = ${prevMonthStr}
+              AND ${categories.linkedAccountId} IS NULL
+          ), 0) AS "spentLastMonth"
         FROM ${budgetMonths}
         JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
         JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
         WHERE ${categoryGroups.isIncome} = false
-          AND ${budgetMonths.month} = ${month}
+          AND ${budgetMonths.month} IN (${month}, ${prevMonthStr})
           AND ${categoryGroups.budgetId} = ${budgetId}
       `),
 
@@ -469,20 +622,7 @@ export function createBudgetFunctions(
         WHERE ${accounts.type} = 'credit' AND ${accounts.closed} = false AND ${accounts.budgetId} = ${budgetId}
       `),
 
-      // 3. Previous month aggregates: assignedLastMonth + spentLastMonth
-      queryRows<{ assignedLastMonth: number; spentLastMonth: number }>(database, sql`
-        SELECT
-          COALESCE(SUM(${budgetMonths.assigned}), 0) AS "assignedLastMonth",
-          COALESCE(SUM(ABS(CASE WHEN ${budgetMonths.activity} < 0 THEN ${budgetMonths.activity} ELSE 0 END)), 0) AS "spentLastMonth"
-        FROM ${budgetMonths}
-        JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
-        JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
-        WHERE ${categoryGroups.isIncome} = false AND ${categories.linkedAccountId} IS NULL
-          AND ${budgetMonths.month} = ${prevMonthStr}
-          AND ${categoryGroups.budgetId} = ${budgetId}
-      `),
-
-      // 4. 12-month averages: avgAssigned + avgSpent
+      // 3. 12-month averages: avgAssigned + avgSpent
       queryRows<{ avgAssigned: number; avgSpent: number }>(database, sql`
         SELECT
           COALESCE(AVG("monthlyAssigned"), 0) AS "avgAssigned",
@@ -501,7 +641,7 @@ export function createBudgetFunctions(
         ) sub
       `),
 
-      // 5. Expected income (separate table: transactions)
+      // 4. Expected income (separate table: transactions)
       queryRows<{ avgTotal: number }>(database, sql`
         SELECT COALESCE(AVG("monthlyTotal"), 0) as "avgTotal"
         FROM (
@@ -519,7 +659,7 @@ export function createBudgetFunctions(
         ) sub
       `),
 
-      // 6. Future months (assigned in future)
+      // 5. Future months (assigned in future)
       queryRows<{ month: string; total: number }>(database, sql`
         SELECT ${budgetMonths.month} as "month", SUM(${budgetMonths.assigned}) as "total"
         FROM ${budgetMonths}
@@ -532,7 +672,7 @@ export function createBudgetFunctions(
       `),
     ]);
 
-    const underfundedTotal = m(currentMonthAggs[0]!.underfunded) + m(ccShortfallRows[0]!.total);
+    const underfundedTotal = m(budgetAggs[0]!.underfunded) + m(ccShortfallRows[0]!.total);
 
     const resetAssigned = totalAssigned;
 
@@ -549,16 +689,16 @@ export function createBudgetFunctions(
       },
       autoAssign: {
         underfunded: underfundedTotal,
-        assignedLastMonth: m(prevMonthAggs[0]!.assignedLastMonth),
-        spentLastMonth: m(prevMonthAggs[0]!.spentLastMonth),
+        assignedLastMonth: m(budgetAggs[0]!.assignedLastMonth),
+        spentLastMonth: m(budgetAggs[0]!.spentLastMonth),
         averageAssigned: m(avgRows[0]!.avgAssigned),
         averageSpent: m(avgRows[0]!.avgSpent),
-        reduceOverfunding: m(currentMonthAggs[0]!.reduceOverfunding),
-        resetAvailableAmounts: m(currentMonthAggs[0]!.resetAvailable),
+        reduceOverfunding: m(budgetAggs[0]!.reduceOverfunding),
+        resetAvailableAmounts: m(budgetAggs[0]!.resetAvailable),
         resetAssignedAmounts: resetAssigned,
       },
       futureAssignments: {
-        total: breakdown.assignedInFuture,
+        total: m(futureMonths.reduce((acc: number, fm: { month: string; total: number }) => acc + fm.total, 0)),
         months: futureMonths.map((fm: { month: string; total: number }) => ({
           month: fm.month,
           amount: m(fm.total),
