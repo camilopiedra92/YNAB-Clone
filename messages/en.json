@@ -13,7 +13,8 @@
     "retryHint": "Try again",
     "noResults": "No results",
     "search": "Search",
-    "back": "Back"
+    "back": "Back",
+    "accounts": "Accounts"
   },
 
   "auth": {
@@ -92,7 +93,9 @@
     "selectItem": "Select {name}",
     "expand": "Expand {name}",
     "collapse": "Collapse {name}",
-    "payment": "Payment"
+    "payment": "Payment",
+    "overAssigned": "You assigned more than you have",
+    "allMoneyAssigned": "All Money Assigned"
   },
 
   "monthPicker": {

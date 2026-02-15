@@ -33,10 +33,10 @@ export default function DatePicker({
             disabled={disabled}
             min={min}
             max={max}
-            className={`w-full px-5 py-3.5 rounded-2xl
-        bg-background text-foreground font-bold text-sm
-        shadow-neu-inset
-        focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)]
+            className={`w-full px-5 py-3.5 rounded-xl
+        text-gray-200 font-bold text-sm
+        glass-input
+        focus:outline-none focus:border-primary/30
         disabled:opacity-50 disabled:cursor-not-allowed
         transition-all duration-300 ${className}`}
         />

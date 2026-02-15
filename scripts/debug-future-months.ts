@@ -26,8 +26,8 @@ async function main() {
     console.log(`--- ${month} ---`);
 
     // 1. RTA
-    const rta = await fns.getReadyToAssign(budgetId, month);
-    console.log(`  RTA: ${fmt(rta)}`);
+    const rtaResult = await fns.getReadyToAssign(budgetId, month);
+    console.log(`  RTA: ${fmt(rtaResult.rta)}`);
 
     // 2. RTA Breakdown
     const breakdown = await fns.getReadyToAssignBreakdown(budgetId, month);

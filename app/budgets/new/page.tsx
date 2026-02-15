@@ -45,26 +45,26 @@ export default function NewBudgetPage() {
       <div className="w-full max-w-lg">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-200 transition-colors mb-8 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-semibold">{t('back')}</span>
         </button>
 
         <div className="mb-10 text-center">
-          <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center mx-auto mb-6 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.1)]">
+          <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
             <Wallet className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{t('newTitle')}</h1>
-          <p className="text-muted-foreground mt-2 italic text-lg opacity-80">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-200">{t('newTitle')}</h1>
+          <p className="text-gray-500 mt-2 italic text-lg">
             {t('newSubtitle')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-6 p-8 rounded-[2.5rem] bg-background shadow-[12px_12px_24px_var(--neu-dark),-12px_-12px_24px_var(--neu-light)] border border-white/5">
+          <div className="space-y-6 p-8 rounded-2xl glass-card">
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+              <label htmlFor="name" className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 px-1">
                 <Wallet className="w-4 h-4" /> {t('budgetNameLabel')}
               </label>
               <input
@@ -74,14 +74,14 @@ export default function NewBudgetPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('budgetNamePlaceholder')}
-                className="w-full px-6 py-4 rounded-2xl bg-background shadow-[inset_4px_4px_8px_var(--neu-dark),inset_-4px_-4px_8px_var(--neu-light)] border-none focus:ring-4 focus:ring-primary/20 transition-all text-lg font-medium placeholder:text-muted-foreground/30"
+                className="w-full px-6 py-4 rounded-xl glass-input text-lg font-medium text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-primary/30 transition-all"
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label htmlFor="currency" className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                <label htmlFor="currency" className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 px-1">
                   <Globe className="w-4 h-4" /> {t('currencyLabel')}
                 </label>
                 <input
@@ -90,12 +90,12 @@ export default function NewBudgetPage() {
                   value={currencyCode}
                   onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())}
                   placeholder={t('currencyIsoPlaceholder')}
-                  className="w-full px-6 py-4 rounded-2xl bg-background shadow-[inset_4px_4px_8px_var(--neu-dark),inset_-4px_-4px_8px_var(--neu-light)] border-none focus:ring-4 focus:ring-primary/20 transition-all text-lg font-medium text-center uppercase tracking-widest"
+                  className="w-full px-6 py-4 rounded-xl glass-input text-lg font-medium text-gray-200 text-center uppercase tracking-widest focus:outline-none focus:border-primary/30 transition-all"
                   maxLength={3}
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="symbol" className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                <label htmlFor="symbol" className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 px-1">
                   <Coins className="w-4 h-4" /> {t('symbolLabel')}
                 </label>
                 <input
@@ -104,7 +104,7 @@ export default function NewBudgetPage() {
                   value={currencySymbol}
                   onChange={(e) => setCurrencySymbol(e.target.value)}
                   placeholder={t('symbolPlaceholder')}
-                  className="w-full px-6 py-4 rounded-2xl bg-background shadow-[inset_4px_4px_8px_var(--neu-dark),inset_-4px_-4px_8px_var(--neu-light)] border-none focus:ring-4 focus:ring-primary/20 transition-all text-lg font-medium text-center"
+                  className="w-full px-6 py-4 rounded-xl glass-input text-lg font-medium text-gray-200 text-center focus:outline-none focus:border-primary/30 transition-all"
                   maxLength={5}
                 />
               </div>
@@ -114,7 +114,7 @@ export default function NewBudgetPage() {
           <button
             type="submit"
             disabled={createBudget.isPending}
-            className="w-full py-5 rounded-2xl bg-primary text-primary-foreground font-bold text-xl shadow-[4px_4px_12px_rgba(var(--primary),0.3)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+            className="w-full py-5 rounded-xl bg-primary text-white font-bold text-xl hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
           >
             {createBudget.isPending ? (
               <div className="w-6 h-6 border-3 border-current border-t-transparent rounded-full animate-spin" />

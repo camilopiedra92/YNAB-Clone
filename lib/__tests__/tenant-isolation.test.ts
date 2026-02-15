@@ -216,8 +216,8 @@ describe('Tenant Isolation — Budget Queries', () => {
         await seedCompleteMonth(fns, db, month, gB, budgetB);
         await fns.updateBudgetAssignment(budgetB, catsB[0], month, mu(3000));
 
-        const rtaA = await fns.getReadyToAssign(budgetA, month);
-        const rtaB = await fns.getReadyToAssign(budgetB, month);
+        const rtaA = (await fns.getReadyToAssign(budgetA, month)).rta;
+        const rtaB = (await fns.getReadyToAssign(budgetB, month)).rta;
 
         // Each budget's RTA is independent
         expect(rtaA).toBe(4000); // 5000 - 1000

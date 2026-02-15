@@ -2,41 +2,11 @@ import { NextResponse } from 'next/server';
 import { logger } from "@/lib/logger";
 import { apiError } from '@/lib/api-error';
 import { validateBody, MoveMoneySchema } from '@/lib/schemas';
-import { toBudgetItemDTO } from '@/lib/dtos';
-import type { BudgetRowWithOverspending } from '@/lib/dtos/budget.dto';
 import { milliunit } from '@/lib/engine/primitives';
-import { withBudgetAccess, type TransactionRepos } from '@/lib/with-budget-access';
+import { withBudgetAccess } from '@/lib/with-budget-access';
+import { buildBudgetResponse } from '@/lib/repos/budget-response';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
-
-/**
- * Build the full budget response for a given month.
- * Reuses the same pattern as the parent budget route.
- */
-async function buildBudgetResponse(repos: TransactionRepos, budgetId: number, month: string) {
-    const [rawBudget, readyToAssign, rtaBreakdown, overspendingTypes, monthRange] = await Promise.all([
-        repos.getBudgetForMonth(budgetId, month),
-        repos.getReadyToAssign(budgetId, month),
-        repos.getReadyToAssignBreakdown(budgetId, month),
-        repos.getOverspendingTypes(budgetId, month),
-        repos.getMonthRange(budgetId),
-    ]);
-
-    const inspectorData = await repos.getBudgetInspectorData(budgetId, month, {
-        budgetRows: rawBudget,
-        rtaBreakdown,
-    });
-
-    const budget = rawBudget.map((row) => {
-        const enriched: BudgetRowWithOverspending = {
-            ...row,
-            overspendingType: row.categoryId ? (overspendingTypes[row.categoryId] || null) : null,
-        };
-        return toBudgetItemDTO(enriched);
-    });
-
-    return { budget, readyToAssign, monthRange, rtaBreakdown, overspendingTypes, inspectorData };
-}
 
 /**
  * POST /api/budgets/[budgetId]/budget/move

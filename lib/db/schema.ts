@@ -127,7 +127,9 @@ export const accounts = pgTable('accounts', {
   closed: boolean().notNull().default(false),
   createdAt: text('created_at').default(sql`now()`),
 }, (table) => [
-  index('idx_accounts_budget').on(table.budgetId),
+  index('idx_accounts_budget_type').on(table.budgetId, table.type),
+  // Composite: budget+type for CC shortfall, balance queries, account listings
+  index('idx_accounts_budget_type_closed').on(table.budgetId, table.type, table.closed),
 ]);
 
 export const categoryGroups = pgTable('category_groups', {
@@ -138,7 +140,7 @@ export const categoryGroups = pgTable('category_groups', {
   hidden: boolean().notNull().default(false),
   isIncome: boolean('is_income').notNull().default(false),
 }, (table) => [
-  index('idx_category_groups_budget').on(table.budgetId),
+  index('idx_category_groups_budget_income').on(table.budgetId, table.isIncome),
 ]);
 
 export const categories = pgTable('categories', {
@@ -166,9 +168,11 @@ export const budgetMonths = pgTable('budget_months', {
   uniqueIndex('budget_months_cat_month').on(table.categoryId, table.month),
   index('idx_budget_months_category').on(table.categoryId),
   index('idx_budget_months_month').on(table.month),
-  index('idx_budget_months_budget').on(table.budgetId),
+  index('idx_budget_months_budget_month').on(table.budgetId, table.month),
   // Composite: carryforward DISTINCT ON (category_id, month DESC)
   index('idx_budget_months_cat_month_desc').on(table.categoryId, sql`month DESC`),
+  // Composite: overspending filter — budget_id + month + available for index-only scans
+  index('idx_budget_months_budget_month_avail').on(table.budgetId, table.month, table.available),
 ]);
 
 export const transactions = pgTable('transactions', {
@@ -188,13 +192,14 @@ export const transactions = pgTable('transactions', {
   createdAt: text('created_at').default(sql`now()`),
 }, (table) => [
   index('idx_transactions_budget').on(table.budgetId),
-  index('idx_transactions_account').on(table.accountId),
   index('idx_transactions_date').on(table.date),
   index('idx_transactions_category').on(table.categoryId),
   // Composite: category activity grouping with date filter
   index('idx_transactions_category_date').on(table.categoryId, table.date),
-  // Composite: account-scoped date filter (CC payments, cash balance)
-  index('idx_transactions_account_date').on(table.accountId, table.date),
+  // Composite: account-scoped date + category filter (CC payments, cash balance, activity)
+  index('idx_transactions_account_date_cat').on(table.accountId, table.date, table.categoryId),
+  // Composite: budget-scoped date + category for activity aggregation, cash balance queries
+  index('idx_transactions_budget_date_cat').on(table.budgetId, table.date, table.categoryId),
 ]);
 
 export const transfers = pgTable('transfers', {

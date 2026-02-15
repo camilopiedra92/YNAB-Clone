@@ -2,50 +2,11 @@ import { NextResponse } from 'next/server';
 import { logger } from "@/lib/logger";
 import { apiError } from '@/lib/api-error';
 import { validateBody, BudgetAssignmentSchema } from '@/lib/schemas';
-import { toBudgetItemDTO } from '@/lib/dtos';
-import type { BudgetRowWithOverspending } from '@/lib/dtos/budget.dto';
 import { milliunit } from '@/lib/engine/primitives';
-import { withBudgetAccess, type TransactionRepos } from '@/lib/with-budget-access';
+import { withBudgetAccess } from '@/lib/with-budget-access';
+import { buildBudgetResponse } from '@/lib/repos/budget-response';
 
 type RouteContext = { params: Promise<{ budgetId: string }> };
-
-/**
- * Build the full budget response for a given month.
- *
- * Runs independent repo queries in parallel via Promise.all, then passes
- * pre-computed data to getBudgetInspectorData to avoid redundant DB calls.
- *
- * Performance note: getBudgetInspectorData previously re-called
- * getBudgetForMonth + getReadyToAssignBreakdown internally. Now those
- * results are passed in as `precomputed`, eliminating duplicated queries.
- */
-async function buildBudgetResponse(repos: TransactionRepos, budgetId: number, month: string) {
-    // Phase 1: Independent queries run in parallel
-    const [rawBudget, readyToAssign, rtaBreakdown, overspendingTypes, monthRange] = await Promise.all([
-        repos.getBudgetForMonth(budgetId, month),
-        repos.getReadyToAssign(budgetId, month),
-        repos.getReadyToAssignBreakdown(budgetId, month),
-        repos.getOverspendingTypes(budgetId, month),
-        repos.getMonthRange(budgetId),
-    ]);
-
-    // Phase 2: Inspector uses pre-computed data (no redundant getBudgetForMonth/breakdown calls)
-    const inspectorData = await repos.getBudgetInspectorData(budgetId, month, {
-        budgetRows: rawBudget,
-        rtaBreakdown,
-    });
-
-    // Merge overspending types into rows before DTO conversion
-    const budget = rawBudget.map((row) => {
-        const enriched: BudgetRowWithOverspending = {
-            ...row,
-            overspendingType: row.categoryId ? (overspendingTypes[row.categoryId] || null) : null,
-        };
-        return toBudgetItemDTO(enriched);
-    });
-
-    return { budget, readyToAssign, monthRange, rtaBreakdown, overspendingTypes, inspectorData };
-}
 
 /**
  * GET /api/budgets/[budgetId]/budget?month=YYYY-MM

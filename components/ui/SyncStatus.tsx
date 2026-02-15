@@ -59,14 +59,14 @@ export default function SyncStatus() {
 
     const config = {
         syncing: {
-            bg: 'bg-primary/10 text-primary shadow-neu-sm',
+            bg: 'bg-primary/10 text-primary border border-primary/20',
             icon: (
                 <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             ),
             label: isMutating > 1 ? `Syncing ${isMutating} changes…` : 'Syncing…',
         },
         saved: {
-            bg: 'bg-emerald-500/10 text-emerald-600 shadow-neu-sm',
+            bg: 'bg-green-500/10 text-green-400 border border-green-500/20',
             icon: (
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -75,7 +75,7 @@ export default function SyncStatus() {
             label: 'Saved',
         },
         idle: {
-            bg: 'bg-emerald-500/10 text-emerald-600 shadow-neu-sm',
+            bg: 'bg-green-500/10 text-green-400 border border-green-500/20',
             icon: (
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -84,7 +84,7 @@ export default function SyncStatus() {
             label: 'Saved',
         },
         offline: {
-            bg: 'bg-amber-500/10 text-amber-600 shadow-neu-sm',
+            bg: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
             icon: (
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 5.636a9 9 0 010 12.728M5.636 18.364L18.364 5.636" />
@@ -93,7 +93,7 @@ export default function SyncStatus() {
             label: 'Offline',
         },
         queued: {
-            bg: 'bg-amber-500/10 text-amber-600 shadow-neu-sm',
+            bg: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
             icon: (
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -102,14 +102,14 @@ export default function SyncStatus() {
             label: `${pausedCount} pending`,
         },
         restoring: {
-            bg: 'bg-sky-500/10 text-sky-600 shadow-neu-sm',
+            bg: 'bg-sky-500/10 text-sky-400 border border-sky-500/20',
             icon: (
                 <div className="w-3 h-3 rounded-full border-2 border-sky-500 border-t-transparent animate-spin" />
             ),
             label: 'Restoring…',
         },
         error: {
-            bg: 'bg-rose-500/10 text-rose-600 shadow-neu-sm',
+            bg: 'bg-red-500/10 text-red-400 border border-red-500/20',
             icon: (
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -135,7 +135,7 @@ export default function SyncStatus() {
             {syncState === 'error' && (
                 <button
                     onClick={handleRetry}
-                    className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-600 text-[9px] font-black uppercase tracking-wider transition-colors"
+                    className="ml-1 px-2 py-0.5 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 text-[9px] font-bold uppercase tracking-wider transition-colors"
                 >
                     Retry
                 </button>
