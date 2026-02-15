@@ -1,6 +1,6 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, seedCompleteMonth, today, currentMonth, prevMonth, nextMonth, mu, ZERO } from './test-helpers';
+import { createTestDb, seedBasicBudget, today, currentMonth, prevMonth, nextMonth, mu, ZERO } from './test-helpers';
 import type { createDbFunctions } from '../repos';
 import type { DrizzleDB } from '../db/helpers';
 import { budgetMonths, categoryGroups } from '../db/schema';
@@ -105,7 +105,7 @@ describe('getBudgetForMonth', () => {
 // =====================================================================
 describe('getReadyToAssignBreakdown', () => {
     it('returns breakdown with all fields', async () => {
-        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { accountId, groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
 
         // Create income group and category
@@ -128,8 +128,7 @@ describe('getReadyToAssignBreakdown', () => {
             inflow: 5000,
         });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign to category
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -148,12 +147,11 @@ describe('getReadyToAssignBreakdown', () => {
     });
 
     it('reports assigned in future months', async () => {
-        const { groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
         const future = nextMonth(month);
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -166,12 +164,11 @@ describe('getReadyToAssignBreakdown', () => {
     });
 
     it('reports cash overspending from previous month', async () => {
-        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { accountId, groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
         const prev = prevMonth(month);
 
-        // Seed complete month for previous month
-        await seedCompleteMonth(fns, db, prev, groupId, budgetId);
+
 
         // Create overspending in previous month:
         // Assign 50 to category but spend 100 on cash
@@ -185,8 +182,7 @@ describe('getReadyToAssignBreakdown', () => {
         });
         await fns.updateBudgetActivity(budgetId, categoryIds[0], prev);
 
-        // Ensure we have a complete month for current
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         const breakdown = await fns.getReadyToAssignBreakdown(budgetId, month);
         expect(breakdown.cashOverspendingPreviousMonth).toBe(50); // 100 spent - 50 available = 50 overspent
@@ -898,7 +894,7 @@ describe('getOverspendingTypes', () => {
 // =====================================================================
 describe('getBudgetInspectorData', () => {
     it('returns complete inspector data structure', async () => {
-        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { accountId, groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
 
         // Create income group using Drizzle
@@ -921,8 +917,7 @@ describe('getBudgetInspectorData', () => {
             inflow: 5000,
         });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign budgets
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -969,12 +964,11 @@ describe('getBudgetInspectorData', () => {
     });
 
     it('reports future month assignments', async () => {
-        const { groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
         const future = nextMonth(month);
 
-        // Seed complete months
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign in current and future
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
@@ -989,11 +983,10 @@ describe('getBudgetInspectorData', () => {
     });
 
     it('computes underfunded totals', async () => {
-        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { accountId, groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Create overspending by spending without enough budget
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
@@ -1011,16 +1004,14 @@ describe('getBudgetInspectorData', () => {
     });
 
     it('computes reduce overfunding', async () => {
-        const { groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
         const prev = prevMonth(month);
 
         // Create carryover: assign 500 in previous month with no spending
-        await seedCompleteMonth(fns, db, prev, groupId, budgetId);
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], prev, mu(500));
 
         // In current month, assign 200 (but available carries forward 500 + 200 = 700)
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
 
         const data = await fns.getBudgetInspectorData(budgetId, month);
@@ -1049,12 +1040,9 @@ describe('getBudgetInspectorData', () => {
     });
 
     it('reports assigned and spent from last month', async () => {
-        const { accountId, groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { accountId, groupId: _groupId, categoryIds } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
         const prev = prevMonth(month);
-
-        await seedCompleteMonth(fns, db, prev, groupId, budgetId);
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         // Assign and spend in previous month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], prev, mu(400));
@@ -1073,16 +1061,10 @@ describe('getBudgetInspectorData', () => {
     });
 
     it('handles categories with zero available and zero activity in summary', async () => {
-        const { groupId } = await seedBasicBudget(fns, { accountBalance: 0, db });
+        const { groupId: _groupId } = await seedBasicBudget(fns, { accountBalance: 0, db });
         const month = currentMonth();
 
-        // Create an EMPTY category group (no categories) — produces a row
-        // with category_id=null in getBudgetForMonth, hitting the false branch
-        // of `if (row.categoryId !== null)` at line 569
-        await fns.createCategoryGroup('Empty Group', budgetId);
 
-        // Seed complete month — all categories will have available=0, activity=0
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
         const data = await fns.getBudgetInspectorData(budgetId, month);
 
@@ -1135,3 +1117,555 @@ describe('ensureCreditCardPaymentCategory — edge cases', () => {
         expect(result).toBeUndefined();
     });
 });
+
+// =====================================================================
+// Carryforward Propagation — Regression Tests
+// Bug: activity changes in month M didn't propagate to pre-existing
+// budget_months rows in subsequent months (M+1, M+2, …), leaving stale
+// available values. E.g., CC overspending → Feb available = -49.9M,
+// but March still showed 80K instead of 0.
+// =====================================================================
+describe('carryforward propagation to subsequent months', () => {
+
+    it('propagates CC overspending reset to pre-existing next month row (refreshAllBudgetActivity)', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create CC account
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+
+        // Assign 80 to category in month M
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(80));
+
+        // Pre-create a next month row (simulates YNAB import with stale carryforward)
+        // This row carries the old available=80 from before the CC spending
+        await db.insert(budgetMonths).values({
+            budgetId,
+            categoryId: categoryIds[0],
+            month: next,
+            assigned: ZERO,
+            activity: ZERO,
+            available: mu(80), // stale value — should become 0 after propagation
+        });
+
+        // CC overspend: spend 500 on CC with only 80 budgeted → available = 80 - 500 = -420
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'Big Purchase',
+            categoryId: categoryIds[0],
+            outflow: 500,
+        });
+
+        // Refresh month M — this should recalculate Feb available AND propagate to next month
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Verify month M: available = 80 - 500 = -420 (credit overspending)
+        const currentRows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month)));
+        expect(currentRows[0].available).toBe(-420);
+
+        // CRITICAL: Next month should NOT have stale 80. Carryforward = max(0, -420) = 0.
+        // Since assigned=0, activity=0, available=0 → ghost row should be deleted.
+        const nextRows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, next)));
+        expect(nextRows).toHaveLength(0); // ghost entry deleted
+    });
+
+    it('propagates CC overspending reset to pre-existing next month row (updateBudgetActivity)', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create CC account
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+
+        // Assign 80 to category in month M
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(80));
+
+        // Pre-create next month row with stale carryforward
+        await db.insert(budgetMonths).values({
+            budgetId,
+            categoryId: categoryIds[0],
+            month: next,
+            assigned: ZERO,
+            activity: ZERO,
+            available: mu(80),
+        });
+
+        // CC overspend
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'Big Purchase',
+            categoryId: categoryIds[0],
+            outflow: 500,
+        });
+
+        // Per-category update — should also propagate
+        await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
+
+        // Next month row should be deleted (ghost: available=0, assigned=0, activity=0)
+        const nextRows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, next)));
+        expect(nextRows).toHaveLength(0);
+    });
+
+    it('propagates positive carryforward reduction through multi-month chain', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const month2 = nextMonth(month);
+        const month3 = nextMonth(month2);
+
+        // Assign 1000 in month M → available = 1000
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
+
+        // Pre-create rows for M+1 and M+2 with stale carryforward of 1000
+        await db.insert(budgetMonths).values([
+            { budgetId, categoryId: categoryIds[0], month: month2, assigned: mu(200), activity: ZERO, available: mu(1200) },
+            { budgetId, categoryId: categoryIds[0], month: month3, assigned: ZERO, activity: ZERO, available: mu(1200) },
+        ]);
+
+        // Cash spending of 800 in month M → available = 1000 - 800 = 200
+        await fns.createTransaction(budgetId, {
+            accountId,
+            date: `${month}-15`,
+            payee: 'Big Store',
+            categoryId: categoryIds[0],
+            outflow: 800,
+        });
+
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Month M: available = 1000 - 800 = 200
+        const m1Rows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month)));
+        expect(m1Rows[0].available).toBe(200);
+
+        // Month M+1: carryforward = 200, assigned = 200 → available = 400
+        const m2Rows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month2)));
+        expect(m2Rows[0].available).toBe(400);
+
+        // Month M+2: carryforward = 400, assigned = 0 → available = 400
+        const m3Rows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month3)));
+        expect(m3Rows[0].available).toBe(400);
+    });
+
+    it('propagates cash overspending reset (max(0, negative)) to subsequent months', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Assign 50 in month M
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(50));
+
+        // Pre-create next month row with assignment of 300 and stale available = 350
+        // (350 = old carryforward(50) + assigned(300))
+        await db.insert(budgetMonths).values({
+            budgetId,
+            categoryId: categoryIds[0],
+            month: next,
+            assigned: mu(300),
+            activity: ZERO,
+            available: mu(350), // stale: should be 300 after overspending reset
+        });
+
+        // Cash overspend: spend 100 with only 50 → available = -50
+        await fns.createTransaction(budgetId, {
+            accountId,
+            date: `${month}-15`,
+            payee: 'Too Expensive',
+            categoryId: categoryIds[0],
+            outflow: 100,
+        });
+
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Next month: carryforward = max(0, -50) = 0, assigned = 300 → available = 300
+        const nextRows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, next)));
+        expect(nextRows[0].available).toBe(300);
+    });
+
+    it('does not affect categories without changes', async () => {
+        const { accountId, categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Assign to two categories
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(200));
+
+        // Pre-create next month rows
+        await db.insert(budgetMonths).values([
+            { budgetId, categoryId: categoryIds[0], month: next, assigned: ZERO, activity: ZERO, available: mu(500) },
+            { budgetId, categoryId: categoryIds[1], month: next, assigned: ZERO, activity: ZERO, available: mu(200) },
+        ]);
+
+        // Only spend on category 0
+        await fns.createTransaction(budgetId, {
+            accountId,
+            date: `${month}-15`,
+            payee: 'Store',
+            categoryId: categoryIds[0],
+            outflow: 100,
+        });
+
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Category 0: M available = 400, next = carryforward(400) = 400
+        const cat0 = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, next)));
+        expect(cat0[0].available).toBe(400);
+
+        // Category 1: unchanged — still 200
+        const cat1 = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[1]), eq(budgetMonths.month, next)));
+        expect(cat1[0].available).toBe(200);
+    });
+
+    it('propagates CC payment category available changes to subsequent months', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create CC account and payment category
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+        const ccCat = (await fns.getCreditCardPaymentCategory(ccId))!;
+
+        // Pre-create CC Payment category row for next month (simulates YNAB import)
+        await db.insert(budgetMonths).values({
+            budgetId,
+            categoryId: ccCat.id,
+            month: next,
+            assigned: ZERO,
+            activity: ZERO,
+            available: ZERO, // stale — will need to carry forward Feb's value
+        });
+
+        // Budget 500 for a category, then spend 200 on CC → 200 funded spending moves to CC Payment
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'CC Store',
+            categoryId: categoryIds[0],
+            outflow: 200,
+        });
+
+        // Refresh — this recalculates regular categories + CC payments + propagation
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // CC Payment in month M should now have activity=200 (funded spending)
+        const ccCurrentRows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, month)));
+        expect(ccCurrentRows[0].activity).toBe(200);
+        expect(ccCurrentRows[0].available).toBe(200);
+
+        // CRITICAL: CC Payment in next month should carry forward 200
+        // (CC Payment categories carry forward everything including debt)
+        const ccNextRows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, next)));
+        expect(ccNextRows[0].available).toBe(200); // was 0 (stale), should carry forward 200
+    });
+});
+
+// =====================================================================
+// End-to-End Carryforward + RTA Regression Suite
+// Verifies that the FULL pipeline (transaction → activity → propagation → RTA)
+// produces correct results. These tests exercise the exact production bug:
+// CC overspending + stale CC Payment → inflated RTA.
+// =====================================================================
+describe('E2E carryforward + RTA correctness', () => {
+
+    it('RTA remains 0 after CC overspending resets category to 0 in next month', async () => {
+        const { categoryIds, accountId, groupId: _groupId } = await seedBasicBudget(fns, {
+            db,
+            accountBalance: 0,
+        });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create income category and add real cash via transaction
+        const incomeGroupResult = await db.insert(categoryGroups).values({
+            name: 'Income', sortOrder: 99, isIncome: true, budgetId,
+        }).returning({ id: categoryGroups.id });
+        const incomeCatResult = await fns.createCategory({ name: 'Salary', category_group_id: incomeGroupResult[0].id });
+        await fns.createTransaction(budgetId, {
+            accountId, date: `${month}-01`, payee: 'Employer',
+            categoryId: incomeCatResult.id, inflow: 1000,
+        });
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+
+        // Assign all 1000 to a category
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
+
+        // CC overspend: spend 5000 on CC with only 1000 budgeted
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'Big Purchase',
+            categoryId: categoryIds[0],
+            outflow: 5000,
+        });
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+
+
+        // RTA in month M should be 0 (credit overspending correction)
+        const rta2 = await fns.getReadyToAssign(budgetId, month);
+        expect(rta2.rta).toBe(0);
+
+        // RTA in next month: category CF=max(0,-4000)=0, CC Payment CF=1000
+        // Total available = 0+1000=1000, cash=1000 → RTA=0
+        const rta3 = await fns.getReadyToAssign(budgetId, next);
+        expect(rta3.rta).toBe(0);
+    });
+
+    it('RTA remains 0 when pre-existing stale CC Payment rows are in next month', async () => {
+        const { categoryIds, accountId, groupId: _groupId } = await seedBasicBudget(fns, {
+            db,
+            accountBalance: 0,
+        });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        // Create income category and add real cash via transaction
+        const incomeGroupResult = await db.insert(categoryGroups).values({
+            name: 'Income', sortOrder: 99, isIncome: true, budgetId,
+        }).returning({ id: categoryGroups.id });
+        const incomeCatResult = await fns.createCategory({ name: 'Salary', category_group_id: incomeGroupResult[0].id });
+        await fns.createTransaction(budgetId, {
+            accountId, date: `${month}-01`, payee: 'Employer',
+            categoryId: incomeCatResult.id, inflow: 500,
+        });
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+        const ccCat = (await fns.getCreditCardPaymentCategory(ccId))!;
+
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
+
+        // Pre-create STALE next month rows
+        await db.insert(budgetMonths).values([
+            { budgetId, categoryId: categoryIds[0], month: next, assigned: ZERO, activity: ZERO, available: mu(500) },
+            { budgetId, categoryId: ccCat.id, month: next, assigned: ZERO, activity: ZERO, available: ZERO },
+        ]);
+
+        // CC overspend 2000 with only 500 budgeted
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'Expensive Item',
+            categoryId: categoryIds[0],
+            outflow: 2000,
+        });
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+
+
+        // Category M: 500-2000 = -1500
+        const catM = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month)));
+        expect(catM[0].available).toBe(-1500);
+
+        // CC Payment M: funded=500
+        const ccM = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, month)));
+        expect(ccM[0].available).toBe(500);
+
+        // Next month: category ghost deleted, CC Payment carries forward 500
+        const catNext = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, next)));
+        expect(catNext).toHaveLength(0);
+
+        const ccNext = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, next)));
+        expect(ccNext[0].available).toBe(500);
+
+        // RTA should be 0 in both months
+        const rtaCurrent = await fns.getReadyToAssign(budgetId, month);
+        expect(rtaCurrent.rta).toBe(0);
+        const rtaNext = await fns.getReadyToAssign(budgetId, next);
+        expect(rtaNext.rta).toBe(0);
+    });
+
+    it('CC Payment carryforward accumulates correctly across months', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db, accountBalance: 500 });
+        const month = currentMonth();
+        const month2 = nextMonth(month);
+        const month3 = nextMonth(month2);
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+        const ccCat = (await fns.getCreditCardPaymentCategory(ccId))!;
+
+        // Assign 200 and spend 200 on CC (fully funded)
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
+
+        // Pre-create CC Payment rows with assigned (debt payoff)
+        await db.insert(budgetMonths).values([
+            { budgetId, categoryId: ccCat.id, month: month2, assigned: mu(100), activity: ZERO, available: ZERO },
+            { budgetId, categoryId: ccCat.id, month: month3, assigned: mu(50), activity: ZERO, available: ZERO },
+        ]);
+
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'Funded Purchase',
+            categoryId: categoryIds[0],
+            outflow: 200,
+        });
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Month M: funded=200
+        const ccM = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, month)));
+        expect(ccM[0].available).toBe(200);
+
+        // Month 2: CF=200 + assigned=100 → 300
+        const ccM2 = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, month2)));
+        expect(ccM2[0].available).toBe(300);
+
+        // Month 3: CF=300 + assigned=50 → 350
+        const ccM3 = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, month3)));
+        expect(ccM3[0].available).toBe(350);
+    });
+
+    it('assignment change propagates through multi-month chain via updateBudgetAssignment', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db, accountBalance: 2000 });
+        const month = currentMonth();
+        const month2 = nextMonth(month);
+        const month3 = nextMonth(month2);
+
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(500));
+
+        await db.insert(budgetMonths).values([
+            { budgetId, categoryId: categoryIds[0], month: month2, assigned: mu(100), activity: ZERO, available: mu(600) },
+            { budgetId, categoryId: categoryIds[0], month: month3, assigned: mu(50), activity: ZERO, available: mu(650) },
+        ]);
+
+        // Change assignment from 500→200
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(200));
+
+        const m1Rows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month)));
+        expect(m1Rows[0].available).toBe(200);
+
+        const m2Rows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month2)));
+        expect(m2Rows[0].available).toBe(300); // CF=200 + 100
+
+        const m3Rows = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, month3)));
+        expect(m3Rows[0].available).toBe(350); // CF=300 + 50
+    });
+
+    it('RTA consistent when multiple categories with cash spending have stale carryforward', async () => {
+        const { categoryIds, accountId, groupId: _groupId } = await seedBasicBudget(fns, {
+            db,
+            accountBalance: 1000,
+            categoryCount: 3,
+        });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+
+
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(400));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(300));
+        await fns.updateBudgetAssignment(budgetId, categoryIds[2], month, mu(300));
+
+        await db.insert(budgetMonths).values([
+            { budgetId, categoryId: categoryIds[0], month: next, assigned: ZERO, activity: ZERO, available: mu(400) },
+            { budgetId, categoryId: categoryIds[1], month: next, assigned: ZERO, activity: ZERO, available: mu(300) },
+            { budgetId, categoryId: categoryIds[2], month: next, assigned: ZERO, activity: ZERO, available: mu(300) },
+        ]);
+
+        await fns.createTransaction(budgetId, {
+            accountId, date: `${month}-15`, payee: 'Store 1',
+            categoryId: categoryIds[0], outflow: 150,
+        });
+        await fns.createTransaction(budgetId, {
+            accountId, date: `${month}-15`, payee: 'Store 2',
+            categoryId: categoryIds[1], outflow: 100,
+        });
+
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // Carryforward propagated correctly to next month
+        const cat0Next = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[0]), eq(budgetMonths.month, next)));
+        expect(cat0Next[0].available).toBe(250);
+
+        const cat1Next = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[1]), eq(budgetMonths.month, next)));
+        expect(cat1Next[0].available).toBe(200);
+
+        const cat2Next = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, categoryIds[2]), eq(budgetMonths.month, next)));
+        expect(cat2Next[0].available).toBe(300);
+
+        // RTA should be consistent between months (propagation doesn't inflate/deflate)
+        const rtaMonth = await fns.getReadyToAssign(budgetId, month);
+        const rtaNext = await fns.getReadyToAssign(budgetId, next);
+        expect(rtaMonth.rta).toBe(rtaNext.rta);
+    });
+
+
+
+    it('refreshAllBudgetActivity propagates CC Payment category changes to next month', async () => {
+        const { categoryIds } = await seedBasicBudget(fns, { db, accountBalance: 800 });
+        const month = currentMonth();
+        const next = nextMonth(month);
+
+        const ccResult = await fns.createAccount({ name: 'Visa', type: 'credit', budgetId });
+        const ccId = ccResult.id;
+        await fns.ensureCreditCardPaymentCategory(ccId, 'Visa');
+        const ccCat = (await fns.getCreditCardPaymentCategory(ccId))!;
+
+        await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(300));
+
+        // Pre-create stale CC Payment next-month row
+        await db.insert(budgetMonths).values({
+            budgetId, categoryId: ccCat.id, month: next,
+            assigned: ZERO, activity: ZERO, available: mu(50),
+        });
+
+        await fns.createTransaction(budgetId, {
+            accountId: ccId,
+            date: `${month}-15`,
+            payee: 'Store',
+            categoryId: categoryIds[0],
+            outflow: 200,
+        });
+
+        await fns.refreshAllBudgetActivity(budgetId, month);
+
+        // CC Payment M: funded=200
+        const ccM = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, month)));
+        expect(ccM[0].available).toBe(200);
+
+        // CC Payment next: CF=200 (was 50 stale) — MUST be updated
+        const ccNext = await db.select().from(budgetMonths)
+            .where(and(eq(budgetMonths.categoryId, ccCat.id), eq(budgetMonths.month, next)));
+        expect(ccNext[0].available).toBe(200);
+    });
+});
+

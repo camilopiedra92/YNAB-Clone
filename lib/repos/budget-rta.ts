@@ -30,6 +30,7 @@ export interface BudgetRTADeps {
 export interface RTAResult {
   rta: Milliunit;
   positiveCCBalances: Milliunit;
+  assignedInFuture: Milliunit;
 }
 
 export function createBudgetRTAFunctions(
@@ -63,17 +64,15 @@ export function createBudgetRTAFunctions(
           GROUP BY ${accounts.id}
         ) sub
       `),
-      // 3. Latest month with COMPLETE budget data (constrained to <= viewed month)
+      // 3. Latest month with ANY budget data (constrained to <= viewed month)
+      // Ghost entries are prevented at the source: updateBudgetAssignment deletes
+      // rows where assigned=0 AND activity=0 AND available=0.
       queryRows<{ month: string }>(database, sql`
-        SELECT month FROM ${budgetMonths}
+        SELECT MAX(month) as "month" FROM ${budgetMonths}
         JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
         JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
         WHERE ${categoryGroups.budgetId} = ${budgetId}
           AND month <= ${month}
-        GROUP BY month
-        HAVING COUNT(*) >= 10
-        ORDER BY month DESC
-        LIMIT 1
       `),
     ]);
 
@@ -84,6 +83,7 @@ export function createBudgetRTAFunctions(
       return {
         rta: (m(cashRows[0]!.total) + positiveCCBalances) as Milliunit,
         positiveCCBalances,
+        assignedInFuture: ZERO,
       };
     }
 
@@ -120,25 +120,26 @@ export function createBudgetRTAFunctions(
     }
 
     // ── Compute phase: delegate to engine ──
+    const assignedInFuture = m(futureAssignedRows[0]!.total);
     const rta = calculateRTA({
       cashBalance: m(cashRows[0]!.total),
       positiveCCBalances,
       totalAvailable: totalAvailableVal,
-      futureAssigned: m(futureAssignedRows[0]!.total),
+      futureAssigned: assignedInFuture,
       totalOverspending: totalOverspendingVal,
       cashOverspending: cashOverspendingAmount,
       currentMonth: new Date().toISOString().slice(0, 7),
       viewedMonth: month,
     });
 
-    return { rta, positiveCCBalances };
+    return { rta, positiveCCBalances, assignedInFuture };
     }); // end Sentry span
   }
 
   async function getReadyToAssignBreakdown(
     budgetId: number,
     month: string,
-    precomputed?: { rta?: Milliunit; positiveCCBalances?: Milliunit },
+    precomputed?: { rta?: Milliunit; positiveCCBalances?: Milliunit; assignedInFuture?: Milliunit },
   ) {
     // ── Query phase ──
     const [yr, mo] = month.split('-').map(Number);
@@ -181,14 +182,16 @@ export function createBudgetRTAFunctions(
         JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
         WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} = ${month} AND ${categoryGroups.budgetId} = ${budgetId}
       `),
-      // ➖ Assigned in future
-      queryRows<{ total: number }>(database, sql`
-        SELECT COALESCE(SUM(${budgetMonths.assigned}), 0) as "total"
-        FROM ${budgetMonths}
-        JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
-        JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
-        WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} > ${month} AND ${categoryGroups.budgetId} = ${budgetId}
-      `),
+      // ➖ Assigned in future — skip if precomputed from getReadyToAssign
+      precomputed?.assignedInFuture !== undefined
+        ? Promise.resolve(null)
+        : queryRows<{ total: number }>(database, sql`
+            SELECT COALESCE(SUM(${budgetMonths.assigned}), 0) as "total"
+            FROM ${budgetMonths}
+            JOIN ${categories} ON ${budgetMonths.categoryId} = ${categories.id}
+            JOIN ${categoryGroups} ON ${categories.categoryGroupId} = ${categoryGroups.id}
+            WHERE ${categoryGroups.isIncome} = false AND ${budgetMonths.month} > ${month} AND ${categoryGroups.budgetId} = ${budgetId}
+          `),
       // ➖ Cash overspending from previous month
       deps.getCashOverspendingForMonth(budgetId, prevMonth),
       // RTA (skip if pre-computed by caller)
@@ -202,13 +205,14 @@ export function createBudgetRTAFunctions(
         { total: number }[],
         { total: number }[] | null,
         { total: number }[],
-        { total: number }[],
+        { total: number }[] | null,
         Milliunit,
         Milliunit,
       ];
 
-    // Use precomputed CC balances or query result
+    // Use precomputed values or query results
     const positiveCCBalances = precomputed?.positiveCCBalances ?? m(positiveCCRows![0]!.total);
+    const assignedInFuture = precomputed?.assignedInFuture ?? m(assignedInFutureRows![0]!.total);
 
     // ── Compute phase: delegate to engine ──
     return calculateRTABreakdown({
@@ -217,7 +221,7 @@ export function createBudgetRTAFunctions(
       positiveCCBalances,
       assignedThisMonth: m(assignedThisMonthRows[0]!.total),
       cashOverspendingPreviousMonth: cashOverspendingTotal,
-      assignedInFuture: m(assignedInFutureRows[0]!.total),
+      assignedInFuture,
     });
   }
 

@@ -19,8 +19,8 @@ When viewing month **M**:
 ```
 RTA(M) = Cash Balance (non-CC budget accounts, date ≤ today)
        + Positive CC Balances (cashback / overpayments — bank owes user)
-       − Sum of category Available (latest COMPLETE budget month, cumulative)
-       − Future Month Assigned (months > latestCompleteMonth AND ≤ M)
+       − Sum of category Available (latest budget month, cumulative)
+       − Future Month Assigned (months > latestMonth AND ≤ M)
        − Credit Overspending Correction (see §2a)
 ```
 
@@ -47,15 +47,15 @@ Where:
 
 **Why:** A CC transaction reduces a category's available but NOT Cash. The unfunded portion creates a hole in SumAvailable that inflates RTA without this correction. See `07-rta-overspending-edge-cases.md` §2 for full overspending classification logic.
 
-### 2b. Latest Month Selection (Ghost Entry Prevention)
+### 2b. Latest Month Selection
 
-The formula uses the "latest COMPLETE budget month" — the latest month in `budget_months` with **≥10 category entries** (`HAVING COUNT(*) >= 10`).
+The formula uses the latest budget month — simply `MAX(month)` from `budget_months` for the budget.
 
-**Why not `MAX(month)`?** Ghost entries (assigned=0, activity=0, available=0) from deleted future assignments cause `SumAvailable = 0`, making RTA equal the full cash balance. See `07-rta-overspending-edge-cases.md` §3 for ghost entry prevention rules.
+Ghost entries (assigned=0, activity=0, available=0) are prevented at the source: `updateBudgetAssignment()`, `updateBudgetActivity()`, and `refreshAllBudgetActivity()` delete zero-value rows. See `07-rta-overspending-edge-cases.md` §3 for ghost entry prevention rules.
 
 ### 2c. Future Month Assigned (Per-Month)
 
-Assigned in months **beyond** the latest complete month but **up to and including M** are subtracted. Assignments **beyond M** are NOT subtracted.
+Assigned in months **beyond** the latest month but **up to and including M** are subtracted. Assignments **beyond M** are NOT subtracted.
 
 ```sql
 SELECT COALESCE(SUM(bm.assigned), 0) as total
@@ -63,13 +63,13 @@ FROM budget_months bm
 JOIN categories c ON bm.category_id = c.id
 JOIN category_groups cg ON c.category_group_id = cg.id
 WHERE cg.is_income = 0 AND bm.month > ? AND bm.month <= ?
--- ?1 = latest complete month, ?2 = viewed month M
+-- ?1 = latest month, ?2 = viewed month M
 ```
 
 ### Implementation
 
 - **Pure formula:** `calculateRTA()` in `lib/engine/rta.ts`
-- **Orchestration:** `getReadyToAssign(month)` in `lib/repos/budget.ts`
+- **Orchestration:** `getReadyToAssign(month)` in `lib/repos/budget-rta.ts`
 
 ## 3. RTA Breakdown (per-month, for UI popup)
 
