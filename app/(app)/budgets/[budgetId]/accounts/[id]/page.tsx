@@ -163,23 +163,20 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     return (
         <div className="flex flex-col h-screen overflow-hidden">
             {/* ============ HEADER ============ */}
-            <header className="px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 bg-background"
-                style={{
-                    boxShadow: '0 4px 12px 0 var(--neu-dark)',
-                }}
+            <header className="px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 backdrop-blur-xl bg-white/[0.02] border-b border-white/5"
             >
                 <div className="flex items-center gap-5">
                     <div>
                         <div className="flex items-center gap-2.5">
-                            <h1 data-testid="account-name" className="text-xl font-black text-foreground tracking-tight">{account.name}</h1>
+                            <h1 data-testid="account-name" className="text-xl font-bold text-gray-200 tracking-tight">{account.name}</h1>
                             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                         </div>
                         <div className="flex items-center gap-3 mt-0.5">
-                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em]">
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-[0.15em]">
                                 <span className="inline-block w-2 h-2 rounded-full bg-primary-500 shadow-sm shadow-primary-500/50"></span>
                                 {typeLabels[account.type] || account.type}
                             </span>
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.1em]">
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-600 uppercase tracking-[0.1em]">
                                 <Lock className="w-3 h-3 text-violet-400" />
                                 Reconciled 7 days ago
                             </span>
@@ -190,27 +187,27 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 {/* ============ BALANCE BAR (centered) ============ */}
                 <div className="absolute left-1/2 -translate-x-1/2">
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
+                        <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white/[0.03] border border-white/5">
                             <div className="flex flex-col items-center">
-                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.clearedBalance, 2)}</span>
+                                    <span className="text-sm font-bold text-gray-200 tracking-tight">{formatCurrency(account.clearedBalance, 2)}</span>
                                     <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.15em]">{t('clearedBalance')}</span>
                                 </div>
                             </div>
-                            <span className="text-xs font-black text-muted-foreground/40">+</span>
-                            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl shadow-neu-sm">
+                            <span className="text-xs font-bold text-gray-600">+</span>
+                            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white/[0.03] border border-white/5">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(account.unclearedBalance, 2)}</span>
-                                    <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">{t('unclearedBalance')}</span>
+                                    <span className="text-sm font-bold text-gray-200 tracking-tight">{formatCurrency(account.unclearedBalance, 2)}</span>
+                                    <span className="text-[9px] font-bold text-gray-600 uppercase tracking-[0.15em]">{t('unclearedBalance')}</span>
                                 </div>
                             </div>
-                            <span className="text-xs font-black text-muted-foreground/40">=</span>
-                            <div className="px-5 py-1.5 rounded-2xl shadow-neu-md relative group cursor-default overflow-hidden">
+                            <span className="text-xs font-bold text-gray-600">=</span>
+                            <div className="px-5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 relative group cursor-default overflow-hidden">
                                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 <div className="flex flex-col items-center relative z-10">
-                                    <span data-testid="account-working-balance" className="text-lg font-black text-foreground tracking-tighter leading-none">{formatCurrency(account.balance, 2)}</span>
+                                    <span data-testid="account-working-balance" className="text-lg font-bold text-gray-200 tracking-tighter leading-none">{formatCurrency(account.balance, 2)}</span>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-80">{t('workingBalance')}</span>
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.2em]">{t('workingBalance')}</span>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                                 </div>
                             </div>
                         </div>
@@ -218,16 +215,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                    <button className="neu-btn p-2.5 rounded-xl text-muted-foreground transition-all active:scale-95" aria-label="Editar cuenta">
+                    <button className="p-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.08] transition-all active:scale-95" aria-label="Editar cuenta">
                         <Pencil className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
                         onClick={handleOpenReconcile}
                         data-testid="reconcile-button"
-                        className="neu-btn-primary px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97]"
-                        style={{
-                            backgroundColor: 'hsl(142 70% 45%)',
-                        }}
+                        className="px-5 py-2.5 rounded-xl text-xs font-bold text-white uppercase tracking-wider transition-all active:scale-[0.97] bg-green-600 hover:bg-green-500"
                     >
                         {t('reconcileTitle')}
                     </button>
@@ -235,27 +229,24 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             </header>
 
             {/* ============ TOOLBAR ============ */}
-            <div className="px-8 py-2.5 flex items-center justify-between bg-background"
-                style={{
-                    boxShadow: '0 2px 8px 0 var(--neu-dark)',
-                }}
+            <div className="px-8 py-2.5 flex items-center justify-between bg-white/[0.01] border-b border-white/5"
             >
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleNewTransaction}
                         data-testid="add-transaction-button"
-                        className="neu-btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-[11px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:bg-primary/90"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         Add Transaction
                     </button>
-                    <button className="neu-btn flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground transition-all">
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:bg-white/[0.06] transition-all">
                         <Link2 className="w-3.5 h-3.5" />
                         Link Account
                     </button>
                     <button
                         onClick={() => setIsImportOpen(true)}
-                        className="neu-btn flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground transition-all"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:bg-white/[0.06] transition-all"
                     >
                         <Upload className="w-3.5 h-3.5" />
                         File Import
@@ -272,20 +263,20 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                             Redo
                         </button>
                     </div>
-                    <div className="w-px h-4 bg-border" />
-                    <button className="neu-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground transition-all">
+                    <div className="w-px h-4 bg-white/10" />
+                    <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:bg-white/[0.06] transition-all">
                         View
                         <ChevronDown className="w-3 h-3" />
                     </button>
                     <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={`Search ${account.name}...`}
                             data-testid="transaction-search"
-                            className="pl-10 pr-4 py-2 bg-background rounded-xl text-sm shadow-neu-inset-sm focus:outline-none focus:shadow-neu-inset transition-all w-56"
+                            className="pl-10 pr-4 py-2 rounded-xl text-sm text-gray-200 glass-input focus:outline-none focus:border-primary/30 transition-all w-56"
                         />
                     </div>
                 </div>

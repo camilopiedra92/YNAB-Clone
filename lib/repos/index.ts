@@ -66,8 +66,10 @@ export const {
   getCreditCardPaymentCategory,
   ensureCreditCardPaymentCategory,
   updateCreditCardPaymentBudget,
+  batchUpdateAllCCPayments,
   getCashOverspendingForMonth,
   getOverspendingTypes,
+  getOverspendingData,
   getBudgetInspectorData,
   getMonthRange,
   // Category repo

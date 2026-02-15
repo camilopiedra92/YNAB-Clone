@@ -117,8 +117,10 @@ const sentryWrappedConfig = withSentryConfig(nextConfig, {
     excludeReplayWorker: true,
   },
 
-  // Route Sentry requests through your server (avoids ad-blockers)
-  tunnelRoute: "/monitoring",
+  // Route Sentry requests through your server (avoids ad-blockers).
+  // Disabled in dev — Sentry's tunnel uses an embedded PGlite DB that
+  // crashes with "Operation timed out" when .tmp/ has stale lock files.
+  tunnelRoute: process.env.NODE_ENV === 'production' ? "/monitoring" : undefined,
 });
 
 // Chain: nextConfig → Sentry → next-intl

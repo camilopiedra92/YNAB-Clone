@@ -39,10 +39,10 @@ const TransactionRow = memo(function TransactionRow({
         <tr
             data-testid={`transaction-row-${t.id}`}
             onClick={() => onEdit(t)}
-            className={`group transition-all duration-100 cursor-pointer border-b border-border/10
+            className={`group transition-all duration-100 cursor-pointer border-b border-white/5
                 ${isSelected
-                    ? 'bg-primary/5 dark:bg-primary/10 border-l-2 border-l-primary'
-                    : 'hover:bg-muted/30 border-l-2 border-l-transparent'}`}
+                    ? 'bg-primary/5 border-l-2 border-l-primary'
+                    : 'hover:bg-white/[0.06] border-l-2 border-l-transparent'}`}
         >
             <td className="py-0.5 px-4 text-center">
                 <input
@@ -51,27 +51,27 @@ const TransactionRow = memo(function TransactionRow({
                     onChange={() => { }}
                     onClick={(e) => onToggleSelect(t.id, e)}
                     aria-label={tr('selectTransaction', { payee: t.payee })}
-                    className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
+                    className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer bg-white/5"
                 />
             </td>
             {showAccount && (
                 <td className="py-0.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-medium text-muted-foreground shadow-neu-inset-sm whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-medium text-gray-400 bg-white/[0.03] border border-white/5 whitespace-nowrap">
                         {t.accountName}
                     </span>
                 </td>
             )}
-            <td className="py-0.5 px-3 text-sm text-muted-foreground font-bold whitespace-nowrap tabular-nums">
+            <td className="py-0.5 px-3 text-sm text-gray-500 font-bold whitespace-nowrap tabular-nums">
                 {formatDate(t.date)}
             </td>
             <td className="py-0.5 px-3">
-                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                <span className="text-sm font-medium text-gray-200 group-hover:text-primary transition-colors">
                     {t.payee}
                 </span>
             </td>
             <td className="py-0.5 px-3 text-sm font-medium">
                 {t.transferId
-                    ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">
+                    ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-400 text-sm font-bold bg-blue-500/10 border border-blue-500/20">
                         <ArrowRightLeft className="w-3.5 h-3.5" />
                         {showAccount
                             ? t.outflow > 0
@@ -83,22 +83,22 @@ const TransactionRow = memo(function TransactionRow({
                         }
                     </span>
                     : (t.categoryName
-                        ? <span className="text-muted-foreground">{t.categoryName}</span>
-                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-amber-600 dark:text-amber-400 text-sm font-bold italic shadow-neu-inset-sm">{tr('uncategorized')}</span>
+                        ? <span className="text-gray-400">{t.categoryName}</span>
+                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-amber-400 text-sm font-bold italic bg-amber-500/10 border border-amber-500/20">{tr('uncategorized')}</span>
                     )
                 }
             </td>
-            <td className="py-0.5 px-3 text-sm text-muted-foreground/60 truncate max-w-[250px]">
+            <td className="py-0.5 px-3 text-sm text-gray-600 truncate max-w-[250px]">
                 {t.memo || ''}
             </td>
             <td className="py-0.5 px-4 text-right text-sm font-bold tabular-nums">
                 {t.outflow > 0 ? (
-                    <span className="text-foreground">{formatCurrency(t.outflow, 2)}</span>
+                    <span className="text-gray-200">{formatCurrency(t.outflow, 2)}</span>
                 ) : ''}
             </td>
             <td className="py-0.5 px-4 text-right text-sm font-bold tabular-nums">
                 {t.inflow > 0 ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-emerald-600 dark:text-emerald-400 shadow-neu-inset-sm">{formatCurrency(t.inflow, 2)}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-green-400 bg-green-500/10 border border-green-500/20">{formatCurrency(t.inflow, 2)}</span>
                 ) : ''}
             </td>
             <td className="py-0.5 px-3 text-center">
@@ -121,8 +121,8 @@ const ClearedIcon = memo(function ClearedIcon({
     const tr = useTranslations('transactions');
     if (t.cleared === 'Reconciled') {
         return (
-            <div className="p-1 rounded-lg cursor-default shadow-neu-inset-sm" title={tr('reconciledStatus')}>
-                <Lock className="h-3.5 w-3.5 text-violet-500" aria-hidden="true" />
+            <div className="p-1 rounded-lg cursor-default bg-white/[0.03] border border-white/5" title={tr('reconciledStatus')}>
+                <Lock className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
                 <span className="sr-only">{tr('reconciledStatus')}</span>
             </div>
         );
@@ -131,7 +131,7 @@ const ClearedIcon = memo(function ClearedIcon({
         return (
             <button
                 onClick={(e) => { e.stopPropagation(); onToggle(t.id, t.cleared); }}
-                className="p-1 rounded-lg transition-all text-emerald-500 shadow-neu-inset-sm hover:shadow-neu-sm"
+                className="p-1 rounded-lg transition-all text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20"
                 title={tr('clearedStatus')}
                 aria-label={tr('markUncleared')}
                 data-testid="transaction-cleared-toggle"
@@ -143,7 +143,7 @@ const ClearedIcon = memo(function ClearedIcon({
     return (
         <button
             onClick={(e) => { e.stopPropagation(); onToggle(t.id, t.cleared); }}
-            className="p-1 rounded-lg transition-all text-muted-foreground/30 hover:text-emerald-400 shadow-neu-inset-sm hover:shadow-neu-sm"
+            className="p-1 rounded-lg transition-all text-gray-600 hover:text-green-400 bg-white/[0.03] border border-white/5 hover:bg-green-500/10 hover:border-green-500/20"
             title={tr('unclearedStatus')}
             aria-label={tr('markVerified')}
             data-testid="transaction-cleared-toggle"
@@ -173,32 +173,32 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
     return (
         <tr
             onClick={() => onEdit(t)}
-            className="group hover:bg-amber-50/30 dark:hover:bg-amber-500/5 transition-all duration-150 cursor-pointer opacity-50 hover:opacity-75 border-b border-border/10"
+            className="group hover:bg-amber-500/5 transition-all duration-150 cursor-pointer opacity-50 hover:opacity-75 border-b border-white/5"
         >
             <td className="py-0.5 px-4 text-center">
                 <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
+                    className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer bg-white/5"
                     aria-label={tr('selectScheduled', { payee: t.payee })}
                     onClick={(e) => e.stopPropagation()}
                 />
             </td>
             {showAccount && (
                 <td className="py-0.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-medium text-muted-foreground shadow-neu-inset-sm">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-medium text-gray-400 bg-white/[0.03] border border-white/5">
                         {t.accountName}
                     </span>
                 </td>
             )}
-            <td className="py-0.5 px-3 text-sm text-amber-600 dark:text-amber-400 font-bold whitespace-nowrap tabular-nums">
+            <td className="py-0.5 px-3 text-sm text-amber-400 font-bold whitespace-nowrap tabular-nums">
                 {formatDate(t.date)}
             </td>
             <td className="py-0.5 px-3">
-                <span className="text-sm font-medium text-foreground">{t.payee}</span>
+                <span className="text-sm font-medium text-gray-200">{t.payee}</span>
             </td>
-            <td className="py-0.5 px-3 text-sm text-muted-foreground font-medium">
+            <td className="py-0.5 px-3 text-sm text-gray-400 font-medium">
                 {t.transferId ? (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-600 dark:text-blue-400 text-sm font-bold shadow-neu-inset-sm">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-blue-400 text-sm font-bold bg-blue-500/10 border border-blue-500/20">
                         <ArrowRightLeft className="w-3.5 h-3.5" />
                         {showAccount
                             ? t.outflow > 0
@@ -211,18 +211,18 @@ const FutureTransactionRow = memo(function FutureTransactionRow({
                     </span>
                 ) : (t.categoryName || '')}
             </td>
-            <td className="py-0.5 px-3 text-sm text-muted-foreground/60 truncate max-w-[200px]">
+            <td className="py-0.5 px-3 text-sm text-gray-600 truncate max-w-[200px]">
                 {t.memo || ''}
             </td>
-            <td className="py-0.5 px-4 text-right text-sm font-bold text-foreground tabular-nums">
+            <td className="py-0.5 px-4 text-right text-sm font-bold text-gray-200 tabular-nums">
                 {t.outflow > 0 ? formatCurrency(t.outflow, 2) : ''}
             </td>
-            <td className="py-0.5 px-4 text-right text-sm font-bold text-foreground tabular-nums">
+            <td className="py-0.5 px-4 text-right text-sm font-bold text-gray-200 tabular-nums">
                 {t.inflow > 0 ? formatCurrency(t.inflow, 2) : ''}
             </td>
             <td className="py-0.5 px-3 text-center">
-                <div className="w-5 h-5 rounded-lg flex items-center justify-center mx-auto shadow-neu-inset-sm">
-                    <Clock className="w-3 h-3 text-amber-500" />
+                <div className="w-5 h-5 rounded-lg flex items-center justify-center mx-auto bg-amber-500/10 border border-amber-500/20">
+                    <Clock className="w-3 h-3 text-amber-400" />
                 </div>
             </td>
         </tr>
@@ -316,33 +316,29 @@ export default function VirtualTransactionTable({
             className={`flex-1 overflow-auto custom-scrollbar transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}
         >
             <table className="w-full border-collapse">
-                <thead className="sticky top-0 bg-background z-10"
-                    style={{
-                        boxShadow: '0 3px 8px 0 var(--neu-dark)',
-                    }}
-                >
-                    <tr className="uppercase tracking-widest text-muted-foreground text-[10px] font-bold">
-                        <th className="w-12 py-1 px-4 border-b border-border" scope="col">
+                <thead className="sticky top-0 z-10 backdrop-blur-xl bg-white/[0.03] border-b border-white/10">
+                    <tr className="uppercase tracking-widest text-gray-500 text-[10px] font-bold">
+                        <th className="w-12 py-1 px-4 border-b border-white/10" scope="col">
                             <div className="flex items-center justify-center">
                                 <input
                                     type="checkbox"
                                     checked={selectedRows.size === currentTransactions.length && currentTransactions.length > 0}
                                     onChange={onToggleSelectAll}
                                     aria-label={t('selectAll')}
-                                    className="w-4 h-4 rounded border-input accent-primary cursor-pointer"
+                                    className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer bg-white/5"
                                 />
                             </div>
                         </th>
                         {showAccount && (
-                            <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">{t('account')}</th>
+                            <th className="py-1 px-3 text-left font-bold border-b border-white/10 w-28" scope="col">{t('account')}</th>
                         )}
-                        <th className="py-1 px-3 text-left font-black border-b border-border w-28" scope="col">{t('columnDate')}</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border w-44" scope="col">{t('columnPayee')}</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">{t('columnCategory')}</th>
-                        <th className="py-1 px-3 text-left font-black border-b border-border" scope="col">{t('columnMemo')}</th>
-                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">{t('columnOutflow')}</th>
-                        <th className="py-1 px-4 text-right font-black border-b border-border w-32" scope="col">{t('columnInflow')}</th>
-                        <th className="w-12 py-1 px-3 text-center border-b border-border" scope="col">
+                        <th className="py-1 px-3 text-left font-bold border-b border-white/10 w-28" scope="col">{t('columnDate')}</th>
+                        <th className="py-1 px-3 text-left font-bold border-b border-white/10 w-44" scope="col">{t('columnPayee')}</th>
+                        <th className="py-1 px-3 text-left font-bold border-b border-white/10" scope="col">{t('columnCategory')}</th>
+                        <th className="py-1 px-3 text-left font-bold border-b border-white/10" scope="col">{t('columnMemo')}</th>
+                        <th className="py-1 px-4 text-right font-bold border-b border-white/10 w-32" scope="col">{t('columnOutflow')}</th>
+                        <th className="py-1 px-4 text-right font-bold border-b border-white/10 w-32" scope="col">{t('columnInflow')}</th>
+                        <th className="w-12 py-1 px-3 text-center border-b border-white/10" scope="col">
                             <span className="sr-only">{t('status')}</span>
                         </th>
                     </tr>
@@ -364,12 +360,12 @@ export default function VirtualTransactionTable({
                         if (row.type === 'scheduled-header') {
                             return (
                                 <tr key="scheduled-header" data-index={virtualRow.index}>
-                                    <td colSpan={colSpan} className="py-2 px-4 bg-amber-50/50 dark:bg-amber-500/5 border-b border-amber-200/30 dark:border-amber-500/10">
+                                    <td colSpan={colSpan} className="py-2 px-4 bg-amber-500/5 border-b border-amber-500/10">
                                         <button
                                             onClick={onToggleScheduled}
-                                            className="flex items-center gap-2 text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.15em] hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                                            className="flex items-center gap-2 text-[10px] font-bold text-amber-400 uppercase tracking-[0.15em] hover:text-amber-300 transition-colors"
                                         >
-                                            <div className="w-5 h-5 rounded-lg flex items-center justify-center shadow-neu-inset-sm">
+                                            <div className="w-5 h-5 rounded-lg flex items-center justify-center bg-amber-500/10 border border-amber-500/20">
                                                 <Clock className="w-3 h-3" />
                                             </div>
                                             {t('scheduledTransactions', { count: futureTransactions.length })}
@@ -411,13 +407,13 @@ export default function VirtualTransactionTable({
                         return (
                             <tr key="empty">
                                 <td colSpan={colSpan} className="py-24 text-center">
-                                    <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-neu-inset">
+                                    <div className="flex flex-col items-center gap-4 text-gray-400">
+                                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center glass-card">
                                             <Search className="h-7 w-7 opacity-30" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-foreground/60">{t('noTransactions')}</p>
-                                            <p className="text-xs text-muted-foreground/50 mt-1">{t('noTransactionsHint')}</p>
+                                            <p className="text-sm font-bold text-gray-300">{t('noTransactions')}</p>
+                                            <p className="text-xs text-gray-500 mt-1">{t('noTransactionsHint')}</p>
                                         </div>
                                     </div>
                                 </td>

@@ -78,9 +78,6 @@ export function createDbFunctions(database: DrizzleDB) {
 
   const transactions = createTransactionFunctions(database, {
     updateAccountBalances: accounts.updateAccountBalances,
-    updateBudgetActivity: budget.updateBudgetActivity,
-    isCreditCardAccount: accounts.isCreditCardAccount,
-    updateCreditCardPaymentBudget: budget.updateCreditCardPaymentBudget,
     reconcileAccount: accounts.reconcileAccount,
   });
 

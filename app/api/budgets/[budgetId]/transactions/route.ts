@@ -159,12 +159,13 @@ export async function PUT(
             const transaction = await repos.getTransaction(budgetId, id);
 
             // CQRS: refresh budget activity on the write path
+            // Deduplicate months and parallelize when date crosses month boundaries
             const txMonth = (updates.date ?? original.date).slice(0, 7);
-            await repos.refreshAllBudgetActivity(budgetId, txMonth);
-            // If the date changed, also refresh the original month
+            const monthsToRefresh = new Set([txMonth]);
             if (updates.date && updates.date.slice(0, 7) !== original.date.slice(0, 7)) {
-                await repos.refreshAllBudgetActivity(budgetId, original.date.slice(0, 7));
+                monthsToRefresh.add(original.date.slice(0, 7));
             }
+            await Promise.all([...monthsToRefresh].map(m => repos.refreshAllBudgetActivity(budgetId, m)));
 
             return NextResponse.json(toTransactionDTO(transaction));
         });

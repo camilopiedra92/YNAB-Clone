@@ -75,12 +75,12 @@ export default function CurrencyInput({
             onBlur={handleBlur}
             placeholder={placeholder}
             disabled={disabled}
-            className={`w-full px-5 py-3.5 rounded-2xl
-        bg-background text-foreground font-black text-lg tracking-tight
-        shadow-neu-inset
-        focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)]
+            className={`w-full px-5 py-3.5 rounded-xl
+        text-gray-200 font-bold text-lg tracking-tight
+        glass-input
+        focus:outline-none focus:border-primary/30
         disabled:opacity-50 disabled:cursor-not-allowed
-        transition-all duration-300 placeholder:opacity-30 ${className}`}
+        transition-all duration-300 placeholder:text-gray-600 ${className}`}
         />
     );
 }

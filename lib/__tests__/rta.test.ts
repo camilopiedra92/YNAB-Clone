@@ -25,7 +25,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
         await fns.updateAccountBalances(budgetId, accountId);
 
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rta).toBe(5000);
     });
 
@@ -44,7 +44,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(500));
 
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rta).toBe(3500); // 5000 - 1000 - 500
     });
 
@@ -65,11 +65,11 @@ describe('Ready to Assign (RTA)', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], next, mu(500));
 
         // Current month RTA should NOT include next month's assignment
-        const rtaCurrent = await fns.getReadyToAssign(budgetId, month);
+        const rtaCurrent = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rtaCurrent).toBe(4000); // 5000 - 1000
 
         // Next month RTA SHOULD include both
-        const rtaNext = await fns.getReadyToAssign(budgetId, next);
+        const rtaNext = (await fns.getReadyToAssign(budgetId, next)).rta;
         expect(rtaNext).toBe(3500); // 5000 - 1000 - 500
     });
 
@@ -85,7 +85,7 @@ describe('Ready to Assign (RTA)', () => {
         const ccId = ccResult.id;
         await fns.createTransaction(budgetId, { accountId: ccId, date: today(), inflow: 100 }); // Cashback
 
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rta).toBe(5100); // 5000 cash + 100 positive CC
     });
 
@@ -117,7 +117,7 @@ describe('Ready to Assign (RTA)', () => {
 
         // RTA should still use the current month as the "latest complete" month
         // If it used the ghost month, RTA would be ~5000 instead of ~3000
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rta).toBe(3000); // 5000 - 2000
     });
 
@@ -139,7 +139,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(3000));
 
         // Current month RTA should be 0 (5000 - 2000 - 3000)
-        const rtaCurrent = await fns.getReadyToAssign(budgetId, month);
+        const rtaCurrent = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rtaCurrent).toBe(0);
 
         // Assign to only ONE category in next month, making next month have
@@ -152,7 +152,7 @@ describe('Ready to Assign (RTA)', () => {
 
         // Current month RTA should STILL be 0 — categoryIds[1]'s available=3000
         // must be included via carryforward even though it has no row in next month
-        const rtaCurrentAgain = await fns.getReadyToAssign(budgetId, month);
+        const rtaCurrentAgain = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rtaCurrentAgain).toBe(0);
     });
 
@@ -167,7 +167,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.createTransaction(budgetId, { accountId: checkId, date: today(), inflow: 3000 });
         await fns.createTransaction(budgetId, { accountId: investId, date: today(), inflow: 50000 });
 
-        const rta = await fns.getReadyToAssign(budgetId, currentMonth());
+        const rta = (await fns.getReadyToAssign(budgetId, currentMonth())).rta;
         // Investment is NOT 'credit' type but it's also not excluded by current query...
         // The RTA query excludes only credit type. Investment is included.
         // This matches YNAB behavior per MEMORY rule A: EXCLUDE tracking accounts.
@@ -183,7 +183,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 3000 });
         await fns.createTransaction(budgetId, { accountId, date: '2099-12-31', inflow: 10000 }); // Future
 
-        const rta = await fns.getReadyToAssign(budgetId, currentMonth());
+        const rta = (await fns.getReadyToAssign(budgetId, currentMonth())).rta;
         expect(rta).toBe(3000); // Future transaction excluded
     });
 
@@ -227,7 +227,7 @@ describe('Ready to Assign (RTA)', () => {
         await fns.updateCreditCardPaymentBudget(budgetId, ccAccountId, month);
 
         // Capture RTA BEFORE adding future-dated cash transaction
-        const rtaBefore = await fns.getReadyToAssign(budgetId, month);
+        const rtaBefore = (await fns.getReadyToAssign(budgetId, month)).rta;
 
         // Now add a future-dated cash outflow on the same category
         const futureDate = new Date();
@@ -242,7 +242,7 @@ describe('Ready to Assign (RTA)', () => {
         });
 
         // RTA should be IDENTICAL — the future cash txn must not affect it
-        const rtaAfter = await fns.getReadyToAssign(budgetId, month);
+        const rtaAfter = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rtaAfter).toBe(rtaBefore);
     });
 });
@@ -279,7 +279,7 @@ describe('RTA Breakdown', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], month, mu(500));
 
         const rtaBreakdown = await fns.getReadyToAssignBreakdown(budgetId, month);
-        expect(rtaBreakdown.readyToAssign).toBe(await fns.getReadyToAssign(budgetId, month));
+        expect(rtaBreakdown.readyToAssign).toBe((await fns.getReadyToAssign(budgetId, month)).rta);
         expect(rtaBreakdown.inflowThisMonth).toBe(5000);
         expect(rtaBreakdown.assignedThisMonth).toBe(1500);
     });

@@ -64,15 +64,10 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
             <div className="space-y-6 pb-4">
                 {state === 'success' && stats ? (
                     <div className="text-center space-y-4 py-4" data-testid="import-success">
-                        <div
-                            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-                            style={{
-                                boxShadow: '4px 4px 10px var(--neu-dark), -4px -4px 10px var(--neu-light)',
-                            }}
-                        >
-                            <CheckCircle2 className="w-9 h-9 text-emerald-500" />
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto bg-green-500/10 border border-green-500/20">
+                            <CheckCircle2 className="w-9 h-9 text-green-400" />
                         </div>
-                        <h3 className="text-xl font-bold text-foreground">
+                        <h3 className="text-xl font-bold text-gray-200">
                             {t('success')}
                         </h3>
                         <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto text-left">
@@ -83,34 +78,30 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                                 [t('transfers'), stats.transfers],
                                 [t('budgetEntries'), stats.budgetEntries],
                             ].map(([label, value]) => (
-                                <div key={label as string} className="flex justify-between items-center px-3 py-2 rounded-xl"
-                                    style={{
-                                        boxShadow: 'inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light)',
-                                    }}
-                                >
-                                    <span className="text-xs text-muted-foreground">{label}</span>
-                                    <span className="text-sm font-bold text-foreground tabular-nums">{value as number}</span>
+                                <div key={label as string} className="flex justify-between items-center px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5">
+                                    <span className="text-xs text-gray-500">{label}</span>
+                                    <span className="text-sm font-bold text-gray-200 tabular-nums">{value as number}</span>
                                 </div>
                             ))}
                         </div>
                         <button
                             onClick={handleClose}
                             data-testid="import-close-button"
-                            className="mt-4 px-8 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all"
+                            className="mt-4 px-8 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
                         >
                             {tc('close')}
                         </button>
                     </div>
                 ) : (
                     <>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="text-sm text-gray-400 leading-relaxed">
                             {t('descriptionPlain')}
                         </p>
 
                         {state === 'error' && (
-                            <div className="flex items-center gap-3 p-4 rounded-2xl bg-destructive/10 border border-destructive/20">
-                                <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
-                                <p className="text-sm text-destructive font-medium">{error}</p>
+                            <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                                <p className="text-sm text-red-400 font-medium">{error}</p>
                             </div>
                         )}
 
@@ -137,12 +128,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                             onClick={handleImport}
                             disabled={!registerFile || !planFile || state === 'uploading'}
                             data-testid="import-submit-button"
-                            className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-                            style={{
-                                boxShadow: registerFile && planFile
-                                    ? '4px 4px 12px rgba(var(--primary), 0.3)'
-                                    : 'none',
-                            }}
+                            className="w-full py-4 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             {state === 'uploading' ? (
                                 <>
@@ -157,7 +143,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                             )}
                         </button>
 
-                        <p className="text-[11px] text-muted-foreground/60 text-center italic">
+                        <p className="text-[11px] text-gray-600 text-center italic">
                             {t('warning')}
                         </p>
                     </>
@@ -183,19 +169,14 @@ const FileDropZone = ({
     selectText: string;
 }) => (
     <div className="space-y-2">
-        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest px-1">
             {label}
         </label>
         <label
-            className={`flex flex-col items-center justify-center p-6 rounded-2xl cursor-pointer transition-all duration-300 ${file
-                    ? 'bg-emerald-500/5 border-emerald-500/20'
-                    : 'hover:bg-primary/5'
+            className={`flex flex-col items-center justify-center p-6 rounded-xl cursor-pointer transition-all duration-300 border ${file
+                    ? 'bg-green-500/10 border-green-500/20'
+                    : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06] hover:border-white/10'
                 }`}
-            style={{
-                boxShadow: file
-                    ? 'inset 3px 3px 8px var(--neu-dark), inset -3px -3px 8px var(--neu-light)'
-                    : '4px 4px 10px var(--neu-dark), -4px -4px 10px var(--neu-light)',
-            }}
         >
             <input
                 type="file"
@@ -210,18 +191,18 @@ const FileDropZone = ({
             />
             {file ? (
                 <>
-                    <FileText className="w-8 h-8 text-emerald-500 mb-2" />
-                    <span className="text-sm font-semibold text-emerald-500 truncate max-w-full">
+                    <FileText className="w-8 h-8 text-green-400 mb-2" />
+                    <span className="text-sm font-semibold text-green-400 truncate max-w-full">
                         {file.name}
                     </span>
-                    <span className="text-xs text-muted-foreground mt-1">
+                    <span className="text-xs text-gray-500 mt-1">
                         {(file.size / 1024).toFixed(1)} KB
                     </span>
                 </>
             ) : (
                 <>
-                    <Upload className="w-8 h-8 text-muted-foreground/50 mb-2" />
-                    <span className="text-sm text-muted-foreground">
+                    <Upload className="w-8 h-8 text-gray-600 mb-2" />
+                    <span className="text-sm text-gray-400">
                         {selectText}
                     </span>
                 </>

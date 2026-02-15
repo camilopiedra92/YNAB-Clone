@@ -45,9 +45,9 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
         <div className="relative" ref={containerRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${isOpen
-                    ? 'neu-btn-primary scale-105'
-                    : 'neu-btn text-muted-foreground'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all duration-300 ${isOpen
+                    ? 'bg-primary text-white scale-105'
+                    : 'text-gray-400 hover:text-white hover:bg-white/[0.06] border border-white/5'
                     }`}
             >
                 <PlusCircle className="w-4 h-4" />
@@ -55,19 +55,15 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
             </button>
 
             {isOpen && (
-                <div className="absolute top-full left-0 mt-4 w-80 neu-card rounded-2xl p-5 z-50 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300"
-                    style={{
-                        boxShadow: '8px 8px 20px 0 var(--neu-dark), -8px -8px 20px 0 var(--neu-light)',
-                    }}
-                >
+                <div className="absolute top-full left-0 mt-4 w-80 glass-panel-strong rounded-2xl p-5 z-50 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300">
                     <div className="relative space-y-5">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">{t('groupNameLabel')}</label>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">{t('groupNameLabel')}</label>
                             <input
                                 autoFocus
                                 type="text"
                                 placeholder={t('groupNamePlaceholder')}
-                                className="w-full px-4 py-3 bg-background rounded-xl text-sm font-bold text-foreground shadow-neu-inset focus:outline-none focus:shadow-[inset_4px_4px_8px_0_var(--neu-dark),inset_-4px_-4px_8px_0_var(--neu-light)] transition-all placeholder:text-muted-foreground/30"
+                                className="w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-200 glass-input focus:outline-none transition-all placeholder:text-gray-600"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 onKeyDown={(e) => {
@@ -79,14 +75,14 @@ export function CreateCategoryGroupPopover({ budgetId, onSuccess }: CreateCatego
                         <div className="flex items-center justify-end gap-3 pt-1">
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="neu-btn px-5 py-2.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground rounded-xl transition-all"
+                                className="px-5 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-white rounded-lg transition-all hover:bg-white/[0.06]"
                             >
                                 {tc('cancel')}
                             </button>
                             <button
                                 onClick={handleCreate}
                                 disabled={createMutation.isPending}
-                                className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest bg-emerald-500 rounded-xl shadow-neu-sm hover:shadow-neu-md active:scale-95 transition-all disabled:opacity-50"
+                                className="px-6 py-2.5 text-[10px] font-bold text-white uppercase tracking-widest bg-emerald-500 rounded-lg hover:bg-emerald-400 active:scale-95 transition-all disabled:opacity-50"
                             >
                                 {createMutation.isPending ? tc('creating') : t('createGroup')}
                             </button>

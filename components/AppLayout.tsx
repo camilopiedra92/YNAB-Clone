@@ -6,7 +6,7 @@ import SyncStatus from './ui/SyncStatus';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <>
-            <main id="main-content">
+            <main id="main-content" className="h-full overflow-hidden">
                 {children}
             </main>
             <Toaster
