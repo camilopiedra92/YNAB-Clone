@@ -9,7 +9,7 @@
  * `deps` parameter so that `createTransfer` / `deleteTransfer` can
  * update account balances without importing the accounts repo directly.
  */
-import { eq, sql, or, and, type SQL, type InferSelectModel } from 'drizzle-orm';
+import { eq, sql, or, and, inArray, type SQL, type InferSelectModel } from 'drizzle-orm';
 import { accounts, categories, transactions, transfers } from '../db/schema';
 import { currentDate } from '../db/sql-helpers';
 import { milliunit, ZERO } from '../engine/primitives';
@@ -247,18 +247,15 @@ export function createTransactionFunctions(
     memo?: string;
     cleared?: string;
   }) {
-    // Parallel: both account lookups are independent
-    const [fromAccountRows, toAccountRows] = await Promise.all([
-      database.select({ name: accounts.name })
-        .from(accounts)
-        .where(and(eq(accounts.id, params.fromAccountId), eq(accounts.budgetId, budgetId))),
-      database.select({ name: accounts.name })
-        .from(accounts)
-        .where(and(eq(accounts.id, params.toAccountId), eq(accounts.budgetId, budgetId))),
-    ]);
-
-    const fromAccount = fromAccountRows[0];
-    const toAccount = toAccountRows[0];
+    // Single query: fetch both account names at once (2 queries → 1)
+    const accountRows = await database.select({ id: accounts.id, name: accounts.name })
+      .from(accounts)
+      .where(and(
+        inArray(accounts.id, [params.fromAccountId, params.toAccountId]),
+        eq(accounts.budgetId, budgetId)
+      ));
+    const fromAccount = accountRows.find(a => a.id === params.fromAccountId);
+    const toAccount = accountRows.find(a => a.id === params.toAccountId);
 
     if (!fromAccount || !toAccount) {
       throw new Error('Account not found');
@@ -323,31 +320,31 @@ export function createTransactionFunctions(
   }
 
   async function deleteTransfer(budgetId: number, transferId: number): Promise<{ fromAccountId: number; toAccountId: number }> {
-    const transferRows = await database.select({
-      id: transfers.id,
-      fromTransactionId: transfers.fromTransactionId,
-      toTransactionId: transfers.toTransactionId,
-    })
-      .from(transfers)
-      .innerJoin(transactions, eq(transfers.fromTransactionId, transactions.id))
-      .innerJoin(accounts, eq(transactions.accountId, accounts.id))
-      .where(and(eq(transfers.id, transferId), eq(accounts.budgetId, budgetId)));
+    // Single query: fetch transfer + both account IDs via double JOIN (eliminates 2 extra queries)
+    const transferRows = await queryRows<{
+      id: number;
+      fromTransactionId: number;
+      toTransactionId: number;
+      fromAccountId: number;
+      toAccountId: number;
+    }>(database, sql`
+      SELECT
+        tr.id AS "id",
+        tr.from_transaction_id AS "fromTransactionId",
+        tr.to_transaction_id AS "toTransactionId",
+        t_from.account_id AS "fromAccountId",
+        t_to.account_id AS "toAccountId"
+      FROM ${transfers} tr
+      JOIN ${transactions} t_from ON tr.from_transaction_id = t_from.id
+      JOIN ${transactions} t_to ON tr.to_transaction_id = t_to.id
+      JOIN ${accounts} a ON t_from.account_id = a.id
+      WHERE tr.id = ${transferId} AND a.budget_id = ${budgetId}
+    `);
 
     const transfer = transferRows[0];
     if (!transfer) throw new Error('Transfer not found');
 
-    // Parallel: both account ID lookups are independent
-    const [fromTxRows, toTxRows] = await Promise.all([
-      database.select({ accountId: transactions.accountId })
-        .from(transactions)
-        .where(eq(transactions.id, transfer.fromTransactionId)),
-      database.select({ accountId: transactions.accountId })
-        .from(transactions)
-        .where(eq(transactions.id, transfer.toTransactionId)),
-    ]);
-
-    const fromAccountId = fromTxRows[0]!.accountId;
-    const toAccountId = toTxRows[0]!.accountId;
+    const { fromAccountId, toAccountId } = transfer;
 
     await database.transaction(async (tx) => {
       await tx.delete(transfers).where(eq(transfers.id, transferId));

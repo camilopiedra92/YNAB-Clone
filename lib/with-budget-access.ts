@@ -17,7 +17,7 @@
  * ```
  */
 import { NextResponse } from 'next/server';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { apiError } from './api-error';
 import { auth } from './auth';
 import db from './db/client';
@@ -70,24 +70,16 @@ export async function withBudgetAccess(
                    set_config('app.user_id', ${userId}, true)`
       );
 
-      // Step 4: Verify budget access (owner or shared)
-      const owned = await tx.select()
-        .from(budgets)
-        .where(and(eq(budgets.id, budgetId), eq(budgets.userId, userId)))
-        .limit(1);
+      // Step 4: Verify budget access — single query (owner OR shared) replaces 2 sequential checks
+      const accessRows = await tx.execute(
+        sql`SELECT b.id FROM ${budgets} b
+            LEFT JOIN ${budgetShares} bs ON bs.budget_id = b.id AND bs.user_id = ${userId}
+            WHERE b.id = ${budgetId}
+              AND (b.user_id = ${userId} OR bs.id IS NOT NULL)
+            LIMIT 1`
+      );
 
-      let hasAccess = owned.length > 0;
-
-      if (!hasAccess) {
-        // Check shared access
-        const shared = await tx.select()
-          .from(budgetShares)
-          .where(and(eq(budgetShares.budgetId, budgetId), eq(budgetShares.userId, userId)))
-          .limit(1);
-        hasAccess = shared.length > 0;
-      }
-
-      if (!hasAccess) {
+      if (accessRows.length === 0) {
         return apiError('Budget not found or access denied', 403);
       }
 

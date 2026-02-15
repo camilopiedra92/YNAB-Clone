@@ -104,11 +104,12 @@ export async function POST(
                 flag: data.flag ?? undefined,
             });
 
-            const transaction = await repos.getTransaction(budgetId, result.id);
-
-            // CQRS: refresh budget activity on the write path
+            // CQRS: refresh budget activity + fetch updated transaction in parallel
             const txMonth = data.date.slice(0, 7);
-            await repos.refreshAllBudgetActivity(budgetId, txMonth);
+            const [transaction] = await Promise.all([
+                repos.getTransaction(budgetId, result.id),
+                repos.refreshAllBudgetActivity(budgetId, txMonth),
+            ]);
 
             return NextResponse.json(toTransactionDTO(transaction), { status: 201 });
         });
@@ -156,16 +157,16 @@ export async function PUT(
             // Atomic: update transaction + balances + budget + CC payment
             await repos.updateTransactionAtomic(budgetId, id, original, updateData);
 
-            const transaction = await repos.getTransaction(budgetId, id);
-
-            // CQRS: refresh budget activity on the write path
-            // Deduplicate months and parallelize when date crosses month boundaries
+            // CQRS: refresh budget activity + fetch updated transaction in parallel
             const txMonth = (updates.date ?? original.date).slice(0, 7);
             const monthsToRefresh = new Set([txMonth]);
             if (updates.date && updates.date.slice(0, 7) !== original.date.slice(0, 7)) {
                 monthsToRefresh.add(original.date.slice(0, 7));
             }
-            await Promise.all([...monthsToRefresh].map(m => repos.refreshAllBudgetActivity(budgetId, m)));
+            const [transaction] = await Promise.all([
+                repos.getTransaction(budgetId, id),
+                ...[...monthsToRefresh].map(m => repos.refreshAllBudgetActivity(budgetId, m)),
+            ]);
 
             return NextResponse.json(toTransactionDTO(transaction));
         });
@@ -193,14 +194,16 @@ export async function DELETE(
 
             const transactionId = parseInt(id);
 
-            const transaction = await repos.getTransaction(budgetId, transactionId);
+            // Parallel: fetch transaction + check transfer status simultaneously
+            const [transaction, transfer] = await Promise.all([
+                repos.getTransaction(budgetId, transactionId),
+                repos.getTransferByTransactionId(budgetId, transactionId),
+            ]);
 
             if (!transaction) {
                 return apiError('Transaction not found or budget mismatch', 404);
             }
 
-            // Check if this transaction is part of a transfer
-            const transfer = await repos.getTransferByTransactionId(budgetId, transactionId);
             if (transfer) {
                 await repos.deleteTransfer(budgetId, transfer.id);
                 return NextResponse.json({ success: true, deletedTransfer: true });

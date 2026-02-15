@@ -98,30 +98,59 @@ export function createBudgetCCFunctions(
     const ccCategory = await getCreditCardPaymentCategory(accountId);
     if (!ccCategory) return;
 
-    // ── Query phase ──
+    // Previous month string (needed by carryforward query)
+    const [yr, mo] = month.split('-').map(Number);
+    const prevDate = new Date(yr, mo - 2);
+    const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // 1. Per-category spending on this CC
-    const categorySpending = await queryRows<{
-      categoryId: number;
-      catOutflow: number;
-      catInflow: number;
-    }>(database, sql`
-      SELECT 
-        ${transactions.categoryId} as "categoryId",
-        COALESCE(SUM(${transactions.outflow}), 0) as "catOutflow",
-        COALESCE(SUM(${transactions.inflow}), 0) as "catInflow"
-      FROM ${transactions}
-      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-      WHERE ${transactions.accountId} = ${accountId}
-        AND ${yearMonth(transactions.date)} = ${month}
-        AND ${notFutureDate(transactions.date)}
-        AND ${transactions.categoryId} IS NOT NULL
-        AND ${transactions.categoryId} != ${ccCategory.id}
-        AND ${accounts.budgetId} = ${budgetId}
-      GROUP BY ${transactions.categoryId}
-    `);
+    // ── Query phase: Round 1 — 4 independent queries in parallel ──
+    const [categorySpending, paymentRows, prevCCBudgetRows, existingRows] = await Promise.all([
+      // 1. Per-category spending on this CC
+      queryRows<{
+        categoryId: number;
+        catOutflow: number;
+        catInflow: number;
+      }>(database, sql`
+        SELECT 
+          ${transactions.categoryId} as "categoryId",
+          COALESCE(SUM(${transactions.outflow}), 0) as "catOutflow",
+          COALESCE(SUM(${transactions.inflow}), 0) as "catInflow"
+        FROM ${transactions}
+        JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
+        WHERE ${transactions.accountId} = ${accountId}
+          AND ${yearMonth(transactions.date)} = ${month}
+          AND ${notFutureDate(transactions.date)}
+          AND ${transactions.categoryId} IS NOT NULL
+          AND ${transactions.categoryId} != ${ccCategory.id}
+          AND ${accounts.budgetId} = ${budgetId}
+        GROUP BY ${transactions.categoryId}
+      `),
+      // 2. CC payments (transfers to this CC)
+      queryRows<{ totalPayments: number }>(database, sql`
+        SELECT COALESCE(SUM(${transactions.inflow}), 0) as "totalPayments"
+        FROM ${transactions}
+        JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
+        WHERE ${transactions.accountId} = ${accountId}
+          AND ${yearMonth(transactions.date)} = ${month}
+          AND ${notFutureDate(transactions.date)}
+          AND ${transactions.categoryId} IS NULL
+          AND ${transactions.inflow} > 0
+          AND ${accounts.budgetId} = ${budgetId}
+      `),
+      // 3. Previous month carryforward
+      database.select({ available: budgetMonths.available })
+        .from(budgetMonths)
+        .where(and(eq(budgetMonths.categoryId, ccCategory.id), eq(budgetMonths.month, prevMonthStr))),
+      // 4. Current assigned
+      database.select({ assigned: budgetMonths.assigned })
+        .from(budgetMonths)
+        .where(and(eq(budgetMonths.categoryId, ccCategory.id), eq(budgetMonths.month, month))),
+    ]);
 
-    // 2. Batch: get current available for ALL affected categories in one query
+    const existing = existingRows[0];
+
+    // ── Query phase: Round 2 — dependent on spending results ──
+    // Batch: get current available for ALL affected categories in one query
     const categoryAvailables = new Map<number, Milliunit>();
     const affectedCatIds = categorySpending.map(cs => cs.categoryId);
     if (affectedCatIds.length > 0) {
@@ -139,34 +168,6 @@ export function createBudgetCCFunctions(
         ));
       for (const row of availRows) categoryAvailables.set(row.categoryId, m(row.available));
     }
-
-    // 3. CC payments (transfers to this CC)
-    const paymentRows = await queryRows<{ totalPayments: number }>(database, sql`
-      SELECT COALESCE(SUM(${transactions.inflow}), 0) as "totalPayments"
-      FROM ${transactions}
-      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
-      WHERE ${transactions.accountId} = ${accountId}
-        AND ${yearMonth(transactions.date)} = ${month}
-        AND ${notFutureDate(transactions.date)}
-        AND ${transactions.categoryId} IS NULL
-        AND ${transactions.inflow} > 0
-        AND ${accounts.budgetId} = ${budgetId}
-    `);
-
-    // 4. Previous month carryforward
-    const [yr, mo] = month.split('-').map(Number);
-    const prevDate = new Date(yr, mo - 2);
-    const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-
-    const prevCCBudgetRows = await database.select({ available: budgetMonths.available })
-      .from(budgetMonths)
-      .where(and(eq(budgetMonths.categoryId, ccCategory.id), eq(budgetMonths.month, prevMonthStr)));
-
-    // 5. Current assigned
-    const existingRows = await database.select({ assigned: budgetMonths.assigned })
-      .from(budgetMonths)
-      .where(and(eq(budgetMonths.categoryId, ccCategory.id), eq(budgetMonths.month, month)));
-    const existing = existingRows[0];
 
     // ── Compute phase: delegate to engine ──
     const ccResult = calculateCCPaymentAvailable({

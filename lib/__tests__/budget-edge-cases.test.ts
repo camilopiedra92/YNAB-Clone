@@ -12,7 +12,7 @@
  * - Assignment propagation to subsequent months
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb, seedBasicBudget, seedCompleteMonth, today, currentMonth, prevMonth, nextMonth, mu, ZERO } from './test-helpers';
+import { createTestDb, seedBasicBudget, today, currentMonth, prevMonth, nextMonth, mu, ZERO } from './test-helpers';
 import type { createDbFunctions } from '../repos';
 import type { DrizzleDB } from '../db/helpers';
 import { budgetMonths } from '../db/schema';
@@ -432,7 +432,7 @@ describe('getReadyToAssign — per-month RTA', () => {
         await fns.updateAccountBalances(budgetId, accountId);
 
         const rta = (await fns.getReadyToAssign(budgetId, currentMonth())).rta;
-        // No budget months with >= 10 categories → latestMonth is null
+        // No budget months → latestMonth is null
         // RTA = cashBalance + positiveCCBalances = 5000 + 0 = 5000
         expect(rta).toBe(5000);
     });
@@ -448,8 +448,7 @@ describe('getReadyToAssign — per-month RTA', () => {
             inflow: 5000,
         });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
@@ -471,8 +470,7 @@ describe('getReadyToAssign — per-month RTA', () => {
             inflow: 10000,
         });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign in current month
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(1000));
@@ -579,8 +577,7 @@ describe('getReadyToAssign — positive CC balances', () => {
             inflow: 100,
         });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         // Should include the 100 positive CC balance
@@ -603,8 +600,7 @@ describe('getReadyToAssign — overspending correction', () => {
         // Income
         await fns.createTransaction(budgetId, { accountId, date: today(), inflow: 5000 });
 
-        // Seed complete month
-        await seedCompleteMonth(fns, db, month, groupId, budgetId);
+
 
         // Assign 100 but spend 200 on CC → credit overspending of 100
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(100));

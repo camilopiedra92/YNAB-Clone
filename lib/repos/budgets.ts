@@ -1,6 +1,7 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { budgets, budgetShares, users } from '../db/schema';
 import type { DrizzleDB } from '../db/helpers';
+import { queryRows } from '../db/helpers';
 
 export type BudgetMetadata = {
   id: number;
@@ -27,70 +28,45 @@ export function createBudgetsFunctions(database: DrizzleDB) {
    * Includes both owned budgets and shared budgets.
    */
   async function getBudgets(userId: string): Promise<BudgetMetadata[]> {
-    // We join with budgetShares to get the role if it's a shared budget,
-    // or we assume 'owner' if they are the userId in the budgets table.
-    
-    // First, get owned budgets
-    const owned = await database.select({
-      id: budgets.id,
-      name: budgets.name,
-      currencyCode: budgets.currencyCode,
-      currencySymbol: budgets.currencySymbol,
-      currencyDecimals: budgets.currencyDecimals,
-    })
-    .from(budgets)
-    .where(eq(budgets.userId, userId));
-
-    const ownedWithRole = owned.map(b => ({ ...b, role: 'owner' }));
-
-    // Second, get shared budgets
-    const shared = await database.select({
-      id: budgets.id,
-      name: budgets.name,
-      currencyCode: budgets.currencyCode,
-      currencySymbol: budgets.currencySymbol,
-      currencyDecimals: budgets.currencyDecimals,
-      role: budgetShares.role,
-    })
-    .from(budgets)
-    .innerJoin(budgetShares, eq(budgets.id, budgetShares.budgetId))
-    .where(eq(budgetShares.userId, userId));
-
-    return [...ownedWithRole, ...shared];
+    // Single query: UNION ALL replaces 2 sequential queries (owned + shared)
+    return queryRows<BudgetMetadata>(database, sql`
+      SELECT ${budgets.id} AS "id", ${budgets.name} AS "name",
+             ${budgets.currencyCode} AS "currencyCode",
+             ${budgets.currencySymbol} AS "currencySymbol",
+             ${budgets.currencyDecimals} AS "currencyDecimals",
+             'owner' AS "role"
+      FROM ${budgets}
+      WHERE ${budgets.userId} = ${userId}
+      UNION ALL
+      SELECT ${budgets.id} AS "id", ${budgets.name} AS "name",
+             ${budgets.currencyCode} AS "currencyCode",
+             ${budgets.currencySymbol} AS "currencySymbol",
+             ${budgets.currencyDecimals} AS "currencyDecimals",
+             ${budgetShares.role} AS "role"
+      FROM ${budgets}
+      INNER JOIN ${budgetShares} ON ${budgets.id} = ${budgetShares.budgetId}
+      WHERE ${budgetShares.userId} = ${userId}
+    `);
   }
 
   async function getBudget(id: number, userId: string): Promise<BudgetMetadata | undefined> {
-    // Verify access
-    const owned = await database.select()
-      .from(budgets)
-      .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
-      .limit(1);
-
-    if (owned.length > 0) {
-      return {
-        id: owned[0].id,
-        name: owned[0].name,
-        currencyCode: owned[0].currencyCode,
-        currencySymbol: owned[0].currencySymbol,
-        currencyDecimals: owned[0].currencyDecimals,
-        role: 'owner',
-      };
-    }
-
-    const shared = await database.select({
-      id: budgets.id,
-      name: budgets.name,
-      currencyCode: budgets.currencyCode,
-      currencySymbol: budgets.currencySymbol,
-      currencyDecimals: budgets.currencyDecimals,
-      role: budgetShares.role,
-    })
-    .from(budgets)
-    .innerJoin(budgetShares, eq(budgets.id, budgetShares.budgetId))
-    .where(and(eq(budgets.id, id), eq(budgetShares.userId, userId)))
-    .limit(1);
-
-    return shared[0];
+    // Single query: LEFT JOIN replaces 2 sequential queries (owned check + shared check)
+    const rows = await queryRows<BudgetMetadata>(database, sql`
+      SELECT ${budgets.id} AS "id", ${budgets.name} AS "name",
+             ${budgets.currencyCode} AS "currencyCode",
+             ${budgets.currencySymbol} AS "currencySymbol",
+             ${budgets.currencyDecimals} AS "currencyDecimals",
+             CASE WHEN ${budgets.userId} = ${userId} THEN 'owner'
+                  ELSE COALESCE(${budgetShares.role}, 'none')
+             END AS "role"
+      FROM ${budgets}
+      LEFT JOIN ${budgetShares} ON ${budgets.id} = ${budgetShares.budgetId}
+                                AND ${budgetShares.userId} = ${userId}
+      WHERE ${budgets.id} = ${id}
+        AND (${budgets.userId} = ${userId} OR ${budgetShares.id} IS NOT NULL)
+      LIMIT 1
+    `);
+    return rows[0];
   }
 
   async function createBudget(userId: string, data: {
