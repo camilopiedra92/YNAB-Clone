@@ -431,7 +431,7 @@ describe('getReadyToAssign — per-month RTA', () => {
         });
         await fns.updateAccountBalances(budgetId, accountId);
 
-        const rta = await fns.getReadyToAssign(budgetId, currentMonth());
+        const rta = (await fns.getReadyToAssign(budgetId, currentMonth())).rta;
         // No budget months with >= 10 categories → latestMonth is null
         // RTA = cashBalance + positiveCCBalances = 5000 + 0 = 5000
         expect(rta).toBe(5000);
@@ -454,7 +454,7 @@ describe('getReadyToAssign — per-month RTA', () => {
         // Assign
         await fns.updateBudgetAssignment(budgetId, categoryIds[0], month, mu(2000));
 
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         expect(rta).toBeLessThan(5000);
     });
 
@@ -481,10 +481,10 @@ describe('getReadyToAssign — per-month RTA', () => {
         await fns.updateBudgetAssignment(budgetId, categoryIds[1], farFuture, mu(3000));
 
         // When viewing current month, farFuture assignment should NOT be subtracted
-        const rtaCurrent = await fns.getReadyToAssign(budgetId, month);
+        const rtaCurrent = (await fns.getReadyToAssign(budgetId, month)).rta;
 
         // When viewing farFuture, it SHOULD be subtracted
-        const rtaFarFuture = await fns.getReadyToAssign(budgetId, farFuture);
+        const rtaFarFuture = (await fns.getReadyToAssign(budgetId, farFuture)).rta;
 
         expect(rtaCurrent).toBeGreaterThan(rtaFarFuture);
         expect(rtaCurrent - rtaFarFuture).toBe(3000);
@@ -582,7 +582,7 @@ describe('getReadyToAssign — positive CC balances', () => {
         // Seed complete month
         await seedCompleteMonth(fns, db, month, groupId, budgetId);
 
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         // Should include the 100 positive CC balance
         expect(rta).toBe(5100);
     });
@@ -617,7 +617,7 @@ describe('getReadyToAssign — overspending correction', () => {
         });
         await fns.updateBudgetActivity(budgetId, categoryIds[0], month);
 
-        const rta = await fns.getReadyToAssign(budgetId, month);
+        const rta = (await fns.getReadyToAssign(budgetId, month)).rta;
         // The credit overspending correction ensures RTA isn't falsely inflated
         expect(rta).toBeGreaterThan(0);
     });

@@ -426,6 +426,9 @@ describe('Atomic Operations', () => {
             categoryId,
         });
 
+        // L4A: Budget side-effects removed from atomics — must refresh explicitly
+        await fns.refreshAllBudgetActivity(budgetId, today().slice(0, 7));
+
         const budget = await fns.getBudgetForMonth(budgetId, today().slice(0, 7));
         const cat = budget.find((b: { categoryId: number }) => b.categoryId === categoryId);
         expect(cat).toBeDefined();

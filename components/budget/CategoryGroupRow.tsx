@@ -44,23 +44,24 @@ export const CategoryGroupRow = React.memo(({
         <SortableRow
             id={`group-${group.id}`}
             type="group"
-            className="group cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors duration-200 border-b border-border/20"
+            className="group cursor-pointer bg-[#1d2033] hover:bg-white/[0.05] transition-colors duration-200 border-b border-white/5 sticky z-[5]"
+            style={{ top: 'var(--thead-height, 48px)' } as React.CSSProperties}
         >
             {(listeners, attributes) => (
                 <>
-                    <td className="py-1 px-4 font-bold border-b border-border/20" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-3 px-4 font-bold" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center">
                             <div className="flex items-center gap-2">
                                 {isCreditCardGroup ? (
                                     <div className="w-8" />
                                 ) : (
-                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-muted/60 transition-colors opacity-0 group-hover:opacity-100" aria-label={t('reorderGroup')}>
-                                        <GripVertical className="w-4 h-4 text-muted-foreground/40" aria-hidden="true" />
+                                    <div {...listeners} {...attributes} className="w-8 flex justify-center cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors opacity-0 group-hover:opacity-100" aria-label={t('reorderGroup')}>
+                                        <GripVertical className="w-4 h-4 text-gray-500" aria-hidden="true" />
                                     </div>
                                 )}
                                 <input
                                     type="checkbox"
-                                    className="w-4 h-4 rounded-md border-border accent-primary cursor-pointer transition-all hover:scale-110"
+                                    className="w-4 h-4 rounded-md border-white/10 accent-primary cursor-pointer transition-all hover:scale-110 bg-white/5"
                                     checked={allSelected}
                                     onChange={() => onToggleSelection(group.items)}
                                     aria-label={t('selectAll', { name: group.name })}
@@ -68,12 +69,12 @@ export const CategoryGroupRow = React.memo(({
                             </div>
                         </div>
                     </td>
-                    <td className="py-0.5 px-2 cursor-pointer" onClick={() => onToggleGroup(group.name)} aria-expanded={isExpanded} aria-label={isExpanded ? t('collapse', { name: group.name }) : t('expand', { name: group.name })}>
+                    <td className="py-3 px-2 cursor-pointer" onClick={() => onToggleGroup(group.name)} aria-expanded={isExpanded} aria-label={isExpanded ? t('collapse', { name: group.name }) : t('expand', { name: group.name })}>
                             <div className="flex items-center gap-3">
-                            <div className={`p-1 rounded-lg transition-all duration-300 ${isExpanded ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}>
+                            <div className={`p-1 rounded-lg transition-all duration-300 ${isExpanded ? 'text-primary' : 'text-gray-500'}`}>
                                 <ChevronDown className={`w-4 h-4 transition-transform duration-500 ${!isExpanded ? '-rotate-90' : ''}`} aria-hidden="true" />
                             </div>
-                            <span className="text-sm font-black text-foreground uppercase tracking-wider">{group.name}</span>
+                            <span className="text-sm font-bold text-blue-300 uppercase tracking-wider">{group.name}</span>
                             {isCreditCardGroup && (
                                 <CreditCard className="w-4 h-4 text-primary/50" />
                             )}
@@ -84,23 +85,23 @@ export const CategoryGroupRow = React.memo(({
                             )}
                         </div>
                     </td>
-                    <td className="py-1 px-4 text-right border-b border-border/20" onClick={() => onToggleGroup(group.name)}>
+                    <td className="py-3 px-4 text-right" onClick={() => onToggleGroup(group.name)}>
                         <div className="flex justify-end">
-                            <div className="min-w-[110px] px-3 text-right text-sm font-bold text-muted-foreground/60 tabular-nums">
+                            <div className="min-w-[110px] px-3 text-right text-sm font-bold text-gray-500 tabular-nums">
                                 {formatCurrency(groupTotals.assigned)}
                             </div>
                         </div>
                     </td>
-                    <td className="py-1 px-4 text-right border-b border-border/20" onClick={() => onToggleGroup(group.name)}>
+                    <td className="py-3 px-4 text-right" onClick={() => onToggleGroup(group.name)}>
                         <div className="flex justify-end">
-                            <div className="min-w-[110px] px-3 text-right text-sm font-bold text-muted-foreground/40 tabular-nums">
+                            <div className="min-w-[110px] px-3 text-right text-sm font-bold text-gray-600 tabular-nums">
                                 {formatCurrency(groupTotals.activity)}
                             </div>
                         </div>
                     </td>
-                    <td className="py-1 px-4 text-right border-b border-border/20" onClick={() => onToggleGroup(group.name)}>
+                    <td className="py-3 px-4 text-right" onClick={() => onToggleGroup(group.name)}>
                         <div className="flex justify-end">
-                            <div className="min-w-[110px] px-3 text-right text-sm font-bold text-foreground tabular-nums">
+                            <div className="min-w-[110px] px-3 text-right text-sm font-bold text-gray-200 tabular-nums">
                                 {formatCurrency(groupTotals.available)}
                             </div>
                         </div>

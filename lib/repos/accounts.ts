@@ -82,31 +82,55 @@ export function createAccountFunctions(database: DrizzleDB) {
     return (await getAccountType(accountId)) === 'credit';
   }
 
-  async function updateAccountBalances(budgetId: number, accountId: number) {
+  async function updateAccountBalances(budgetId: number, accountId: number): Promise<{ accountType: string }> {
     const rows = await queryRows<{
       balance: number;
       clearedBalance: number;
       unclearedBalance: number;
+      type: string;
     }>(database, sql`
       SELECT 
         COALESCE(SUM(${transactions.inflow} - ${transactions.outflow}), 0) as balance,
         COALESCE(SUM(CASE WHEN ${transactions.cleared} IN ('Cleared', 'Reconciled') THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "clearedBalance",
-        COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Uncleared' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "unclearedBalance"
+        COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Uncleared' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) as "unclearedBalance",
+        ${accounts.type} as "type"
       FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.accountId} = ${accountId} 
-        AND ${transactions.accountId} IN (SELECT ${accounts.id} FROM ${accounts} WHERE ${accounts.budgetId} = ${budgetId})
+        AND ${accounts.budgetId} = ${budgetId}
         AND ${notFutureDate(transactions.date)}
+      GROUP BY ${accounts.type}
     `);
-    const result = rows[0];
-    if (!result) throw new Error(`Balance query returned no rows for account ${accountId}`);
 
-    return database.update(accounts)
+    // When no transactions exist yet, the aggregate returns no rows.
+    // Fall back to the account's type directly.
+    if (!rows[0]) {
+      const accRows = await database.select({ type: accounts.type })
+        .from(accounts)
+        .where(eq(accounts.id, accountId));
+      const accountType = accRows[0]?.type || 'checking';
+
+      await database.update(accounts)
+        .set({
+          balance: ZERO,
+          clearedBalance: ZERO,
+          unclearedBalance: ZERO,
+        })
+        .where(eq(accounts.id, accountId));
+
+      return { accountType };
+    }
+
+    const result = rows[0];
+    await database.update(accounts)
       .set({
         balance: milliunit(Number(result.balance)),
         clearedBalance: milliunit(Number(result.clearedBalance)),
         unclearedBalance: milliunit(Number(result.unclearedBalance)),
       })
       .where(eq(accounts.id, accountId));
+
+    return { accountType: result.type };
   }
 
   async function getReconciliationInfo(budgetId: number, accountId: number): Promise<ReconciliationInfo> {
@@ -117,8 +141,9 @@ export function createAccountFunctions(database: DrizzleDB) {
         CAST(COALESCE(SUM(CASE WHEN ${transactions.cleared} = 'Cleared' THEN ${transactions.inflow} - ${transactions.outflow} ELSE 0 END), 0) AS BIGINT) as "pendingClearedBalance",
         COUNT(CASE WHEN ${transactions.cleared} = 'Cleared' THEN 1 END) as "pendingClearedCount"
       FROM ${transactions}
+      JOIN ${accounts} ON ${transactions.accountId} = ${accounts.id}
       WHERE ${transactions.accountId} = ${accountId} 
-        AND ${transactions.accountId} IN (SELECT ${accounts.id} FROM ${accounts} WHERE ${accounts.budgetId} = ${budgetId})
+        AND ${accounts.budgetId} = ${budgetId}
         AND ${notFutureDate(transactions.date)}
     `);
     // Aggregate query with COALESCE always returns exactly 1 row

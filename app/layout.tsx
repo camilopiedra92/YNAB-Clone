@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import ClientShell from "@/components/ClientShell";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { toIntlLocale } from '@/lib/i18n/config';
 
-const inter = Inter({ subsets: ["latin"] });
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-manrope',
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta');
@@ -25,8 +29,8 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={toIntlLocale(locale)}>
-      <body className={inter.className} suppressHydrationWarning>
+    <html lang={toIntlLocale(locale)} className="dark">
+      <body className={`${manrope.className} selection:bg-primary/50 selection:text-white`} suppressHydrationWarning>
         <a href="#main-content" className="skip-to-content">
           {(messages as Record<string, Record<string, string>>).meta?.skipToContent ?? 'Skip to main content'}
         </a>

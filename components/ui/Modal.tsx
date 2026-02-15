@@ -86,43 +86,40 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            {/* Overlay */}
+            {/* Overlay — frosted glass */}
             <div
-                className="absolute inset-0 bg-background/70 transition-opacity duration-500 animate-in fade-in"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500 animate-in fade-in"
                 onClick={onClose}
                 aria-hidden="true"
             />
 
-            {/* Modal */}
+            {/* Modal — glass panel */}
             <div
                 ref={modalRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className={`relative w-full ${sizeClasses[size]} neu-card rounded-[2rem] transform transition-all animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 flex flex-col max-h-[90vh]`}
-                style={{
-                    boxShadow: '12px 12px 30px 0 var(--neu-dark-strong), -12px -12px 30px 0 var(--neu-light-strong)',
-                }}
+                className={`relative w-full ${sizeClasses[size]} glass-panel-strong rounded-2xl p-6 transform transition-all animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 flex flex-col max-h-[90vh]`}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between pb-4 flex-shrink-0">
                     <div>
-                        <h2 id={titleId} className="text-2xl font-black text-foreground tracking-tighter">
+                        <h2 id={titleId} className="text-2xl font-bold text-white tracking-tight">
                             {title}<span className="text-primary">.</span>
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
                         aria-label="Cerrar"
-                        className="neu-btn p-3 rounded-xl text-muted-foreground hover:text-destructive transition-colors active:scale-90"
+                        className="p-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.08] transition-all active:scale-90"
                     >
                         <X className="h-5 w-5" aria-hidden="true" />
                     </button>
                 </div>
 
                 {/* Content — scrollable */}
-                <div className="pt-2 overflow-y-auto flex-1 min-h-0">
+                <div className="pt-2 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                     {children}
                 </div>
             </div>

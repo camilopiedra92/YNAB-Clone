@@ -140,26 +140,28 @@ export default function Select({
                 aria-haspopup="listbox"
                 aria-controls={isOpen ? listboxId : undefined}
                 aria-activedescendant={highlightedIndex >= 0 ? `select-option-${highlightedIndex}` : undefined}
-                className={`w-full px-5 py-3.5 rounded-2xl
-          bg-background text-foreground font-bold text-sm
+                className={`w-full px-5 py-3.5 rounded-xl
+          text-gray-200 font-bold text-sm
           focus:outline-none
           disabled:opacity-50 disabled:cursor-not-allowed
           transition-all duration-300 flex items-center justify-between
-          ${isOpen ? 'shadow-neu-inset' : 'shadow-neu-sm hover:shadow-neu-md'}`}
+          ${isOpen
+                    ? 'glass-input border-primary/30'
+                    : 'glass-input hover:border-white/15'}`}
             >
-                <span className={selectedOption ? 'tracking-tight' : 'text-muted-foreground font-medium'}>
+                <span className={selectedOption ? 'tracking-tight' : 'text-gray-500 font-medium'}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
-                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-180 text-primary' : ''}`} aria-hidden="true" />
+                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180 text-primary' : ''}`} aria-hidden="true" />
             </button>
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-[110] w-full mt-3 bg-background rounded-2xl shadow-neu-lg max-h-72 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+                <div className="absolute z-[110] w-full mt-3 glass-panel-strong rounded-xl max-h-72 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
                     {searchable && (
                         <div className="p-3">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" aria-hidden="true" />
                                 <input
                                     type="text"
                                     value={searchTerm}
@@ -169,8 +171,8 @@ export default function Select({
                                     }}
                                     placeholder="Buscar..."
                                     aria-label="Buscar opciones"
-                                    className="w-full pl-10 pr-4 py-2 rounded-xl
-                    bg-background text-foreground text-xs font-bold shadow-neu-inset-sm
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg
+                    text-gray-200 text-xs font-bold glass-input
                     focus:outline-none"
                                     onClick={(e) => e.stopPropagation()}
                                 />
@@ -184,7 +186,7 @@ export default function Select({
                             return Object.entries(groupedOptions).map(([group, groupOptions]) => (
                                 <div key={group} role="group" aria-label={group !== 'default' ? group : undefined}>
                                     {group !== 'default' && (
-                                        <div className="px-5 py-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-muted/50 mb-1" role="presentation">
+                                        <div className="px-5 py-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1" role="presentation">
                                             {group}
                                         </div>
                                     )}
@@ -201,12 +203,12 @@ export default function Select({
                                                     role="option"
                                                     aria-selected={option.value === value}
                                                     onClick={() => handleSelect(option.value)}
-                                                    className={`w-full text-left px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-bold
+                                                    className={`w-full text-left px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-bold
                           ${option.value === value
-                                                            ? 'shadow-neu-inset bg-primary/10 text-primary'
+                                                            ? 'bg-primary/10 text-primary border border-primary/20'
                                                             : isHighlighted
-                                                                ? 'shadow-neu-sm bg-primary/5 text-foreground'
-                                                                : 'text-foreground hover:shadow-neu-sm'}`}
+                                                                ? 'bg-white/[0.06] text-white'
+                                                                : 'text-gray-300 hover:bg-white/[0.06]'}`}
                                                 >
                                                     {option.label}
                                                 </button>
@@ -217,7 +219,7 @@ export default function Select({
                             ));
                         })()}
                         {filteredOptions.length === 0 && (
-                            <div className="px-5 py-8 text-muted-foreground text-center text-xs font-bold uppercase tracking-widest opacity-50">
+                            <div className="px-5 py-8 text-gray-600 text-center text-xs font-bold uppercase tracking-widest opacity-50">
                                 Sin resultados
                             </div>
                         )}

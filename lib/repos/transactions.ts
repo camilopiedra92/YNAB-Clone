@@ -17,10 +17,7 @@ import type { DrizzleDB } from '../db/helpers';
 import { queryRows } from '../db/helpers';
 
 export interface TransactionRepoDeps {
-  updateAccountBalances: (budgetId: number, accountId: number) => Promise<unknown> | void;
-  updateBudgetActivity: (budgetId: number, categoryId: number, month: string) => Promise<unknown> | void;
-  isCreditCardAccount: (accountId: number) => Promise<boolean> | boolean;
-  updateCreditCardPaymentBudget: (budgetId: number, accountId: number, month: string) => Promise<unknown> | void;
+  updateAccountBalances: (budgetId: number, accountId: number) => Promise<{ accountType: string }>;
   reconcileAccount: (budgetId: number, accountId: number) => Promise<{ rowCount: number }>;
 }
 
@@ -250,12 +247,15 @@ export function createTransactionFunctions(
     memo?: string;
     cleared?: string;
   }) {
-    const fromAccountRows = await database.select({ name: accounts.name })
-      .from(accounts)
-      .where(and(eq(accounts.id, params.fromAccountId), eq(accounts.budgetId, budgetId)));
-    const toAccountRows = await database.select({ name: accounts.name })
-      .from(accounts)
-      .where(and(eq(accounts.id, params.toAccountId), eq(accounts.budgetId, budgetId)));
+    // Parallel: both account lookups are independent
+    const [fromAccountRows, toAccountRows] = await Promise.all([
+      database.select({ name: accounts.name })
+        .from(accounts)
+        .where(and(eq(accounts.id, params.fromAccountId), eq(accounts.budgetId, budgetId))),
+      database.select({ name: accounts.name })
+        .from(accounts)
+        .where(and(eq(accounts.id, params.toAccountId), eq(accounts.budgetId, budgetId))),
+    ]);
 
     const fromAccount = fromAccountRows[0];
     const toAccount = toAccountRows[0];
@@ -313,9 +313,11 @@ export function createTransactionFunctions(
       };
     });
 
-    // Update balances OUTSIDE the transaction to avoid PGlite single-connection deadlock
-    await deps.updateAccountBalances(budgetId, params.fromAccountId);
-    await deps.updateAccountBalances(budgetId, params.toAccountId);
+    // Parallel: both balance updates are independent
+    await Promise.all([
+      deps.updateAccountBalances(budgetId, params.fromAccountId),
+      deps.updateAccountBalances(budgetId, params.toAccountId),
+    ]);
 
     return result;
   }
@@ -334,12 +336,15 @@ export function createTransactionFunctions(
     const transfer = transferRows[0];
     if (!transfer) throw new Error('Transfer not found');
 
-    const fromTxRows = await database.select({ accountId: transactions.accountId })
-      .from(transactions)
-      .where(eq(transactions.id, transfer.fromTransactionId));
-    const toTxRows = await database.select({ accountId: transactions.accountId })
-      .from(transactions)
-      .where(eq(transactions.id, transfer.toTransactionId));
+    // Parallel: both account ID lookups are independent
+    const [fromTxRows, toTxRows] = await Promise.all([
+      database.select({ accountId: transactions.accountId })
+        .from(transactions)
+        .where(eq(transactions.id, transfer.fromTransactionId)),
+      database.select({ accountId: transactions.accountId })
+        .from(transactions)
+        .where(eq(transactions.id, transfer.toTransactionId)),
+    ]);
 
     const fromAccountId = fromTxRows[0]!.accountId;
     const toAccountId = toTxRows[0]!.accountId;
@@ -350,9 +355,11 @@ export function createTransactionFunctions(
       await tx.delete(transactions).where(eq(transactions.id, transfer.toTransactionId));
     });
 
-    // Update balances OUTSIDE the transaction to avoid PGlite deadlock
-    await deps.updateAccountBalances(budgetId, fromAccountId);
-    await deps.updateAccountBalances(budgetId, toAccountId);
+    // Parallel: both balance updates are independent
+    await Promise.all([
+      deps.updateAccountBalances(budgetId, fromAccountId),
+      deps.updateAccountBalances(budgetId, toAccountId),
+    ]);
 
     return { fromAccountId, toAccountId };
   }
@@ -371,7 +378,7 @@ export function createTransactionFunctions(
     cleared?: string;
     flag?: string;
   }) {
-    // Sequential execution — no transaction wrapper to avoid PGlite deadlock
+    // Sequential: must create the transaction first
     const result = await createTransaction(budgetId, {
       accountId: data.accountId,
       date: data.date,
@@ -384,19 +391,10 @@ export function createTransactionFunctions(
       flag: data.flag ?? undefined,
     });
 
-    await deps.updateAccountBalances(budgetId, data.accountId);
+    // Side-effect: update account balance (returns account type for caller info)
+    const { accountType } = await deps.updateAccountBalances(budgetId, data.accountId);
 
-    if (data.categoryId) {
-      const month = data.date.substring(0, 7);
-      await deps.updateBudgetActivity(budgetId, data.categoryId, month);
-    }
-
-    if (await deps.isCreditCardAccount(data.accountId)) {
-      const month = data.date.substring(0, 7);
-      await deps.updateCreditCardPaymentBudget(budgetId, data.accountId, month);
-    }
-
-    return result;
+    return { ...result, accountType };
   }
 
   async function updateTransactionAtomic(
@@ -408,46 +406,19 @@ export function createTransactionFunctions(
       outflow: number; inflow: number; cleared: string; flag: string | null;
     }>,
   ) {
-    // Sequential execution — no transaction wrapper to avoid PGlite deadlock
+    // Sequential: must update the transaction first
     await updateTransaction(budgetId, id, updates);
 
+    // Side-effect: update account balance
     await deps.updateAccountBalances(budgetId, original.accountId);
-
-    const oldMonth = original.date.substring(0, 7);
-    const newMonth = (updates.date || original.date).substring(0, 7);
-
-    if (original.categoryId) {
-      await deps.updateBudgetActivity(budgetId, original.categoryId, oldMonth);
-    }
-    if (updates.categoryId !== undefined && updates.categoryId !== null) {
-      await deps.updateBudgetActivity(budgetId, updates.categoryId, newMonth);
-    } else if (original.categoryId && oldMonth !== newMonth) {
-      await deps.updateBudgetActivity(budgetId, original.categoryId, newMonth);
-    }
-
-    if (await deps.isCreditCardAccount(original.accountId)) {
-      await deps.updateCreditCardPaymentBudget(budgetId, original.accountId, oldMonth);
-      if (oldMonth !== newMonth) {
-        await deps.updateCreditCardPaymentBudget(budgetId, original.accountId, newMonth);
-      }
-    }
   }
 
   async function deleteTransactionAtomic(budgetId: number, txn: TransactionRow) {
-    // Sequential execution — no transaction wrapper to avoid PGlite deadlock
+    // Sequential: must delete the transaction first
     await deleteTransaction(budgetId, txn.id);
 
+    // Side-effect: update account balance
     await deps.updateAccountBalances(budgetId, txn.accountId);
-
-    if (txn.categoryId) {
-      const month = txn.date.substring(0, 7);
-      await deps.updateBudgetActivity(budgetId, txn.categoryId, month);
-    }
-
-    if (await deps.isCreditCardAccount(txn.accountId)) {
-      const month = txn.date.substring(0, 7);
-      await deps.updateCreditCardPaymentBudget(budgetId, txn.accountId, month);
-    }
   }
 
   async function toggleClearedAtomic(budgetId: number, id: number, accountId: number) {

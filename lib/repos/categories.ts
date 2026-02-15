@@ -70,30 +70,59 @@ export function createCategoryFunctions(database: DrizzleDB) {
   }
 
   async function updateCategoryGroupOrder(budgetId: number, groups: { id: number; sortOrder: number }[]) {
-    return database.transaction(async (tx) => {
-      for (const group of groups) {
-        await tx.update(categoryGroups)
-          .set({ sortOrder: group.sortOrder })
-          .where(and(eq(categoryGroups.id, group.id), eq(categoryGroups.budgetId, budgetId)));
-      }
-    });
+    if (groups.length === 0) return;
+    const ids = groups.map(g => g.id);
+    const sortCases = sql.join(
+      groups.map(g => sql`WHEN ${g.id} THEN ${g.sortOrder}::integer`),
+      sql` `,
+    );
+    await database.execute(sql`
+      UPDATE ${categoryGroups}
+      SET sort_order = CASE id ${sortCases} END
+      WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+        AND ${categoryGroups.budgetId} = ${budgetId}
+    `);
   }
 
   async function updateCategoryOrder(budgetId: number, cats: { id: number; sortOrder: number; categoryGroupId?: number }[]) {
-    return database.transaction(async (tx) => {
-      for (const cat of cats) {
-        const updates: Partial<typeof categories.$inferInsert> = { sortOrder: cat.sortOrder };
-        if (cat.categoryGroupId !== undefined) {
-          updates.categoryGroupId = cat.categoryGroupId;
-        }
-        await tx.update(categories)
-          .set(updates)
-          .where(and(
-            eq(categories.id, cat.id),
-            sql`${categories.categoryGroupId} IN (SELECT ${categoryGroups.id} FROM ${categoryGroups} WHERE ${categoryGroups.budgetId} = ${budgetId})`
-          ));
-      }
-    });
+    if (cats.length === 0) return;
+    const ids = cats.map(c => c.id);
+    const sortCases = sql.join(
+      cats.map(c => sql`WHEN ${c.id} THEN ${c.sortOrder}::integer`),
+      sql` `,
+    );
+    const hasGroupUpdates = cats.some(c => c.categoryGroupId !== undefined);
+
+    if (hasGroupUpdates) {
+      // Build CASE for categoryGroupId — only update rows that have a new group
+      const groupCases = sql.join(
+        cats.map(c => c.categoryGroupId !== undefined
+          ? sql`WHEN ${c.id} THEN ${c.categoryGroupId}::integer`
+          : sql`WHEN ${c.id} THEN category_group_id`  // keep current value
+        ),
+        sql` `,
+      );
+      await database.execute(sql`
+        UPDATE ${categories}
+        SET sort_order = CASE id ${sortCases} END,
+            category_group_id = CASE id ${groupCases} END
+        WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+          AND ${categories.categoryGroupId} IN (
+            SELECT ${categoryGroups.id} FROM ${categoryGroups} 
+            WHERE ${categoryGroups.budgetId} = ${budgetId}
+          )
+      `);
+    } else {
+      await database.execute(sql`
+        UPDATE ${categories}
+        SET sort_order = CASE id ${sortCases} END
+        WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+          AND ${categories.categoryGroupId} IN (
+            SELECT ${categoryGroups.id} FROM ${categoryGroups} 
+            WHERE ${categoryGroups.budgetId} = ${budgetId}
+          )
+      `);
+    }
   }
 
   async function createCategoryGroup(name: string, budgetId?: number) {

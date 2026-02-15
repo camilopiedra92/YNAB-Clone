@@ -42,7 +42,6 @@ const groupIcons: Record<string, typeof Landmark> = {
 
 
 
-
 export default function Sidebar() {
     const pathname = usePathname();
     const params = useParams();
@@ -120,28 +119,15 @@ export default function Sidebar() {
 
     return (
         <>
-            <aside aria-label={t('mainNav')} className="fixed left-0 top-0 bottom-0 w-[272px] flex flex-col z-50 hidden lg:flex"
-                style={{
-                    background: 'hsl(222 35% 18%)',
-                }}
+            <aside aria-label={t('mainNav')} className="w-[240px] min-w-[240px] xl:w-[280px] xl:min-w-[280px] flex flex-col z-50 hidden lg:flex glass-panel rounded-xl overflow-hidden"
             >
                 {/* Budget Selection Header */}
                 <div className="relative p-4 pb-3">
                     <div 
-                        className="flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer group transition-all duration-300 hover:bg-white/[0.03]"
+                        className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer group transition-all duration-200 hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08]"
                         onClick={() => setIsBudgetSelectorOpen(!isBudgetSelectorOpen)}
-                        style={{
-                            boxShadow: isBudgetSelectorOpen 
-                                ? 'inset 3px 3px 8px 0 rgba(0,0,0,0.3), inset -3px -3px 8px 0 rgba(255,255,255,0.04)'
-                                : '3px 3px 8px 0 rgba(0,0,0,0.3), -3px -3px 8px 0 rgba(255,255,255,0.04)',
-                        }}
                     >
-                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                            style={{
-                                background: 'hsl(216 45% 58%)',
-                                boxShadow: '3px 3px 8px 0 rgba(0,0,0,0.25), -3px -3px 8px 0 rgba(255,255,255,0.04)',
-                            }}
-                        >
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary to-purple-600 shadow-lg shadow-primary/20">
                             <Wallet className="w-5 h-5 text-white" />
                         </div>
                         <div className="overflow-hidden flex-1 min-w-0">
@@ -157,9 +143,9 @@ export default function Sidebar() {
 
                     {/* Budget Dropdown */}
                     {isBudgetSelectorOpen && (
-                        <div className="absolute left-4 right-4 top-[calc(100%-8px)] z-[60] py-2 rounded-2xl bg-[#2a3042] shadow-[8px_8px_24px_rgba(0,0,0,0.5)] border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute left-4 right-4 top-[calc(100%-8px)] z-[60] py-2 rounded-xl glass-panel-strong animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="px-2 pb-2 mb-1 border-b border-white/5">
-                                <p className="px-3 py-1 text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">{t('selectBudget')}</p>
+                                <p className="px-3 py-1 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">{t('selectBudget')}</p>
                                 {budgets.filter(b => b.id !== budgetId).map(budget => (
                                     <button
                                         key={budget.id}
@@ -167,7 +153,7 @@ export default function Sidebar() {
                                             setIsBudgetSelectorOpen(false);
                                             router.push(`/budgets/${budget.id}/budget`);
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-white/70 hover:text-white transition-all text-left group"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.08] text-[13px] text-white/70 hover:text-white transition-all text-left group"
                                     >
                                         <Wallet className="w-4 h-4 text-white/20 group-hover:text-primary-300" />
                                         <span className="truncate">{budget.name}</span>
@@ -179,7 +165,7 @@ export default function Sidebar() {
                                     setIsBudgetSelectorOpen(false);
                                     router.push('/budgets/new');
                                 }}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-primary-300 font-semibold transition-all text-left"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.08] text-[13px] text-primary-300 font-semibold transition-all text-left"
                             >
                                 <PlusCircle className="w-4 h-4" />
                                 <span>{t('newBudget')}</span>
@@ -190,7 +176,7 @@ export default function Sidebar() {
                                     setIsImportOpen(true);
                                 }}
                                 data-testid="sidebar-import-data"
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-emerald-300/80 font-semibold transition-all text-left"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.08] text-[13px] text-emerald-300/80 font-semibold transition-all text-left"
                             >
                                 <Upload className="w-4 h-4" />
                                 <span>{t('importData')}</span>
@@ -200,7 +186,7 @@ export default function Sidebar() {
                                     setIsBudgetSelectorOpen(false);
                                     router.push('/budgets');
                                 }}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-[13px] text-white/40 hover:text-white transition-all text-left"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.08] text-[13px] text-white/40 hover:text-white transition-all text-left"
                             >
                                 <Settings className="w-4 h-4" />
                                 <span>{t('manageAll')}</span>
@@ -220,7 +206,7 @@ export default function Sidebar() {
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar py-4 px-3 space-y-1 relative">
                     {/* Main Navigation */}
-                    <nav className="space-y-1.5 mb-6">
+                    <nav className="space-y-1 mb-6">
                         {[
                             { id: 'dashboard', name: t('dashboard'), href: `/budgets/${budgetId}/dashboard`, icon: LayoutDashboard },
                             { id: 'plan', name: t('plan'), href: `/budgets/${budgetId}/budget`, icon: LayoutDashboard },
@@ -234,38 +220,23 @@ export default function Sidebar() {
                                     key={item.id}
                                     href={item.href}
                                     data-testid={`sidebar-nav-${item.id}`}
-                                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 group`}
-                                    style={isActive ? {
-                                        boxShadow: 'inset 3px 3px 6px 0 rgba(0,0,0,0.35), inset -3px -3px 6px 0 rgba(255,255,255,0.04)',
-                                        color: 'white',
-                                    } : undefined}
-                                    onMouseEnter={(e) => {
-                                        if (!isActive) {
-                                            e.currentTarget.style.boxShadow = '3px 3px 8px 0 rgba(0,0,0,0.25), -3px -3px 8px 0 rgba(255,255,255,0.03)';
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (!isActive) {
-                                            e.currentTarget.style.boxShadow = 'none';
-                                        }
-                                    }}
+                                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                                        isActive
+                                            ? 'bg-primary/10 border border-primary/20 text-white'
+                                            : 'text-white/40 hover:bg-white/5 hover:text-white border border-transparent'
+                                    }`}
                                 >
-                                    {/* Active left indicator */}
                                     {isActive && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary-400"
-                                            style={{
-                                                boxShadow: '0 0 8px hsla(216, 33%, 60%, 0.4)',
-                                            }}
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
+                                            style={{ boxShadow: '0 0 8px rgba(19, 127, 236, 0.5)' }}
                                         />
                                     )}
-                                    <Icon className={`w-[18px] h-[18px] relative z-10 transition-colors ${isActive
-                                        ? 'text-primary-300'
-                                        : 'text-white/40 group-hover:text-white/60'
-                                        }`}
+                                    <Icon className={`w-[18px] h-[18px] transition-colors ${isActive
+                                        ? 'text-primary text-glow-primary'
+                                        : 'group-hover:text-primary'
+                                    }`}
                                     />
-                                    <span className={`relative z-10 ${isActive ? 'font-semibold text-white' : 'text-white/50 group-hover:text-white/80'}`}>
-                                        {item.name}
-                                    </span>
+                                    <span className={isActive ? 'font-semibold' : ''}>{item.name}</span>
                                 </Link>
                             );
                         })}
@@ -273,6 +244,9 @@ export default function Sidebar() {
 
                     {/* Accounts Sections */}
                     <div className="space-y-3">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest px-3 mb-4">
+                            {tc('accounts') || 'Accounts'}
+                        </h3>
                         {groups.map((group) => {
                             const accs = groupedAccounts[group] || [];
                             const isExpanded = expandedSections[group];
@@ -283,16 +257,10 @@ export default function Sidebar() {
                                 <div key={group}>
                                     {/* Section Header */}
                                     <button
-                                        className="w-full flex items-center justify-between px-3 py-2 group/btn rounded-lg transition-all duration-200"
+                                        className="w-full flex items-center justify-between px-3 py-2 group/btn rounded-lg transition-all duration-200 hover:bg-white/[0.04]"
                                         onClick={() => toggleSection(group)}
                                         aria-expanded={isExpanded}
                                         aria-label={t('accountCount', { group, count: accs.length })}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.boxShadow = '2px 2px 6px 0 rgba(0,0,0,0.2), -2px -2px 6px 0 rgba(255,255,255,0.02)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.boxShadow = 'none';
-                                        }}
                                     >
                                         <div className="flex items-center gap-2">
                                             <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}>
@@ -305,7 +273,7 @@ export default function Sidebar() {
                                         </div>
                                         {accs.length > 0 && (
                                             <span className={`text-[11px] font-medium tabular-nums transition-colors ${groupTotal < 0
-                                                ? 'text-rose-400/80'
+                                                ? 'text-red-400/80'
                                                 : 'text-white/30 group-hover/btn:text-white/45'
                                                 }`}>
                                                 {formatCurrency(groupTotal)}
@@ -330,30 +298,17 @@ export default function Sidebar() {
                                                             href={`/budgets/${budgetId}/accounts/${account.id}`}
                                                             data-testid={`sidebar-account-${account.id}`}
                                                             className={`relative flex items-center justify-between pl-8 pr-3 py-[7px] rounded-lg text-[13px] group/item transition-all duration-200 ${isAccountActive
-                                                                ? 'text-white'
-                                                                : 'text-white/55 hover:text-white/80'
+                                                                ? 'text-white bg-white/[0.06]'
+                                                                : 'text-white/55 hover:text-white/80 hover:bg-white/[0.04]'
                                                                 }`}
-                                                            style={isAccountActive ? {
-                                                                boxShadow: 'inset 2px 2px 5px 0 rgba(0,0,0,0.3), inset -2px -2px 5px 0 rgba(255,255,255,0.03)',
-                                                            } : undefined}
-                                                            onMouseEnter={(e) => {
-                                                                if (!isAccountActive) {
-                                                                    e.currentTarget.style.boxShadow = '2px 2px 5px 0 rgba(0,0,0,0.2), -2px -2px 5px 0 rgba(255,255,255,0.02)';
-                                                                }
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (!isAccountActive) {
-                                                                    e.currentTarget.style.boxShadow = 'none';
-                                                                }
-                                                            }}
                                                         >
                                                             <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
                                                                 {/* Dot indicator / Edit pencil on hover */}
                                                                 <div className="relative w-[14px] h-[14px] shrink-0 flex items-center justify-center">
                                                                     <div className={`w-[6px] h-[6px] rounded-full transition-all duration-150 group-hover/item:opacity-0 ${isAccountActive ? 'scale-110' : ''
                                                                         } ${account.balance < 0
-                                                                            ? 'bg-rose-400 shadow-[0_0_6px_hsla(350,89%,60%,0.4)]'
-                                                                            : 'bg-emerald-400/70'
+                                                                            ? 'bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]'
+                                                                            : 'bg-green-400/70'
                                                                         }`}
                                                                     />
                                                                     <button
@@ -369,11 +324,11 @@ export default function Sidebar() {
                                                                     {account.name}
                                                                 </span>
                                                             </div>
-                                                            <span className={`text-[11px] font-medium tabular-nums shrink-0 ml-2 transition-colors ${account.balance < 0
-                                                                ? 'text-rose-400/90'
+                                                            <span className={`text-[11px] font-bold tabular-nums shrink-0 ml-2 transition-colors ${account.balance < 0
+                                                                ? 'text-red-400 text-glow-red'
                                                                 : isAccountActive
-                                                                    ? 'text-white/60'
-                                                                    : 'text-white/30 group-hover/item:text-white/50'
+                                                                    ? 'text-green-400 text-glow-green'
+                                                                    : 'text-green-400/70'
                                                                 }`}>
                                                                 {formatCurrency(account.balance)}
                                                             </span>
@@ -394,36 +349,18 @@ export default function Sidebar() {
                     {/* Top divider */}
                     <div className="mx-2 h-px bg-white/[0.06] mb-2" />
 
-                    <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-300 group mb-2 text-primary-300/80"
-                        style={{
-                            boxShadow: '3px 3px 8px 0 rgba(0,0,0,0.25), -3px -3px 8px 0 rgba(255,255,255,0.03)',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.boxShadow = '4px 4px 10px 0 rgba(0,0,0,0.3), -4px -4px 10px 0 rgba(255,255,255,0.04)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.boxShadow = '3px 3px 8px 0 rgba(0,0,0,0.25), -3px -3px 8px 0 rgba(255,255,255,0.03)';
-                        }}
-                        onMouseDown={(e) => {
-                            e.currentTarget.style.boxShadow = 'inset 2px 2px 5px 0 rgba(0,0,0,0.3), inset -2px -2px 5px 0 rgba(255,255,255,0.02)';
-                        }}
-                        onMouseUp={(e) => {
-                            e.currentTarget.style.boxShadow = '4px 4px 10px 0 rgba(0,0,0,0.3), -4px -4px 10px 0 rgba(255,255,255,0.04)';
-                        }}
+                    <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group mb-2 text-primary/80 hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20"
                         onClick={() => budgetId && setIsCreatingAccount(true)}
                         disabled={!budgetId}
                     >
-                        <PlusCircle className="w-4 h-4 text-primary-300/80" />
+                        <PlusCircle className="w-4 h-4" />
                         <span>{t('addAccount')}</span>
                     </button>
 
                     <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-1">
                             <div className="p-2 rounded-lg">
-                                <span className="w-7 h-7 rounded-full bg-primary-500 flex items-center justify-center text-[11px] font-bold text-white"
-                                    style={{
-                                        boxShadow: '2px 2px 5px 0 rgba(0,0,0,0.3), -2px -2px 5px 0 rgba(255,255,255,0.03)',
-                                    }}
+                                <span className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-[11px] font-bold text-white shadow-glass-glow-primary"
                                     title={userName}
                                 >
                                     {userInitial}
@@ -434,7 +371,7 @@ export default function Sidebar() {
                         <div className="flex items-center gap-0.5">
                             <FeedbackButton />
                             <button
-                                className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
+                                className="p-2 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.05] transition-all duration-200"
                                 title="Settings"
                                 aria-label={t('settings')}
                                 onClick={() => setIsProfileOpen(true)}
@@ -443,7 +380,7 @@ export default function Sidebar() {
                                 <Settings className="w-[15px] h-[15px]" aria-hidden="true" />
                             </button>
                             <button
-                                className="p-2 rounded-lg text-white/25 hover:text-white/45 transition-all duration-200"
+                                className="p-2 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.05] transition-all duration-200"
                                 title={t('signOut')}
                                 aria-label={t('signOut')}
                                 onClick={() => signOut({ callbackUrl: '/auth/login' })}

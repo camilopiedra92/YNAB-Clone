@@ -12,7 +12,7 @@ interface SortableRowProps extends Omit<React.HTMLAttributes<HTMLTableRowElement
     disabled?: boolean;
 }
 
-export function SortableRow({ id, children, className, type, disabled, ...rest }: SortableRowProps) {
+export function SortableRow({ id, children, className, type, disabled, style: externalStyle, ...rest }: SortableRowProps) {
     const {
         attributes,
         listeners,
@@ -23,6 +23,7 @@ export function SortableRow({ id, children, className, type, disabled, ...rest }
     } = useSortable({ id, data: { type }, disabled });
 
     const style = {
+        ...externalStyle,
         transform: CSS.Translate.toString(transform),
         transition,
         zIndex: isDragging ? 50 : undefined,

@@ -47,6 +47,21 @@ export default function BudgetPage() {
     const [assignEditValue, setAssignEditValue] = useState('');
     const assignEditingIdRef = useRef<number | null>(null);
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
+    const theadRef = useRef<HTMLTableSectionElement>(null);
+
+    // Measure thead height dynamically for sticky group row positioning
+    useEffect(() => {
+        const thead = theadRef.current;
+        const container = tableContainerRef.current;
+        if (!thead || !container) return;
+        const update = () => {
+            container.style.setProperty('--thead-height', `${thead.offsetHeight}px`);
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(thead);
+        return () => ro.disconnect();
+    }, []);
 
     // Derived state for rendering
     const sortedGroups = useMemo(() => {
@@ -231,7 +246,7 @@ export default function BudgetPage() {
 
     return (
         <AppLayout>
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full gap-2">
                 <BudgetHeader
                     currentMonth={currentMonth}
                     onNavigateMonth={navigateMonth}
@@ -243,16 +258,17 @@ export default function BudgetPage() {
                     maxMonth={monthRange?.maxMonth}
                 />
 
-                <BudgetToolbar
-                    budgetId={budgetId!}
-                />
-
                 {/* Main Table Content + Inspector */}
-                <div className="flex-1 flex gap-0 min-h-0">
-                    <div
-                        ref={tableContainerRef}
-                        className={`flex-1 min-w-0 h-full overflow-auto custom-scrollbar transition-opacity duration-200 ${(isMonthTransitioning || isFetching) ? 'opacity-60' : 'opacity-100'}`}
-                    >
+                <div className="flex-1 flex gap-2 min-h-0">
+                    {/* Budget Table Glass Panel — contained with clear boundary */}
+                    <div className="flex-1 glass-panel rounded-xl flex flex-col min-w-0 overflow-hidden">
+                        <BudgetToolbar
+                            budgetId={budgetId!}
+                        />
+                        <div
+                            ref={tableContainerRef}
+                            className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-200 pb-4 ${(isMonthTransitioning || isFetching) ? 'opacity-60' : 'opacity-100'}`}
+                        >
                         <BudgetDndProvider
                             budgetData={budgetData}
                             sortedGroups={sortedGroups}
@@ -265,14 +281,10 @@ export default function BudgetPage() {
                             tableContainerRef={tableContainerRef}
                             formatCurrency={formatCurrency}
                         >
-                            <table data-testid="budget-table" className="w-full border-collapse">
-                                <thead className="sticky top-0 bg-background z-10"
-                                    style={{
-                                        boxShadow: '0 3px 8px 0 var(--neu-dark)',
-                                    }}
-                                >
-                                    <tr className="border-b border-border uppercase tracking-widest text-muted-foreground text-[10px] font-bold">
-                                        <th className="py-1 px-4 border-b border-border w-12">
+                            <table data-testid="budget-table" className="w-full border-separate border-spacing-0">
+                                <thead ref={theadRef} className="sticky top-0 z-10 bg-[#1a1d2e]">
+                                    <tr className="uppercase tracking-wider text-gray-400 text-xs font-semibold">
+                                        <th className="py-3 px-4 w-12 border-b border-white/10">
                                             <div className="flex items-center justify-center">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-8"></div>
@@ -289,7 +301,7 @@ export default function BudgetPage() {
                                                 </div>
                                             </div>
                                         </th>
-                                        <th className="text-left py-0.5 px-2 font-black border-b border-border">
+                                        <th className="text-left py-3 px-2 border-b border-white/10">
                                             <div className="flex items-center gap-3">
                                                 <button
                                                     onClick={toggleAllGroups}
@@ -306,24 +318,24 @@ export default function BudgetPage() {
                                                 <span>{t('category')}</span>
                                             </div>
                                         </th>
-                                        <th className="text-right py-0.5 px-4 font-black border-b border-border w-[15%]">
+                                        <th className="text-right py-3 px-4 w-[15%] border-b border-white/10">
                                             <div className="flex justify-end">
                                                 <div className="min-w-[110px] px-3 text-right">{t('assigned')}</div>
                                             </div>
                                         </th>
-                                        <th className="text-right py-1 px-4 font-black border-b border-border w-[15%]">
+                                        <th className="text-right py-3 px-4 w-[15%] border-b border-white/10">
                                             <div className="flex justify-end">
                                                 <div className="min-w-[110px] px-3 text-right">{t('activity')}</div>
                                             </div>
                                         </th>
-                                        <th className="text-right py-0.5 px-4 font-black border-b border-border w-[15%]">
+                                        <th className="text-right py-3 px-4 w-[15%] border-b border-white/10">
                                             <div className="flex justify-end">
                                                 <div className="min-w-[110px] px-3 text-right">{t('available')}</div>
                                             </div>
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border">
+                                <tbody>
                                     <SortableContext items={sortedGroups.map(g => `group-${g.id}`)} strategy={verticalListSortingStrategy}>
                                         {sortedGroups.map((group) => {
                                             const defaultExpanded = !group.hidden;
@@ -390,14 +402,18 @@ export default function BudgetPage() {
                                 </tbody>
                             </table>
                         </BudgetDndProvider>
+                        </div>
                     </div>
-                    {/* Inspector Panel */}
-                    <div className="h-full overflow-y-auto custom-scrollbar border-l border-border/30">
-                        <BudgetInspector
-                            data={inspectorData}
-                            currentMonth={currentMonth}
-                            formatCurrency={formatCurrency}
-                        />
+
+                    {/* Inspector Glass Panel — contained with clear boundary */}
+                    <div className="w-[300px] xl:w-[380px] glass-panel rounded-xl overflow-hidden flex flex-col min-h-0 shrink-0">
+                        <div className="overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                            <BudgetInspector
+                                data={inspectorData}
+                                currentMonth={currentMonth}
+                                formatCurrency={formatCurrency}
+                            />
+                        </div>
                     </div>
                 </div>
 
